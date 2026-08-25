@@ -1,0 +1,23 @@
+{
+  "schema_version":"1.0.0",
+  "relationship_semantics":"REFERENCE_SCOPE_ONLY_NOT_A_PRESCRIBING_RECOMMENDATION",
+  "records":[
+    {"id":"DS-AMOX-CATTLE","drug_id":"DRUG-AMOXICILLIN","species_id":"SP-BOS-TAURUS","status":"SUPPORTED_BY_REFERENCE","source_ids":["SRC-FSSAI-CTR-2025","SRC-EU-UPD-LAMOXSAN"]},
+    {"id":"DS-AMOX-BUFFALO","drug_id":"DRUG-AMOXICILLIN","species_id":"SP-BUBALUS-BUBALIS","status":"REVIEW_REQUIRED","source_ids":["SRC-GAZETTE-GSR28-2012"]},
+    {"id":"DS-AMP-CATTLE","drug_id":"DRUG-AMPICILLIN","species_id":"SP-BOS-TAURUS","status":"SUPPORTED_BY_REFERENCE","source_ids":["SRC-FSSAI-CTR-2025"]},
+    {"id":"DS-AMP-BUFFALO","drug_id":"DRUG-AMPICILLIN","species_id":"SP-BUBALUS-BUBALIS","status":"REVIEW_REQUIRED","source_ids":["SRC-GAZETTE-GSR28-2012"]},
+    {"id":"DS-PEN-CATTLE","drug_id":"DRUG-BENZYLPENICILLIN","species_id":"SP-BOS-TAURUS","status":"CLINICAL_CONTEXT_ONLY","source_ids":["SRC-DAHD-SVTG-2024"]},
+    {"id":"DS-PEN-BUFFALO","drug_id":"DRUG-BENZYLPENICILLIN","species_id":"SP-BUBALUS-BUBALIS","status":"REVIEW_REQUIRED","source_ids":["SRC-DAHD-SVTG-2024"]},
+    {"id":"DS-OXY-CATTLE","drug_id":"DRUG-OXYTETRACYCLINE","species_id":"SP-BOS-TAURUS","status":"SUPPORTED_BY_REFERENCE","source_ids":["SRC-EU-UPD-OXTRA"]},
+    {"id":"DS-OXY-BUFFALO","drug_id":"DRUG-OXYTETRACYCLINE","species_id":"SP-BUBALUS-BUBALIS","status":"REVIEW_REQUIRED","source_ids":["SRC-GAZETTE-GSR28-2012"]},
+    {"id":"DS-CEFT-CATTLE","drug_id":"DRUG-CEFTIOFUR","species_id":"SP-BOS-TAURUS","status":"SUPPORTED_BY_REFERENCE","source_ids":["SRC-FSSAI-CTR-2025","SRC-EU-UPD-CEFTIOSAN"]},
+    {"id":"DS-CEFT-BUFFALO","drug_id":"DRUG-CEFTIOFUR","species_id":"SP-BUBALUS-BUBALIS","status":"REVIEW_REQUIRED","source_ids":["SRC-GAZETTE-GSR28-2012"]},
+    {"id":"DS-CEFAP-CATTLE","drug_id":"DRUG-CEFAPIRIN","species_id":"SP-BOS-TAURUS","status":"SUPPORTED_BY_REFERENCE","source_ids":["SRC-FSSAI-CTR-2025"]},
+    {"id":"DS-CEFAP-BUFFALO","drug_id":"DRUG-CEFAPIRIN","species_id":"SP-BUBALUS-BUBALIS","status":"REVIEW_REQUIRED","source_ids":["SRC-GAZETTE-GSR28-2012"]},
+    {"id":"DS-ENRO-CATTLE","drug_id":"DRUG-ENROFLOXACIN","species_id":"SP-BOS-TAURUS","status":"CLINICAL_CONTEXT_ONLY_HIGH_STEWARDSHIP_PRIORITY","source_ids":["SRC-DAHD-SVTG-2024","SRC-WOAH-TAHC-6.10"]},
+    {"id":"DS-ENRO-BUFFALO","drug_id":"DRUG-ENROFLOXACIN","species_id":"SP-BUBALUS-BUBALIS","status":"REVIEW_REQUIRED","source_ids":["SRC-WOAH-TAHC-6.10"]},
+    {"id":"DS-SULFA-CATTLE","drug_id":"DRUG-SULFADIMIDINE","species_id":"SP-BOS-TAURUS","status":"SUPPORTED_BY_REFERENCE","source_ids":["SRC-FSSAI-CTR-2025"]},
+    {"id":"DS-SULFA-BUFFALO","drug_id":"DRUG-SULFADIMIDINE","species_id":"SP-BUBALUS-BUBALIS","status":"REVIEW_REQUIRED","source_ids":["SRC-GAZETTE-GSR28-2012"]}
+  ]
+}
+

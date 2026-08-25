@@ -1,0 +1,8 @@
+{
+  "schema_version":"1.0.0",
+  "records":[
+    {"id":"SP-BOS-TAURUS","canonical_name":"Cattle","scientific_name":"Bos taurus","aliases":["cow","dairy cattle","bovine cattle"],"mvp":true,"milk_production_share_india_2024_25_percent":53.53,"verification_status":"VERIFIED","source_ids":["SRC-DAHD-BAHS-2025"]},
+    {"id":"SP-BUBALUS-BUBALIS","canonical_name":"Domestic water buffalo","scientific_name":"Bubalus bubalis","aliases":["buffalo","dairy buffalo"],"mvp":true,"milk_production_share_india_2024_25_percent":43.15,"verification_status":"VERIFIED","source_ids":["SRC-DAHD-BAHS-2025"],"limitations":"Never inherit cattle withdrawal rules without explicit authoritative applicability."}
+  ]
+}
+

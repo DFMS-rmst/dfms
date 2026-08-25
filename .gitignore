@@ -1,0 +1,37 @@
+# Local secrets and environment overrides
+.env
+.env.*
+!.env.example
+
+# Dependencies and generated output
+node_modules/
+dist/
+build/
+coverage/
+.cache/
+.vite/
+
+# Logs and runtime files
+*.log
+logs/
+*.pid
+
+# Test and tool output
+.nyc_output/
+playwright-report/
+test-results/
+
+# IDE and operating-system files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Local databases, uploads, and blockchain state
+*.sqlite
+*.sqlite3
+uploads/
+artifacts/
+cache/
+typechain-types/
+

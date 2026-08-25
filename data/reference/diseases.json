@@ -1,0 +1,12 @@
+{
+  "schema_version":"1.0.0",
+  "records":[
+    {"id":"COND-MASTITIS-CLINICAL","canonical_name":"Clinical bovine mastitis","species_ids":["SP-BOS-TAURUS","SP-BUBALUS-BUBALIS"],"body_system":"MAMMARY","antimicrobial_relevance":"VETERINARIAN_ASSESSMENT","mvp_demo":true,"source_ids":["SRC-DAHD-SVTG-2024"]},
+    {"id":"COND-METRITIS","canonical_name":"Postpartum metritis or endometritis","species_ids":["SP-BOS-TAURUS","SP-BUBALUS-BUBALIS"],"body_system":"REPRODUCTIVE","antimicrobial_relevance":"VETERINARIAN_ASSESSMENT","mvp_demo":false,"source_ids":["SRC-DAHD-SVTG-2024"]},
+    {"id":"COND-BRD","canonical_name":"Bovine bacterial respiratory disease or pneumonia","species_ids":["SP-BOS-TAURUS","SP-BUBALUS-BUBALIS"],"body_system":"RESPIRATORY","antimicrobial_relevance":"VETERINARIAN_ASSESSMENT","mvp_demo":true,"source_ids":["SRC-DAHD-SVTG-2024"]},
+    {"id":"COND-FOOTROT","canonical_name":"Interdigital necrobacillosis (foot rot)","species_ids":["SP-BOS-TAURUS","SP-BUBALUS-BUBALIS"],"body_system":"MUSCULOSKELETAL_INTEGUMENT","antimicrobial_relevance":"VETERINARIAN_ASSESSMENT","mvp_demo":false,"source_ids":["SRC-DAHD-SVTG-2024"]},
+    {"id":"COND-HS","canonical_name":"Haemorrhagic septicaemia","species_ids":["SP-BOS-TAURUS","SP-BUBALUS-BUBALIS"],"body_system":"SYSTEMIC_RESPIRATORY","antimicrobial_relevance":"URGENT_VETERINARIAN_ASSESSMENT","mvp_demo":false,"source_ids":["SRC-DAHD-SVTG-2024"]},
+    {"id":"COND-CALF-ENTERIC","canonical_name":"Calf bacterial enteritis or septicaemia","species_ids":["SP-BOS-TAURUS","SP-BUBALUS-BUBALIS"],"body_system":"GASTROINTESTINAL_SYSTEMIC","antimicrobial_relevance":"ONLY_WHEN_BACTERIAL_OR_SYSTEMIC_INVOLVEMENT_ASSESSED","mvp_demo":false,"source_ids":["SRC-DAHD-SVTG-2024"]}
+  ]
+}
+

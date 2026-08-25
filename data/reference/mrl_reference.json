@@ -1,0 +1,11 @@
+{
+  "schema_version":"1.0.0",
+  "usage_constraint":"REFERENCE_ONLY_NO_MEASUREMENT_AND_NO_WITHDRAWAL_DERIVATION",
+  "records":[
+    {"id":"MRL-IN-AMPICILLIN-MILK","drug_id":"DRUG-AMPICILLIN","source_name":"Ampicillin","species_scope":"NOT_SPECIFIED_BY_ENTRY","food_product":"MILK","value":0.01,"unit":"MG_PER_KG","jurisdiction":"INDIA","verification_status":"VERIFIED_REFERENCE_ONLY","source_ids":["SRC-FSSAI-CTR-2025"],"source_section":"Sub-regulation 2.3.2 table, serial 1"},
+    {"id":"MRL-IN-AMOXICILLIN-CATTLE-MILK","drug_id":"DRUG-AMOXICILLIN","source_name":"Amoxicillin","species_id":"SP-BOS-TAURUS","food_product":"MILK","value":0.004,"unit":"MG_PER_KG","jurisdiction":"INDIA","verification_status":"VERIFIED_REFERENCE_ONLY","source_ids":["SRC-FSSAI-CTR-2025"],"source_section":"Sub-regulation 2.3.2 table, serial 5"},
+    {"id":"MRL-IN-CEFTIOFUR-CATTLE-MILK","drug_id":"DRUG-CEFTIOFUR","source_name":"Ceftiofur","species_id":"SP-BOS-TAURUS","food_product":"MILK","value":0.1,"unit":"MG_PER_KG","jurisdiction":"INDIA","verification_status":"VERIFIED_REFERENCE_ONLY","source_ids":["SRC-FSSAI-CTR-2025"],"source_section":"Sub-regulation 2.3.2 veterinary drug table"},
+    {"id":"MRL-IN-CEFAPIRIN-MILK","drug_id":"DRUG-CEFAPIRIN","source_name":"Cephapirine","species_scope":"NOT_SPECIFIED_BY_ENTRY","food_product":"MILK","value":0.01,"unit":"MG_PER_KG","jurisdiction":"INDIA","verification_status":"VERIFIED_REFERENCE_ONLY_NAME_MAPPING_REVIEW","source_ids":["SRC-FSSAI-CTR-2025"],"source_section":"Sub-regulation 2.3.2 veterinary drug table"},
+    {"id":"MRL-IN-SULFADIMIDINE-CATTLE-MILK","drug_id":"DRUG-SULFADIMIDINE","source_name":"Sulfadimidine","species_id":"SP-BOS-TAURUS","food_product":"MILK","value":0.025,"unit":"MG_PER_KG","jurisdiction":"INDIA","verification_status":"VERIFIED_REFERENCE_ONLY","source_ids":["SRC-FSSAI-CTR-2025"],"source_section":"Sub-regulation 2.3.2 table, serial 39"}
+  ]
+}
