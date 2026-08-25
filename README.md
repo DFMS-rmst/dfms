@@ -23,6 +23,7 @@ npm install
 cp .env.example .env
 npm run prisma:generate
 npm run prisma:validate
+npm run db:seed --workspace backend
 npm test
 npm run lint
 npm run build
@@ -44,6 +45,19 @@ npm run dev:frontend
 ```
 
 Set `DATABASE_URL` to a reachable MySQL database before running database readiness or migrations.
+
+The default seed imports only the researched cattle and buffalo species records. Set `SEED_DEMO_DATA=true` explicitly to add local-only demo accounts (`admin@example.local` and `farmer@example.local`, password `DemoOnly!234`). Never use these credentials outside local development.
+
+## Platform foundation API
+
+- `/api/v1/auth`: registration, login, refresh rotation, logout, and current user
+- `/api/v1/farms`: authorized farms and farm membership roles
+- `/api/v1/farms/:farmId/animals`: farm-scoped animal profiles and history foundation
+- `/api/v1/veterinarians`: veterinarian profile submission
+- `/api/v1/admin/veterinarians`: administrator review and verification decisions
+- `/api/v1/files`: private S3 upload, completion, and download intents
+
+S3 is optional for local startup and mocked in tests. Real uploads require a private bucket and backend-only AWS configuration; the frontend never receives AWS credentials.
 
 ## Quality commands
 

@@ -1,2 +1,20 @@
-// Boundary placeholder for the audit module. Feature behavior is implemented in later milestones.
-export const AuditModule = Object.freeze({ name: 'audit', implemented: false });
+import { prisma } from '../../infrastructure/prisma/client.js';
+
+export function appendAudit(
+  { actorUserId, action, entityType, entityId, farmId, requestId, previousData, newData, metadata },
+  client = prisma,
+) {
+  return client.auditLog.create({
+    data: {
+      actorUserId,
+      action,
+      entityType,
+      entityId,
+      farmId,
+      requestId,
+      previousData,
+      newData,
+      metadata,
+    },
+  });
+}

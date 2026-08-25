@@ -7,6 +7,14 @@ const schema = z.object({
   FRONTEND_URL: z.string().url().default('http://localhost:5173'),
   DATABASE_URL: z.string().min(1).optional(),
   JWT_SECRET: z.string().min(32).optional(),
+  JWT_EXPIRES_IN: z.string().default('15m'),
+  REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().positive().default(7),
+  AWS_REGION: z.string().optional(),
+  AWS_S3_BUCKET: z.string().optional(),
+  AWS_ACCESS_KEY_ID: z.string().optional(),
+  AWS_SECRET_ACCESS_KEY: z.string().optional(),
+  S3_PRESIGNED_URL_EXPIRY_SECONDS: z.coerce.number().int().min(60).max(900).default(300),
+  MAX_PRIVATE_FILE_SIZE_BYTES: z.coerce.number().int().positive().default(10_485_760),
 });
 
 export const env = schema.parse(process.env);

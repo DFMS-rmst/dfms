@@ -15,6 +15,7 @@ enum UserStatus {
 
 enum PlatformRole {
   PLATFORM_ADMIN
+  VETERINARIAN
 }
 
 enum FarmStatus {
@@ -49,6 +50,14 @@ enum FileStatus {
   AVAILABLE
   QUARANTINED
   DELETED
+}
+
+enum AnimalStatus {
+  ACTIVE
+  SOLD
+  DECEASED
+  TRANSFERRED
+  INACTIVE
 }
 
 enum RequestStatus {
@@ -128,35 +137,40 @@ enum EventStatus {
 }
 
 model User {
-  id            String               @id @default(cuid())
-  email         String               @unique @db.VarChar(191)
-  phone         String?              @unique @db.VarChar(32)
-  passwordHash  String               @db.VarChar(255)
-  fullName      String               @db.VarChar(160)
-  status        UserStatus           @default(ACTIVE)
-  createdAt     DateTime             @default(now())
-  updatedAt     DateTime             @updatedAt
-  refreshTokens RefreshToken[]
-  platformRoles UserPlatformRole[]
-  memberships   FarmMember[]
-  createdFarms  Farm[]               @relation("FarmCreator")
-  veterinarian  VeterinarianProfile?
-  messages      CaseMessage[]
-  alerts        Alert[]
+  id                    String                @id @default(cuid())
+  email                 String                @unique @db.VarChar(191)
+  phone                 String?               @unique @db.VarChar(32)
+  passwordHash          String                @db.VarChar(255)
+  fullName              String                @db.VarChar(160)
+  status                UserStatus            @default(ACTIVE)
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  refreshTokens         RefreshToken[]
+  platformRoles         UserPlatformRole[]
+  memberships           FarmMember[]
+  createdFarms          Farm[]                @relation("FarmCreator")
+  veterinarian          VeterinarianProfile?
+  messages              CaseMessage[]
+  alerts                Alert[]
+  ownedFiles            FileObject[]          @relation("FileOwner")
+  reviewedVeterinarians VeterinarianProfile[] @relation("VeterinarianReviewer")
+  auditLogs             AuditLog[]            @relation("AuditActor")
 
   @@index([status])
 }
 
 model RefreshToken {
-  id         String    @id @default(cuid())
-  userId     String
-  tokenHash  String    @unique @db.Char(64)
-  familyId   String    @db.VarChar(64)
-  expiresAt  DateTime
-  revokedAt  DateTime?
-  replacedBy String?   @db.VarChar(191)
-  createdAt  DateTime  @default(now())
-  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id               String    @id @default(cuid())
+  userId           String
+  tokenHash        String    @unique @db.Char(64)
+  familyId         String    @db.VarChar(64)
+  expiresAt        DateTime
+  revokedAt        DateTime?
+  revocationReason String?   @db.VarChar(80)
+  lastUsedAt       DateTime?
+  replacedBy       String?   @db.VarChar(191)
+  createdAt        DateTime  @default(now())
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, familyId])
   @@index([expiresAt])
@@ -194,16 +208,17 @@ model Farm {
 }
 
 model FarmMember {
-  id        String           @id @default(cuid())
-  farmId    String
-  userId    String
-  status    MemberStatus     @default(INVITED)
-  joinedAt  DateTime?
-  createdAt DateTime         @default(now())
-  updatedAt DateTime         @updatedAt
-  farm      Farm             @relation(fields: [farmId], references: [id], onDelete: Cascade)
-  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  roles     FarmMemberRole[]
+  id          String           @id @default(cuid())
+  farmId      String
+  userId      String
+  status      MemberStatus     @default(INVITED)
+  joinedAt    DateTime?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  invitedById String?
+  farm        Farm             @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  roles       FarmMemberRole[]
 
   @@unique([farmId, userId])
   @@index([userId, status])
@@ -227,6 +242,7 @@ model Species {
   sourceRecordId  String?            @db.VarChar(100)
   createdAt       DateTime           @default(now())
   animals         Animal[]
+  breeds          Breed[]
   drugRelations   DrugSpecies[]
   withdrawalRules WithdrawalRule[]
   mrlRules        MrlReferenceRule[]
@@ -237,6 +253,8 @@ model Breed {
   speciesId String
   name      String   @db.VarChar(120)
   createdAt DateTime @default(now())
+  species   Species  @relation(fields: [speciesId], references: [id], onDelete: Cascade)
+  animals   Animal[]
 
   @@unique([speciesId, name])
 }
@@ -251,11 +269,14 @@ model Animal {
   sex               String                       @db.VarChar(20)
   dateOfBirth       DateTime?
   lactating         Boolean                      @default(false)
-  active            Boolean                      @default(true)
+  status            AnimalStatus                 @default(ACTIVE)
+  notes             String?                      @db.Text
   createdAt         DateTime                     @default(now())
   updatedAt         DateTime                     @updatedAt
   farm              Farm                         @relation(fields: [farmId], references: [id], onDelete: Restrict)
   species           Species                      @relation(fields: [speciesId], references: [id])
+  breed             Breed?                       @relation(fields: [breedId], references: [id])
+  profileEvents     AnimalProfileEvent[]
   requests          TreatmentRequest[]
   cases             VeterinaryCase[]
   diagnoses         Diagnosis[]
@@ -265,7 +286,20 @@ model Animal {
   certificates      MilkEligibilityCertificate[]
 
   @@unique([farmId, tagNumber])
-  @@index([farmId, active])
+  @@index([farmId, status])
+}
+
+model AnimalProfileEvent {
+  id          String   @id @default(cuid())
+  animalId    String
+  actorUserId String
+  eventType   String   @db.VarChar(80)
+  summary     String   @db.VarChar(255)
+  details     Json?
+  createdAt   DateTime @default(now())
+  animal      Animal   @relation(fields: [animalId], references: [id], onDelete: Cascade)
+
+  @@index([animalId, createdAt])
 }
 
 model VeterinarianProfile {
@@ -283,6 +317,8 @@ model VeterinarianProfile {
   createdAt           DateTime                  @default(now())
   updatedAt           DateTime                  @updatedAt
   user                User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reviewedBy          User?                     @relation("VeterinarianReviewer", fields: [reviewedById], references: [id])
+  documents           FileObject[]              @relation("VeterinarianDocuments")
   serviceAreas        VeterinarianServiceArea[]
   requests            TreatmentRequest[]
   cases               VeterinaryCase[]
@@ -306,21 +342,24 @@ model VeterinarianServiceArea {
 }
 
 model FileObject {
-  id             String     @id @default(cuid())
-  bucket         String     @db.VarChar(191)
-  objectKey      String     @unique @db.VarChar(512)
-  mimeType       String     @db.VarChar(160)
-  extension      String?    @db.VarChar(20)
-  sizeBytes      BigInt
-  checksumSha256 String?    @db.Char(64)
-  ownerUserId    String
-  entityType     String     @db.VarChar(80)
-  entityId       String     @db.VarChar(191)
-  purpose        String     @db.VarChar(80)
-  status         FileStatus @default(PENDING_UPLOAD)
-  createdAt      DateTime   @default(now())
-  availableAt    DateTime?
-  deletedAt      DateTime?
+  id                    String               @id @default(cuid())
+  bucket                String               @db.VarChar(191)
+  objectKey             String               @unique @db.VarChar(512)
+  mimeType              String               @db.VarChar(160)
+  extension             String?              @db.VarChar(20)
+  sizeBytes             BigInt
+  checksumSha256        String?              @db.Char(64)
+  ownerUserId           String
+  veterinarianProfileId String?
+  entityType            String               @db.VarChar(80)
+  entityId              String               @db.VarChar(191)
+  purpose               String               @db.VarChar(80)
+  status                FileStatus           @default(PENDING_UPLOAD)
+  createdAt             DateTime             @default(now())
+  availableAt           DateTime?
+  deletedAt             DateTime?
+  owner                 User                 @relation("FileOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
+  veterinarianProfile   VeterinarianProfile? @relation("VeterinarianDocuments", fields: [veterinarianProfileId], references: [id], onDelete: Cascade)
 
   @@index([entityType, entityId, purpose])
   @@index([ownerUserId, status])
@@ -729,6 +768,7 @@ model AuditLog {
   newData      Json?
   metadata     Json?
   createdAt    DateTime @default(now())
+  actor        User?    @relation("AuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
 
   @@index([entityType, entityId, createdAt])
   @@index([farmId, createdAt])

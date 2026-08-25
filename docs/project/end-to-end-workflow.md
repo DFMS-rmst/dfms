@@ -4,7 +4,7 @@
 
 1. **Platform veterinarian verification**
    - A veterinarian registers separately and submits professional details and a credential document.
-   - The private document is planned for S3; PostgreSQL retains metadata/object identity only.
+   - The private document is planned for S3; MySQL retains metadata/object identity only.
    - An authorized platform administrator reviews the submission and records an auditable decision.
    - Only `VERIFIED` status enables discovery and official clinical actions. This is platform-access verification, not government certification.
 
@@ -48,7 +48,7 @@
    - Only an eligible animal receives a unique milk-eligibility certificate with rule evidence and the mandatory no-laboratory disclaimer.
    - The certificate receives a non-guessable verification ID and QR route.
    - Selected certificate data is deterministically serialized and SHA-256 hashed; only the hash and minimal metadata are anchored on an Ethereum-compatible proof layer.
-   - PostgreSQL retains the full authoritative certificate and blockchain transaction reference.
+   - MySQL retains the full authoritative certificate and blockchain transaction reference.
 
 10. **Verification and continued re-evaluation**
     - A dairy/authorized verifier scans the QR and sees a privacy-limited certificate summary and current state.

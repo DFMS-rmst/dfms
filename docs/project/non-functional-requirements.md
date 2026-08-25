@@ -11,7 +11,7 @@
 
 ## Data integrity and traceability
 
-- **NFR-DATA-01:** PostgreSQL is the source of truth; relational data should be normalized and constrained.
+- **NFR-DATA-01:** MySQL is the source of truth; relational data should be normalized and constrained.
 - **NFR-DATA-02:** Material decisions must be reproducible from versioned inputs, timestamps, selected reference rules, and explanations.
 - **NFR-DATA-03:** Reference-data conflicts and missing values must be explicit and fail safe; no guessed regulatory/veterinary values.
 - **NFR-DATA-04:** Audit and certificate history must be append-oriented and protected from ordinary modification/deletion.

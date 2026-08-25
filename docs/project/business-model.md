@@ -27,7 +27,7 @@ Authorization belongs to both user and farm context. The same person may be owne
 
 ## Trust model
 
-PostgreSQL remains the operational source of truth. Private files remain in private S3 storage. Reference rules require provenance and review. Audit history explains material actions. Blockchain only provides an immutable comparison point for selected hashes, principally milk-eligibility certificates; it neither owns workflow state nor establishes medical or regulatory truth.
+MySQL remains the operational source of truth. Private files remain in private S3 storage. Reference rules require provenance and review. Audit history explains material actions. Blockchain only provides an immutable comparison point for selected hashes, principally milk-eligibility certificates; it neither owns workflow state nor establishes medical or regulatory truth.
 
 ## Sustainability assumptions
 

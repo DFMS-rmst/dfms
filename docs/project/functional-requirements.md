@@ -25,7 +25,7 @@ Requirements use `FR-<domain>-<number>` identifiers for later traceability.
 
 ## Private object storage
 
-- **FR-FILE-01:** Store private images/documents in a private S3 bucket and only object metadata/identifiers in PostgreSQL.
+- **FR-FILE-01:** Store private images/documents in a private S3 bucket and only object metadata/identifiers in MySQL.
 - **FR-FILE-02:** Authorize each file operation before issuing a short-lived presigned upload or GET URL.
 - **FR-FILE-03:** Validate MIME type, extension, size, ownership, and entity relationship; generate unpredictable object keys.
 - **FR-FILE-04:** Never expose AWS credentials or permanent public private-object URLs to the frontend.
@@ -79,9 +79,9 @@ Requirements use `FR-<domain>-<number>` identifiers for later traceability.
 - **FR-CERT-03:** Retain certificate history and support `ACTIVE`, `REVOKED`, and `SUPERSEDED`; use `EXPIRED` only if a later business rule requires it.
 - **FR-CERT-04:** Re-evaluate and revoke/supersede a certificate when a new treatment or other blocking change occurs; never delete historical certificates.
 - **FR-QR-01:** Generate a QR verification identifier/route and return only privacy-approved public information.
-- **FR-CHAIN-01:** Canonically serialize selected certificate data, compute SHA-256, anchor the hash and minimal identifiers/timestamp, and retain the transaction reference in PostgreSQL.
+- **FR-CHAIN-01:** Canonically serialize selected certificate data, compute SHA-256, anchor the hash and minimal identifiers/timestamp, and retain the transaction reference in MySQL.
 - **FR-CHAIN-02:** Recompute and compare the hash and return `VERIFIED`, `TAMPERED`, `NOT_ANCHORED`, or `VERIFICATION_ERROR`.
-- **FR-CHAIN-03:** Keep PostgreSQL authoritative; do not place full/private records or every table/audit event on-chain.
+- **FR-CHAIN-03:** Keep MySQL authoritative; do not place full/private records or every table/audit event on-chain.
 
 ## Alerts, dashboards, reports, and audit
 

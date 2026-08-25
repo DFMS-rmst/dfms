@@ -25,7 +25,7 @@ This roadmap is phase-gated. The current initialization/planning phase creates d
 
 ## Phase 3 — Workspace and development foundation
 
-- Scaffold the approved React/Vite, Node.js/Express, PostgreSQL/ORM, testing, lint/type, Docker, and configuration structure.
+- Scaffold the approved React/Vite, Node.js/Express, MySQL/ORM, testing, lint/type, Docker, and configuration structure.
 - Establish migrations, error handling, validation, logging redaction, and CI checks.
 - Exit gate: foundation builds/tests with no domain feature shortcuts.
 
@@ -70,7 +70,7 @@ This roadmap is phase-gated. The current initialization/planning phase creates d
 ## Phase 11 — Limited blockchain proof
 
 - Implement deterministic canonicalization, SHA-256 certificate hash anchoring on the selected local Ethereum-compatible network, transaction metadata, retry/failure handling, and comparison outcomes.
-- Exit gate: tamper tests work; PostgreSQL remains authoritative; no private/full records are on-chain.
+- Exit gate: tamper tests work; MySQL remains authoritative; no private/full records are on-chain.
 
 ## Phase 12 — Alerts, dashboards, reporting, and audit completion
 

@@ -20,14 +20,14 @@ The proposed architecture is modular and domain-oriented. Module boundaries are 
 | Milk-eligibility engine | Whole relevant-treatment evaluation and explainable current/historical status | Withdrawal, certificates, alerts, dashboards |
 | Certificates and lifecycle | Eligibility-gated issuance, disclaimer, revocation/supersession and retained history | Eligibility, QR, blockchain, audit |
 | QR/public verification | Privacy-minimized current certificate and integrity result | Certificates, blockchain verification |
-| Blockchain proof | Canonicalization, SHA-256 anchoring and comparison for selected records | Certificates, PostgreSQL anchor metadata |
+| Blockchain proof | Canonicalization, SHA-256 anchoring and comparison for selected records | Certificates, MySQL anchor metadata |
 | Alerts | Role/farm-targeted operational events and delivery/read state | Requests, cases, treatment, compliance, AMU, blockchain |
 | Dashboards and reporting | Actual-data role views and export/report services | All operational modules, authorization |
-| Audit | Protected append-oriented record of material actions and state changes | All modules; PostgreSQL only |
+| Audit | Protected append-oriented record of material actions and state changes | All modules; MySQL only |
 
 ## Cross-cutting rules
 
-- PostgreSQL is authoritative; S3 contains private binary objects; blockchain contains only minimal integrity anchors.
+- MySQL is authoritative; S3 contains private binary objects; blockchain contains only minimal integrity anchors.
 - Domain services own withdrawal, eligibility, AMU, certificate, and authorization decisions—not UI components or controllers.
 - Reference data and user-entered clinical facts remain distinguishable.
 - Missing/conflicting critical withdrawal rules block eligibility and certificates.
@@ -39,7 +39,7 @@ The proposed architecture is modular and domain-oriented. Module boundaries are 
 1. React/Vite user interface and public verification view.
 2. Node.js/Express API with validation and authorization boundaries.
 3. Reusable domain/application services and state machines.
-4. Persistence adapters for PostgreSQL/ORM and private S3 metadata.
+4. Persistence adapters for MySQL/ORM and private S3 metadata.
 5. External adapters for S3 and a limited Ethereum-compatible proof network.
 6. Background/reliable jobs where required for re-evaluation, alerts, reports, or anchoring retries.
 
