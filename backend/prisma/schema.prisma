@@ -1,0 +1,772 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  DISABLED
+}
+
+enum PlatformRole {
+  PLATFORM_ADMIN
+}
+
+enum FarmStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  REJECTED
+}
+
+enum FarmRole {
+  FARM_OWNER
+  FARM_MANAGER
+  FARM_WORKER
+}
+
+enum MemberStatus {
+  INVITED
+  ACTIVE
+  SUSPENDED
+  REMOVED
+}
+
+enum VetVerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+  SUSPENDED
+}
+
+enum FileStatus {
+  PENDING_UPLOAD
+  AVAILABLE
+  QUARANTINED
+  DELETED
+}
+
+enum RequestStatus {
+  OPEN
+  REQUESTED
+  ACCEPTED
+  REJECTED
+  CANCELLED
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum Urgency {
+  ROUTINE
+  SOON
+  URGENT
+  EMERGENCY
+}
+
+enum CaseStatus {
+  OPEN
+  IN_PROGRESS
+  TREATMENT_STARTED
+  FOLLOW_UP
+  COMPLETED
+  CANCELLED
+}
+
+enum TreatmentStatus {
+  PLANNED
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum ReferenceVerificationStatus {
+  VERIFIED
+  NOT_AVAILABLE
+  RULE_NOT_FOUND
+  CONFLICTING_SOURCE
+  REVIEW_REQUIRED
+  EXAMPLE_ONLY
+}
+
+enum EligibilityStatus {
+  TREATMENT_ACTIVE
+  UNDER_WITHDRAWAL
+  ELIGIBLE_FOR_MILK
+  RULE_NOT_FOUND
+  REVIEW_REQUIRED
+}
+
+enum CertificateStatus {
+  ACTIVE
+  REVOKED
+  SUPERSEDED
+  EXPIRED
+}
+
+enum AlertStatus {
+  UNREAD
+  READ
+  ARCHIVED
+}
+
+enum AnchorStatus {
+  PENDING
+  ANCHORED
+  FAILED
+}
+
+enum EventStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+model User {
+  id            String               @id @default(cuid())
+  email         String               @unique @db.VarChar(191)
+  phone         String?              @unique @db.VarChar(32)
+  passwordHash  String               @db.VarChar(255)
+  fullName      String               @db.VarChar(160)
+  status        UserStatus           @default(ACTIVE)
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+  refreshTokens RefreshToken[]
+  platformRoles UserPlatformRole[]
+  memberships   FarmMember[]
+  createdFarms  Farm[]               @relation("FarmCreator")
+  veterinarian  VeterinarianProfile?
+  messages      CaseMessage[]
+  alerts        Alert[]
+
+  @@index([status])
+}
+
+model RefreshToken {
+  id         String    @id @default(cuid())
+  userId     String
+  tokenHash  String    @unique @db.Char(64)
+  familyId   String    @db.VarChar(64)
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  replacedBy String?   @db.VarChar(191)
+  createdAt  DateTime  @default(now())
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, familyId])
+  @@index([expiresAt])
+}
+
+model UserPlatformRole {
+  id        String       @id @default(cuid())
+  userId    String
+  role      PlatformRole
+  createdAt DateTime     @default(now())
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, role])
+}
+
+model Farm {
+  id          String             @id @default(cuid())
+  name        String             @db.VarChar(191)
+  status      FarmStatus         @default(PENDING)
+  state       String             @db.VarChar(100)
+  district    String             @db.VarChar(100)
+  taluka      String?            @db.VarChar(100)
+  pincode     String?            @db.VarChar(12)
+  timeZone    String             @default("Asia/Kolkata") @db.VarChar(64)
+  createdById String
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  createdBy   User               @relation("FarmCreator", fields: [createdById], references: [id])
+  members     FarmMember[]
+  animals     Animal[]
+  requests    TreatmentRequest[]
+  cases       VeterinaryCase[]
+
+  @@index([status, state, district])
+}
+
+model FarmMember {
+  id        String           @id @default(cuid())
+  farmId    String
+  userId    String
+  status    MemberStatus     @default(INVITED)
+  joinedAt  DateTime?
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  farm      Farm             @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  roles     FarmMemberRole[]
+
+  @@unique([farmId, userId])
+  @@index([userId, status])
+}
+
+model FarmMemberRole {
+  id           String     @id @default(cuid())
+  farmMemberId String
+  role         FarmRole
+  createdAt    DateTime   @default(now())
+  farmMember   FarmMember @relation(fields: [farmMemberId], references: [id], onDelete: Cascade)
+
+  @@unique([farmMemberId, role])
+}
+
+model Species {
+  id              String             @id @default(cuid())
+  code            String             @unique @db.VarChar(64)
+  canonicalName   String             @unique @db.VarChar(120)
+  scientificName  String?            @db.VarChar(160)
+  sourceRecordId  String?            @db.VarChar(100)
+  createdAt       DateTime           @default(now())
+  animals         Animal[]
+  drugRelations   DrugSpecies[]
+  withdrawalRules WithdrawalRule[]
+  mrlRules        MrlReferenceRule[]
+}
+
+model Breed {
+  id        String   @id @default(cuid())
+  speciesId String
+  name      String   @db.VarChar(120)
+  createdAt DateTime @default(now())
+
+  @@unique([speciesId, name])
+}
+
+model Animal {
+  id                String                       @id @default(cuid())
+  farmId            String
+  speciesId         String
+  breedId           String?
+  tagNumber         String                       @db.VarChar(100)
+  name              String?                      @db.VarChar(120)
+  sex               String                       @db.VarChar(20)
+  dateOfBirth       DateTime?
+  lactating         Boolean                      @default(false)
+  active            Boolean                      @default(true)
+  createdAt         DateTime                     @default(now())
+  updatedAt         DateTime                     @updatedAt
+  farm              Farm                         @relation(fields: [farmId], references: [id], onDelete: Restrict)
+  species           Species                      @relation(fields: [speciesId], references: [id])
+  requests          TreatmentRequest[]
+  cases             VeterinaryCase[]
+  diagnoses         Diagnosis[]
+  prescriptions     Prescription[]
+  treatments        Treatment[]
+  eligibilityChecks MilkEligibilityCheck[]
+  certificates      MilkEligibilityCertificate[]
+
+  @@unique([farmId, tagNumber])
+  @@index([farmId, active])
+}
+
+model VeterinarianProfile {
+  id                  String                    @id @default(cuid())
+  userId              String                    @unique
+  registrationNumber  String                    @db.VarChar(100)
+  registrationCouncil String                    @db.VarChar(160)
+  qualification       String                    @db.VarChar(255)
+  specialization      String?                   @db.VarChar(160)
+  experienceYears     Int?
+  status              VetVerificationStatus     @default(PENDING)
+  reviewedById        String?
+  reviewedAt          DateTime?
+  reviewNotes         String?                   @db.Text
+  createdAt           DateTime                  @default(now())
+  updatedAt           DateTime                  @updatedAt
+  user                User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  serviceAreas        VeterinarianServiceArea[]
+  requests            TreatmentRequest[]
+  cases               VeterinaryCase[]
+  diagnoses           Diagnosis[]
+  prescriptions       Prescription[]
+
+  @@unique([registrationCouncil, registrationNumber])
+  @@index([status, specialization])
+}
+
+model VeterinarianServiceArea {
+  id             String              @id @default(cuid())
+  veterinarianId String
+  state          String              @db.VarChar(100)
+  district       String?             @db.VarChar(100)
+  taluka         String?             @db.VarChar(100)
+  pincode        String?             @db.VarChar(12)
+  veterinarian   VeterinarianProfile @relation(fields: [veterinarianId], references: [id], onDelete: Cascade)
+
+  @@index([state, district])
+}
+
+model FileObject {
+  id             String     @id @default(cuid())
+  bucket         String     @db.VarChar(191)
+  objectKey      String     @unique @db.VarChar(512)
+  mimeType       String     @db.VarChar(160)
+  extension      String?    @db.VarChar(20)
+  sizeBytes      BigInt
+  checksumSha256 String?    @db.Char(64)
+  ownerUserId    String
+  entityType     String     @db.VarChar(80)
+  entityId       String     @db.VarChar(191)
+  purpose        String     @db.VarChar(80)
+  status         FileStatus @default(PENDING_UPLOAD)
+  createdAt      DateTime   @default(now())
+  availableAt    DateTime?
+  deletedAt      DateTime?
+
+  @@index([entityType, entityId, purpose])
+  @@index([ownerUserId, status])
+}
+
+model TreatmentRequest {
+  id                      String              @id @default(cuid())
+  farmId                  String
+  animalId                String
+  requestedVeterinarianId String
+  createdById             String
+  observations            String              @db.Text
+  urgency                 Urgency             @default(ROUTINE)
+  status                  RequestStatus       @default(REQUESTED)
+  responseNotes           String?             @db.Text
+  respondedAt             DateTime?
+  createdAt               DateTime            @default(now())
+  updatedAt               DateTime            @updatedAt
+  farm                    Farm                @relation(fields: [farmId], references: [id])
+  animal                  Animal              @relation(fields: [animalId], references: [id])
+  requestedVeterinarian   VeterinarianProfile @relation(fields: [requestedVeterinarianId], references: [id])
+  veterinaryCase          VeterinaryCase?
+
+  @@index([requestedVeterinarianId, status, createdAt])
+  @@index([farmId, status])
+}
+
+model VeterinaryCase {
+  id             String              @id @default(cuid())
+  requestId      String              @unique
+  farmId         String
+  animalId       String
+  veterinarianId String
+  status         CaseStatus          @default(OPEN)
+  openedAt       DateTime            @default(now())
+  completedAt    DateTime?
+  updatedAt      DateTime            @updatedAt
+  request        TreatmentRequest    @relation(fields: [requestId], references: [id])
+  farm           Farm                @relation(fields: [farmId], references: [id])
+  animal         Animal              @relation(fields: [animalId], references: [id])
+  veterinarian   VeterinarianProfile @relation(fields: [veterinarianId], references: [id])
+  messages       CaseMessage[]
+  diagnoses      Diagnosis[]
+  prescriptions  Prescription[]
+  treatments     Treatment[]
+
+  @@index([veterinarianId, status])
+  @@index([farmId, status])
+}
+
+model CaseMessage {
+  id       String         @id @default(cuid())
+  caseId   String
+  senderId String
+  body     String         @db.Text
+  sentAt   DateTime       @default(now())
+  readAt   DateTime?
+  case     VeterinaryCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  sender   User           @relation(fields: [senderId], references: [id])
+
+  @@index([caseId, sentAt])
+}
+
+model Disease {
+  id                     String      @id @default(cuid())
+  code                   String      @unique @db.VarChar(80)
+  canonicalName          String      @unique @db.VarChar(191)
+  antimicrobialRelevance String      @db.VarChar(100)
+  sourceRecordId         String?     @db.VarChar(100)
+  diagnoses              Diagnosis[]
+}
+
+model Diagnosis {
+  id             String              @id @default(cuid())
+  caseId         String
+  animalId       String
+  veterinarianId String
+  diseaseId      String?
+  clinicalNotes  String              @db.Text
+  diagnosedAt    DateTime            @default(now())
+  followUpNotes  String?             @db.Text
+  case           VeterinaryCase      @relation(fields: [caseId], references: [id])
+  animal         Animal              @relation(fields: [animalId], references: [id])
+  veterinarian   VeterinarianProfile @relation(fields: [veterinarianId], references: [id])
+  disease        Disease?            @relation(fields: [diseaseId], references: [id])
+
+  @@index([animalId, diagnosedAt])
+}
+
+model AntimicrobialClass {
+  id             String  @id @default(cuid())
+  code           String  @unique @db.VarChar(80)
+  canonicalName  String  @unique @db.VarChar(160)
+  sourceRecordId String? @db.VarChar(100)
+  drugs          Drug[]
+}
+
+model Drug {
+  id                   String                    @id @default(cuid())
+  code                 String                    @unique @db.VarChar(80)
+  canonicalName        String                    @unique @db.VarChar(160)
+  antimicrobialClassId String?
+  aliases              Json?
+  sourceRecordId       String?                   @db.VarChar(100)
+  antimicrobialClass   AntimicrobialClass?       @relation(fields: [antimicrobialClassId], references: [id])
+  products             DrugProduct[]
+  speciesRelations     DrugSpecies[]
+  prescriptionItems    PrescriptionItem[]
+  administrations      TreatmentAdministration[]
+  withdrawalRules      WithdrawalRule[]
+  mrlRules             MrlReferenceRule[]
+}
+
+model DrugSpecies {
+  id        String  @id @default(cuid())
+  drugId    String
+  speciesId String
+  status    String  @db.VarChar(100)
+  drug      Drug    @relation(fields: [drugId], references: [id], onDelete: Cascade)
+  species   Species @relation(fields: [speciesId], references: [id], onDelete: Cascade)
+
+  @@unique([drugId, speciesId])
+}
+
+model DrugProduct {
+  id                  String                    @id @default(cuid())
+  drugId              String
+  productName         String                    @db.VarChar(255)
+  authorizationNumber String?                   @db.VarChar(120)
+  jurisdiction        String                    @db.VarChar(100)
+  formulation         String                    @db.VarChar(160)
+  concentration       Decimal?                  @db.Decimal(18, 6)
+  concentrationUnit   String?                   @db.VarChar(60)
+  route               String                    @db.VarChar(100)
+  labelVersion        String?                   @db.VarChar(80)
+  sourceRecordId      String?                   @db.VarChar(100)
+  drug                Drug                      @relation(fields: [drugId], references: [id])
+  prescriptionItems   PrescriptionItem[]
+  administrations     TreatmentAdministration[]
+  withdrawalRules     WithdrawalRule[]
+
+  @@index([drugId, jurisdiction])
+}
+
+model RegulatorySource {
+  id              String             @id @default(cuid())
+  sourceRecordId  String             @unique @db.VarChar(100)
+  organization    String             @db.VarChar(255)
+  title           String             @db.VarChar(512)
+  url             String             @db.VarChar(1024)
+  jurisdiction    String             @db.VarChar(100)
+  publicationDate DateTime?
+  effectiveDate   DateTime?
+  retrievalDate   DateTime
+  withdrawalRules WithdrawalRule[]
+  mrlRules        MrlReferenceRule[]
+}
+
+model ReferenceDataVersion {
+  id             String   @id @default(cuid())
+  datasetName    String   @db.VarChar(120)
+  version        String   @db.VarChar(80)
+  checksumSha256 String   @db.Char(64)
+  importedAt     DateTime @default(now())
+  importedById   String
+  notes          String?  @db.Text
+
+  @@unique([datasetName, version])
+}
+
+model Prescription {
+  id              String              @id @default(cuid())
+  caseId          String
+  animalId        String
+  veterinarianId  String
+  diagnosisId     String?
+  status          String              @default("ACTIVE") @db.VarChar(40)
+  instructions    String?             @db.Text
+  startDate       DateTime
+  expectedEndDate DateTime?
+  prescribedAt    DateTime            @default(now())
+  case            VeterinaryCase      @relation(fields: [caseId], references: [id])
+  animal          Animal              @relation(fields: [animalId], references: [id])
+  veterinarian    VeterinarianProfile @relation(fields: [veterinarianId], references: [id])
+  items           PrescriptionItem[]
+  treatments      Treatment[]
+
+  @@index([caseId, prescribedAt])
+}
+
+model PrescriptionItem {
+  id             String       @id @default(cuid())
+  prescriptionId String
+  drugId         String
+  drugProductId  String?
+  doseValue      Decimal      @db.Decimal(18, 6)
+  doseUnit       String       @db.VarChar(60)
+  doseBasis      String?      @db.VarChar(60)
+  route          String       @db.VarChar(100)
+  frequency      String       @db.VarChar(100)
+  durationValue  Decimal      @db.Decimal(12, 3)
+  durationUnit   String       @db.VarChar(40)
+  instructions   String?      @db.Text
+  prescription   Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+  drug           Drug         @relation(fields: [drugId], references: [id])
+  drugProduct    DrugProduct? @relation(fields: [drugProductId], references: [id])
+}
+
+model Treatment {
+  id                     String                           @id @default(cuid())
+  caseId                 String
+  animalId               String
+  prescriptionId         String?
+  status                 TreatmentStatus                  @default(PLANNED)
+  startedAt              DateTime?
+  completedAt            DateTime?
+  completionNotes        String?                          @db.Text
+  createdAt              DateTime                         @default(now())
+  updatedAt              DateTime                         @updatedAt
+  case                   VeterinaryCase                   @relation(fields: [caseId], references: [id])
+  animal                 Animal                           @relation(fields: [animalId], references: [id])
+  prescription           Prescription?                    @relation(fields: [prescriptionId], references: [id])
+  administrations        TreatmentAdministration[]
+  eligibilityEvaluations EligibilityTreatmentEvaluation[]
+
+  @@index([animalId, status, completedAt])
+}
+
+model TreatmentAdministration {
+  id                   String       @id @default(cuid())
+  treatmentId          String
+  animalId             String
+  drugId               String
+  drugProductId        String?
+  administeredById     String
+  amount               Decimal      @db.Decimal(18, 6)
+  amountUnit           String       @db.VarChar(60)
+  activeIngredientMg   Decimal?     @db.Decimal(20, 6)
+  conversionProvenance String?      @db.VarChar(255)
+  route                String       @db.VarChar(100)
+  administeredAt       DateTime
+  animalWeightKg       Decimal?     @db.Decimal(10, 3)
+  weightMeasuredAt     DateTime?
+  batchNumber          String?      @db.VarChar(120)
+  notes                String?      @db.Text
+  treatment            Treatment    @relation(fields: [treatmentId], references: [id])
+  drug                 Drug         @relation(fields: [drugId], references: [id])
+  drugProduct          DrugProduct? @relation(fields: [drugProductId], references: [id])
+
+  @@index([animalId, administeredAt])
+  @@index([drugId, administeredAt])
+}
+
+model WithdrawalRule {
+  id                     String                           @id @default(cuid())
+  code                   String                           @db.VarChar(120)
+  version                Int                              @default(1)
+  drugId                 String
+  drugProductId          String?
+  speciesId              String
+  foodProduct            String                           @db.VarChar(60)
+  route                  String                           @db.VarChar(100)
+  formulation            String?                          @db.VarChar(160)
+  useConditions          Json?
+  durationValue          Decimal                          @db.Decimal(12, 3)
+  durationUnit           String                           @db.VarChar(40)
+  durationQualifier      String                           @db.VarChar(60)
+  jurisdiction           String                           @db.VarChar(100)
+  sourceId               String
+  sourceSection          String?                          @db.VarChar(255)
+  effectiveFrom          DateTime?
+  effectiveTo            DateTime?
+  verificationStatus     ReferenceVerificationStatus
+  reviewedById           String?
+  reviewedAt             DateTime?
+  drug                   Drug                             @relation(fields: [drugId], references: [id])
+  drugProduct            DrugProduct?                     @relation(fields: [drugProductId], references: [id])
+  species                Species                          @relation(fields: [speciesId], references: [id])
+  source                 RegulatorySource                 @relation(fields: [sourceId], references: [id])
+  eligibilityEvaluations EligibilityTreatmentEvaluation[]
+
+  @@unique([code, version])
+  @@index([drugId, speciesId, foodProduct, jurisdiction, verificationStatus])
+}
+
+model MrlReferenceRule {
+  id                 String                      @id @default(cuid())
+  code               String                      @unique @db.VarChar(120)
+  drugId             String
+  speciesId          String?
+  speciesScope       String?                     @db.VarChar(160)
+  foodProduct        String                      @db.VarChar(80)
+  value              Decimal                     @db.Decimal(18, 6)
+  unit               String                      @db.VarChar(40)
+  jurisdiction       String                      @db.VarChar(100)
+  sourceId           String
+  verificationStatus ReferenceVerificationStatus
+  drug               Drug                        @relation(fields: [drugId], references: [id])
+  species            Species?                    @relation(fields: [speciesId], references: [id])
+  source             RegulatorySource            @relation(fields: [sourceId], references: [id])
+
+  @@index([drugId, foodProduct, jurisdiction])
+}
+
+model MilkEligibilityCheck {
+  id                   String                           @id @default(cuid())
+  animalId             String
+  status               EligibilityStatus
+  evaluatedAt          DateTime                         @default(now())
+  explanation          Json
+  methodologyVersion   String                           @db.VarChar(80)
+  triggeredBy          String                           @db.VarChar(80)
+  animal               Animal                           @relation(fields: [animalId], references: [id])
+  treatmentEvaluations EligibilityTreatmentEvaluation[]
+  certificate          MilkEligibilityCertificate?
+
+  @@index([animalId, evaluatedAt])
+  @@index([status, evaluatedAt])
+}
+
+model EligibilityTreatmentEvaluation {
+  id                   String               @id @default(cuid())
+  eligibilityCheckId   String
+  treatmentId          String
+  withdrawalRuleId     String?
+  status               EligibilityStatus
+  treatmentCompletedAt DateTime?
+  withdrawalEndsAt     DateTime?
+  ruleSnapshot         Json?
+  blockerCode          String?              @db.VarChar(100)
+  eligibilityCheck     MilkEligibilityCheck @relation(fields: [eligibilityCheckId], references: [id], onDelete: Cascade)
+  treatment            Treatment            @relation(fields: [treatmentId], references: [id])
+  withdrawalRule       WithdrawalRule?      @relation(fields: [withdrawalRuleId], references: [id])
+
+  @@unique([eligibilityCheckId, treatmentId])
+}
+
+model MilkEligibilityCertificate {
+  id                      String                      @id @default(cuid())
+  certificateNumber       String                      @unique @db.VarChar(100)
+  verificationId          String                      @unique @db.VarChar(191)
+  animalId                String
+  eligibilityCheckId      String                      @unique
+  status                  CertificateStatus           @default(ACTIVE)
+  canonicalizationVersion String                      @db.VarChar(40)
+  canonicalPayload        Json
+  contentHashSha256       String                      @db.Char(64)
+  disclaimer              String                      @db.Text
+  issuedAt                DateTime                    @default(now())
+  revokedAt               DateTime?
+  revocationReason        String?                     @db.Text
+  supersededById          String?                     @unique
+  animal                  Animal                      @relation(fields: [animalId], references: [id])
+  eligibilityCheck        MilkEligibilityCheck        @relation(fields: [eligibilityCheckId], references: [id])
+  supersededBy            MilkEligibilityCertificate? @relation("CertificateSupersession", fields: [supersededById], references: [id])
+  supersedes              MilkEligibilityCertificate? @relation("CertificateSupersession")
+
+  @@index([animalId, status, issuedAt])
+}
+
+model AmuAggregation {
+  id                 String   @id @default(cuid())
+  farmId             String
+  periodStart        DateTime
+  periodEnd          DateTime
+  metricCode         String   @db.VarChar(100)
+  methodologyVersion String   @db.VarChar(80)
+  dimensionType      String?  @db.VarChar(80)
+  dimensionValue     String?  @db.VarChar(191)
+  numerator          Decimal  @db.Decimal(24, 6)
+  denominator        Decimal? @db.Decimal(24, 6)
+  value              Decimal  @db.Decimal(24, 6)
+  unit               String   @db.VarChar(80)
+  computedAt         DateTime @default(now())
+
+  @@unique([farmId, periodStart, periodEnd, metricCode, dimensionType, dimensionValue, methodologyVersion])
+  @@index([farmId, metricCode, periodStart])
+}
+
+model Alert {
+  id         String      @id @default(cuid())
+  userId     String
+  farmId     String?
+  type       String      @db.VarChar(80)
+  title      String      @db.VarChar(191)
+  message    String      @db.Text
+  entityType String?     @db.VarChar(80)
+  entityId   String?     @db.VarChar(191)
+  status     AlertStatus @default(UNREAD)
+  createdAt  DateTime    @default(now())
+  readAt     DateTime?
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status, createdAt])
+}
+
+model AuditLog {
+  id           String   @id @default(cuid())
+  actorUserId  String?
+  action       String   @db.VarChar(120)
+  entityType   String   @db.VarChar(80)
+  entityId     String   @db.VarChar(191)
+  farmId       String?
+  requestId    String?  @db.VarChar(80)
+  previousData Json?
+  newData      Json?
+  metadata     Json?
+  createdAt    DateTime @default(now())
+
+  @@index([entityType, entityId, createdAt])
+  @@index([farmId, createdAt])
+  @@index([actorUserId, createdAt])
+}
+
+model DomainEvent {
+  id            String      @id @default(cuid())
+  eventType     String      @db.VarChar(120)
+  aggregateType String      @db.VarChar(80)
+  aggregateId   String      @db.VarChar(191)
+  payload       Json
+  status        EventStatus @default(PENDING)
+  attempts      Int         @default(0)
+  availableAt   DateTime    @default(now())
+  processedAt   DateTime?
+  lastError     String?     @db.Text
+  createdAt     DateTime    @default(now())
+
+  @@index([status, availableAt])
+}
+
+model BlockchainAnchor {
+  id              String       @id @default(cuid())
+  recordType      String       @db.VarChar(80)
+  recordId        String       @db.VarChar(191)
+  contentHash     String       @db.Char(64)
+  chainId         String       @db.VarChar(80)
+  contractAddress String       @db.VarChar(100)
+  transactionHash String?      @db.VarChar(100)
+  blockNumber     BigInt?
+  status          AnchorStatus @default(PENDING)
+  attemptCount    Int          @default(0)
+  anchoredAt      DateTime?
+  lastErrorCode   String?      @db.VarChar(100)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@unique([recordType, recordId, contentHash, chainId])
+  @@index([status, createdAt])
+}

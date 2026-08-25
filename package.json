@@ -1,0 +1,35 @@
+{
+  "name": "sih25007-livestock-platform",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "frontend",
+    "backend",
+    "blockchain"
+  ],
+  "scripts": {
+    "dev:frontend": "npm run dev --workspace frontend",
+    "dev:backend": "npm run dev --workspace backend",
+    "build": "npm run build --workspace frontend && npm run compile --workspace blockchain",
+    "test": "npm run test --workspace backend && npm run test --workspace frontend && npm run test --workspace blockchain",
+    "lint": "eslint . && prettier --check README.md package.json eslint.config.js .prettierrc.json docker-compose.yml \"backend/**/*.{js,json}\" \"frontend/**/*.{js,jsx,json,html,css}\" \"blockchain/**/*.{js,cjs,json}\" \"docs/architecture/**/*.md\"",
+    "format": "prettier --write .",
+    "prisma:generate": "npm run prisma:generate --workspace backend",
+    "prisma:validate": "npm run prisma:validate --workspace backend",
+    "db:migrate": "npm run db:migrate --workspace backend",
+    "db:check": "npm run db:check --workspace backend"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.34.0",
+    "eslint": "^9.34.0",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.20",
+    "globals": "^16.3.0",
+    "prettier": "^3.6.2"
+  }
+}

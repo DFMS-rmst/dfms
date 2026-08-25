@@ -10,6 +10,9 @@ build/
 coverage/
 .cache/
 .vite/
+frontend/.env.local
+backend/.env.local
+blockchain/.env.local
 
 # Logs and runtime files
 *.log
@@ -34,4 +37,8 @@ uploads/
 artifacts/
 cache/
 typechain-types/
+blockchain/deployments/
 
+# Prisma local artifacts
+backend/prisma/*.db
+backend/prisma/*.db-journal

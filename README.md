@@ -1,35 +1,69 @@
 # SIH25007 Livestock AMU and Milk Eligibility Platform
 
-This repository is the planning foundation for a B.Tech final-year academic prototype that connects responsible veterinary care, antimicrobial usage (AMU) monitoring, withdrawal enforcement, rule-based milk eligibility, and verifiable dairy-collection certificates.
+JavaScript/MySQL monorepo for a B.Tech final-year academic prototype connecting veterinary care, actual antimicrobial usage (AMU), withdrawal enforcement, rule-based milk eligibility, certificates, QR verification, and limited blockchain integrity proof.
 
-The intended operator is a dairy cooperative, private dairy, milk collection organization, dairy union, or organized livestock service provider. Farmers and verified veterinarians use the platform; the platform administrator represents the operating organization, not a government authority.
+## Workspaces
 
-## Current phase
+- `frontend` — React + Vite JavaScript shell
+- `backend` — Express JavaScript API, Prisma, MySQL
+- `blockchain` — Solidity + Hardhat + ethers proof contract
+- `data/reference` — provenance-bearing researched reference artifacts; no invented seed values
+- `docs` — project, research, and architecture documentation
 
-Project initialization and planning only. No application stack, database, object storage, blockchain network, or veterinary reference dataset has been scaffolded or implemented.
+## Prerequisites
 
-Start with:
+- Node.js 22+
+- npm 10+
+- Docker Desktop/Engine with Compose
 
-- [Problem statement](docs/project/problem-statement.md)
-- [Project scope](docs/project/project-scope.md)
-- [Business model](docs/project/business-model.md)
-- [User roles](docs/project/user-roles.md)
-- [Functional requirements](docs/project/functional-requirements.md)
-- [Non-functional requirements](docs/project/non-functional-requirements.md)
-- [Module breakdown](docs/project/module-breakdown.md)
-- [End-to-end workflow](docs/project/end-to-end-workflow.md)
-- [Implementation roadmap](docs/project/implementation-roadmap.md)
+## Setup
 
-## Fixed boundaries
+```bash
+npm install
+cp .env.example .env
+npm run prisma:generate
+npm run prisma:validate
+npm test
+npm run lint
+npm run build
+docker compose up --build
+```
 
-- AMU monitoring and analytics is a first-class core module based on actual treatment administrations.
-- Milk eligibility is derived from recorded treatment history and verified, provenance-bearing withdrawal rules; it is not laboratory residue certification.
-- There is no laboratory module, residue measurement, simulated lab result, or AI diagnosis.
-- PostgreSQL is planned as the application source of truth. Blockchain is limited to integrity proofs, primarily certificate hashes.
-- Private documents and images are planned for a private AWS S3 bucket using authorized, short-lived presigned URLs.
-- No veterinary, dosage, MRL, or withdrawal values may be guessed or hard-coded.
+MySQL is exposed on host port `3307` by default to avoid conflicts with a locally installed MySQL service. Set `MYSQL_PORT` to override it; containers continue to use port `3306` internally.
 
-## Security note
+On Windows PowerShell, use `Copy-Item .env.example .env` instead of `cp`. Fill only local development values in `.env`; it is ignored by Git. Compose supplies safe local-container values when no root `.env` exists.
 
-Copy `.env.example` to a local ignored environment file only when implementation begins. Never commit credentials, passwords, private keys, tokens, or production environment files.
+- Frontend: `http://localhost:5173`
+- Backend health: `http://localhost:3000/api/v1/health`
 
+## Local development without Docker
+
+```bash
+npm run dev:backend
+npm run dev:frontend
+```
+
+Set `DATABASE_URL` to a reachable MySQL database before running database readiness or migrations.
+
+## Quality commands
+
+```bash
+npm test
+npm run lint
+npm run build
+npm run prisma:validate
+npm run prisma:generate
+```
+
+`npm run db:check` verifies backend-to-MySQL connectivity. `npm run db:migrate` applies committed migrations.
+
+## Fixed safety boundaries
+
+- MySQL is authoritative; blockchain stores only selected hashes/proofs.
+- Private files use backend-authorized, short-lived S3 presigned URLs.
+- AMU comes from actual administrations and supports mass/exposure metrics.
+- Milk eligibility uses verified withdrawal rules across all relevant treatments.
+- MRL is reference-only. There is no laboratory or measured-residue module.
+- Only verified, assigned veterinarians can accept requests and create official diagnoses/prescriptions.
+
+See [system architecture](docs/architecture/system-architecture.md) and [research summary](docs/research/research-summary.md).
