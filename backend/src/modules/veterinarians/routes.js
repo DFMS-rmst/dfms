@@ -49,6 +49,47 @@ const profileInclude = {
 export const veterinariansRouter = Router();
 veterinariansRouter.use(authenticate);
 veterinariansRouter.get(
+  '/',
+  asyncHandler(async (request, response) => {
+    const query = z
+      .object({
+        state: z.string().max(100).optional(),
+        district: z.string().max(100).optional(),
+        specialization: z.string().max(160).optional(),
+        name: z.string().max(160).optional(),
+      })
+      .parse(request.query);
+    const veterinarians = await prisma.veterinarianProfile.findMany({
+      where: {
+        status: 'VERIFIED',
+        ...(query.specialization ? { specialization: { contains: query.specialization } } : {}),
+        ...(query.name ? { user: { fullName: { contains: query.name } } } : {}),
+        ...(query.state || query.district
+          ? {
+              serviceAreas: {
+                some: {
+                  ...(query.state ? { state: query.state } : {}),
+                  ...(query.district ? { district: query.district } : {}),
+                },
+              },
+            }
+          : {}),
+      },
+      select: {
+        id: true,
+        qualification: true,
+        specialization: true,
+        experienceYears: true,
+        status: true,
+        user: { select: { fullName: true } },
+        serviceAreas: { select: { state: true, district: true, taluka: true, pincode: true } },
+      },
+      orderBy: { user: { fullName: 'asc' } },
+    });
+    response.json({ data: { veterinarians } });
+  }),
+);
+veterinariansRouter.get(
   '/me',
   asyncHandler(async (request, response) =>
     response.json({

@@ -11,6 +11,18 @@ import { farmsRouter } from './modules/farms/index.js';
 import { animalsRouter, speciesRouter } from './modules/animals/index.js';
 import { filesRouter } from './modules/files/index.js';
 import { adminVeterinariansRouter, veterinariansRouter } from './modules/veterinarians/index.js';
+import {
+  alertsRouter,
+  casesRouter,
+  referenceClinicalRouter,
+  treatmentRequestsRouter,
+  treatmentsRouter,
+} from './modules/veterinary-workflow/routes.js';
+import { amuRouter } from './modules/amu/routes.js';
+import { eligibilityRouter, mrlRouter, withdrawalRouter } from './modules/eligibility/routes.js';
+import { certificatesRouter, publicCertificatesRouter } from './modules/certificates/index.js';
+import { dashboardsRouter } from './modules/dashboards/index.js';
+import { reportsRouter } from './modules/reports/index.js';
 
 export function createApp() {
   const app = express();
@@ -34,6 +46,19 @@ export function createApp() {
   app.use('/api/v1/veterinarians', veterinariansRouter);
   app.use('/api/v1/admin/veterinarians', adminVeterinariansRouter);
   app.use('/api/v1/files', filesRouter);
+  app.use('/api/v1/treatment-requests', treatmentRequestsRouter);
+  app.use('/api/v1/veterinary-cases', casesRouter);
+  app.use('/api/v1/treatments', treatmentsRouter);
+  app.use('/api/v1/reference-data', referenceClinicalRouter);
+  app.use('/api/v1/alerts', alertsRouter);
+  app.use('/api/v1/amu', amuRouter);
+  app.use('/api/v1/withdrawal', withdrawalRouter);
+  app.use('/api/v1/eligibility', eligibilityRouter);
+  app.use('/api/v1/reference-data/mrl', mrlRouter);
+  app.use('/api/v1/certificates', certificatesRouter);
+  app.use('/api/v1/public/certificates', publicCertificatesRouter);
+  app.use('/api/v1/dashboards', dashboardsRouter);
+  app.use('/api/v1/reports', reportsRouter);
   app.use((request, response) =>
     response
       .status(404)

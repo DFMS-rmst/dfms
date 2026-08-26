@@ -16,9 +16,9 @@ export const allowedMimeTypes = new Map([
   ['image/png', 'png'],
 ]);
 const uploadSchema = z.object({
-  entityType: z.literal('VETERINARIAN_PROFILE'),
+  entityType: z.enum(['VETERINARIAN_PROFILE', 'TREATMENT_REQUEST']),
   entityId: z.string().min(1),
-  purpose: z.literal('REGISTRATION_CERTIFICATE'),
+  purpose: z.enum(['REGISTRATION_CERTIFICATE', 'REQUEST_ATTACHMENT']),
   mimeType: z.string(),
   sizeBytes: z.number().int().positive(),
   originalFilename: z.string().max(255).optional(),
@@ -39,6 +39,18 @@ async function authorizeProfile(userId, profileId, platformRoles) {
     throw new AppError(404, 'FILE_ENTITY_NOT_FOUND', 'File entity not found');
   return profile;
 }
+async function authorizeRequest(userId, requestId) {
+  const item = await prisma.treatmentRequest.findUnique({
+    where: { id: requestId },
+    include: {
+      requestedVeterinarian: true,
+      farm: { include: { members: { where: { userId, status: 'ACTIVE' } } } },
+    },
+  });
+  if (!item || (item.requestedVeterinarian.userId !== userId && item.farm.members.length === 0))
+    throw new AppError(404, 'FILE_ENTITY_NOT_FOUND', 'File entity not found');
+  return item;
+}
 export const filesRouter = Router();
 filesRouter.use(authenticate);
 filesRouter.post(
@@ -46,20 +58,34 @@ filesRouter.post(
   validate(uploadSchema),
   asyncHandler(async (request, response) => {
     validatePrivateFile(request.body);
-    const profile = await authorizeProfile(
-      request.principal.user.id,
-      request.body.entityId,
-      request.principal.platformRoles,
-    );
-    if (profile.userId !== request.principal.user.id)
-      throw new AppError(403, 'FORBIDDEN', 'Only the veterinarian may upload their credential');
+    let profile = null;
+    if (request.body.entityType === 'VETERINARIAN_PROFILE') {
+      profile = await authorizeProfile(
+        request.principal.user.id,
+        request.body.entityId,
+        request.principal.platformRoles,
+      );
+      if (profile.userId !== request.principal.user.id)
+        throw new AppError(403, 'FORBIDDEN', 'Only the veterinarian may upload their credential');
+    } else {
+      const item = await authorizeRequest(request.principal.user.id, request.body.entityId);
+      if (item.createdById !== request.principal.user.id)
+        throw new AppError(403, 'FORBIDDEN', 'Only the requester may attach request images');
+      if (!request.body.mimeType.startsWith('image/'))
+        throw new AppError(
+          400,
+          'INVALID_FILE_TYPE',
+          'Treatment request attachments must be images',
+        );
+    }
     try {
       assertS3Configured();
     } catch {
       throw new AppError(503, 'S3_NOT_CONFIGURED', 'Private storage is not configured');
     }
     const extension = allowedMimeTypes.get(request.body.mimeType);
-    const objectKey = `${env.NODE_ENV}/veterinarian-credentials/${new Date().toISOString().slice(0, 10)}/${crypto.randomUUID()}.${extension}`;
+    const folder = profile ? 'veterinarian-credentials' : 'treatment-request-attachments';
+    const objectKey = `${env.NODE_ENV}/${folder}/${new Date().toISOString().slice(0, 10)}/${crypto.randomUUID()}.${extension}`;
     const file = await prisma.fileObject.create({
       data: {
         bucket: env.AWS_S3_BUCKET,
@@ -68,9 +94,9 @@ filesRouter.post(
         extension,
         sizeBytes: BigInt(request.body.sizeBytes),
         ownerUserId: request.principal.user.id,
-        veterinarianProfileId: profile.id,
+        veterinarianProfileId: profile?.id,
         entityType: request.body.entityType,
-        entityId: profile.id,
+        entityId: request.body.entityId,
         purpose: request.body.purpose,
       },
     });
@@ -129,12 +155,15 @@ filesRouter.post(
   '/:fileId/download-intents',
   asyncHandler(async (request, response) => {
     const file = await prisma.fileObject.findUnique({ where: { id: request.params.fileId } });
+    if (!file) throw new AppError(404, 'FILE_NOT_FOUND', 'File not found');
     if (
-      !file ||
-      (file.ownerUserId !== request.principal.user.id &&
-        !request.principal.platformRoles.includes('PLATFORM_ADMIN'))
-    )
-      throw new AppError(404, 'FILE_NOT_FOUND', 'File not found');
+      file.ownerUserId !== request.principal.user.id &&
+      !request.principal.platformRoles.includes('PLATFORM_ADMIN')
+    ) {
+      if (file.entityType === 'TREATMENT_REQUEST')
+        await authorizeRequest(request.principal.user.id, file.entityId);
+      else throw new AppError(404, 'FILE_NOT_FOUND', 'File not found');
+    }
     if (file.status !== 'AVAILABLE')
       throw new AppError(409, 'FILE_UNAVAILABLE', 'File upload is not complete');
     try {

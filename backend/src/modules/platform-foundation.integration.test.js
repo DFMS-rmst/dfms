@@ -31,6 +31,7 @@ describe.sequential('platform foundation integration', () => {
     });
   });
   afterAll(async () => {
+    if (farmId) await prisma.animal.deleteMany({ where: { farmId } });
     if (farmId) await prisma.farm.delete({ where: { id: farmId } });
     await prisma.user.deleteMany({
       where: { email: { in: [ownerEmail, outsiderEmail, vetEmail, adminEmail] } },

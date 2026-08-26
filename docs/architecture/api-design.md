@@ -10,9 +10,9 @@
 - Cursor pagination for high-volume timelines; bounded page pagination for small reference lists.
 - Idempotency keys for certificate issuance and other retry-sensitive commands.
 
-## Initial routes
+## Route families
 
-The scaffold implements only `GET /api/v1/health`. Planned route families:
+The platform foundation and Milestone 5 veterinary workflow implement the following route families. Later compliance route families remain architectural contracts until their milestones.
 
 | Route family                             | Responsibility                                                |
 | ---------------------------------------- | ------------------------------------------------------------- |
@@ -40,9 +40,11 @@ Each protected request resolves an authenticated principal, platform roles, farm
 
 Services validate allowed transitions, use a MySQL transaction, append an audit record/domain event, and return the new authoritative state. Chat never causes clinical records automatically. Prescription creation never implies administration.
 
+Milestone 5 commands use `PATCH /treatment-requests/:id/status`, `PATCH /veterinary-cases/:id/status`, and `PATCH /treatments/:id/status`, with domain-owned transition maps. Accepting a request idempotently creates its one-to-one veterinary case. Case messages, diagnoses, and prescriptions are nested below `/veterinary-cases/:id`; actual administrations are nested below `/treatments/:id`. Clinical drug and disease selectors read researched records through `/reference-data`.
+
 ## Files
 
-`POST /files/upload-intents` validates entity, ownership, MIME, size, and extension, creates `PENDING_UPLOAD` metadata, and returns a short-lived presigned PUT. `POST /files/:id/complete` verifies object metadata before marking available. `POST /files/:id/download-intents` authorizes and returns a short-lived GET.
+`POST /files/presign-upload` validates entity, ownership, MIME and size, creates private file metadata, and returns a short-lived presigned PUT. `GET /files/:id/presign-download` authorizes the owner, relevant request/case participant, or platform administrator before returning a short-lived GET. Treatment-request attachments are image-only and never expose permanent URLs or S3 object keys through discovery APIs.
 
 ## Eligibility response
 

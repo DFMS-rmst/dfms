@@ -57,6 +57,16 @@ The default seed imports only the researched cattle and buffalo species records.
 - `/api/v1/admin/veterinarians`: administrator review and verification decisions
 - `/api/v1/files`: private S3 upload, completion, and download intents
 
+## Veterinary workflow API
+
+- `/api/v1/veterinarians`: verified-only discovery with district, service-area, specialization, and name filters
+- `/api/v1/treatment-requests`: farm-authorized creation/list/detail and controlled accept/reject/cancel transitions
+- `/api/v1/veterinary-cases`: participant-only case detail, persisted chat, diagnoses, and prescriptions
+- `/api/v1/treatments`: treatment lifecycle and separate actual administration records
+- `/api/v1/reference-data`: researched disease and drug selectors
+- `/api/v1/alerts`: role-scoped in-app workflow alerts
+- `/api/v1/farms/:farmId/animals/:animalId/timeline`: stored clinical workflow history
+
 S3 is optional for local startup and mocked in tests. Real uploads require a private bucket and backend-only AWS configuration; the frontend never receives AWS credentials.
 
 ## Quality commands

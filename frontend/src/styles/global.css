@@ -4,6 +4,15 @@
   background: #eef5ed;
   font-synthesis: none;
 }
+.qr {
+  width: 180px;
+  max-width: 100%;
+  display: block;
+  margin: 1rem auto;
+}
+.verification {
+  max-width: 680px;
+}
 * {
   box-sizing: border-box;
 }
@@ -181,6 +190,26 @@ nav,
 }
 .muted {
   color: #607b69;
+}
+.notice {
+  padding: 0.8rem 1rem;
+  border-left: 4px solid #2f7651;
+  background: #eef6f0;
+}
+.table-wrap {
+  overflow-x: auto;
+  margin-bottom: 1.5rem;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+}
+th,
+td {
+  padding: 0.7rem;
+  border-bottom: 1px solid #d9e4dc;
+  text-align: left;
 }
 @media (max-width: 760px) {
   header,

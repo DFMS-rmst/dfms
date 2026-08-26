@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { authenticate, requireFarmAccess } from '../../common/auth.js';
-import { asyncHandler } from '../../common/errors.js';
+import { AppError, asyncHandler } from '../../common/errors.js';
 import { validate } from '../../common/validation.js';
 import { prisma } from '../../infrastructure/prisma/client.js';
 import { appendAudit } from '../audit/index.js';
@@ -130,5 +130,20 @@ animalsRouter.patch(
       return updated;
     });
     response.json({ data: { animal } });
+  }),
+);
+animalsRouter.get(
+  '/:animalId/timeline',
+  asyncHandler(async (request, response) => {
+    await requireFarmAccess(request.principal.user.id, request.params.farmId);
+    const animal = await prisma.animal.findFirst({
+      where: { id: request.params.animalId, farmId: request.params.farmId },
+    });
+    if (!animal) throw new AppError(404, 'ANIMAL_NOT_FOUND', 'Animal not found');
+    const events = await prisma.animalProfileEvent.findMany({
+      where: { animalId: animal.id },
+      orderBy: { createdAt: 'desc' },
+    });
+    response.json({ data: { events } });
   }),
 );

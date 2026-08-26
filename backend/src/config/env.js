@@ -5,6 +5,7 @@ const schema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().positive().default(3000),
   FRONTEND_URL: z.string().url().default('http://localhost:5173'),
+  APP_BASE_URL: z.string().url().default('http://localhost:5173'),
   DATABASE_URL: z.string().min(1).optional(),
   JWT_SECRET: z.string().min(32).optional(),
   JWT_EXPIRES_IN: z.string().default('15m'),
@@ -15,6 +16,10 @@ const schema = z.object({
   AWS_SECRET_ACCESS_KEY: z.string().optional(),
   S3_PRESIGNED_URL_EXPIRY_SECONDS: z.coerce.number().int().min(60).max(900).default(300),
   MAX_PRIVATE_FILE_SIZE_BYTES: z.coerce.number().int().positive().default(10_485_760),
+  BLOCKCHAIN_RPC_URL: z.string().url().optional().or(z.literal('')),
+  BLOCKCHAIN_PRIVATE_KEY: z.string().optional(),
+  BLOCKCHAIN_CONTRACT_ADDRESS: z.string().optional(),
+  BLOCKCHAIN_NETWORK: z.string().default('hardhat-local'),
 });
 
 export const env = schema.parse(process.env);

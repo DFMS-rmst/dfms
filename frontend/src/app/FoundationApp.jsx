@@ -1,32 +1,8 @@
 import { useEffect, useState } from 'react';
-const base = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1';
-let token = sessionStorage.getItem('accessToken');
-async function api(path, options = {}, retry = true) {
-  const response = await fetch(`${base}${path}`, {
-    credentials: 'include',
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...options.headers,
-    },
-  });
-  if (response.status === 401 && retry && !path.startsWith('/auth/')) {
-    const refresh = await fetch(`${base}/auth/refresh`, {
-      method: 'POST',
-      credentials: 'include',
-    });
-    if (refresh.ok) {
-      const refreshed = await refresh.json();
-      token = refreshed.data.accessToken;
-      sessionStorage.setItem('accessToken', token);
-      return api(path, options, false);
-    }
-  }
-  const body = response.status === 204 ? null : await response.json();
-  if (!response.ok) throw new Error(body?.error?.message || 'Request failed');
-  return body?.data;
-}
+import { api, hasAccessToken, setAccessToken } from './api.js';
+import { VeterinaryWorkflow } from './VeterinaryWorkflow.jsx';
+import { CoreEngine } from './CoreEngine.jsx';
+import { Certificates, DashboardReports, PublicVerification } from './TrustLayer.jsx';
 const Field = ({ label, name, type = 'text', required = true, defaultValue }) => (
   <label>
     {label}
@@ -42,8 +18,7 @@ function AuthPage({ mode, done, go }) {
         method: 'POST',
         body: JSON.stringify(Object.fromEntries(new FormData(e.currentTarget))),
       });
-      token = data.accessToken;
-      sessionStorage.setItem('accessToken', token);
+      setAccessToken(data.accessToken);
       done(data.user);
     } catch (x) {
       setError(x.message);
@@ -274,6 +249,7 @@ function Workspace({ user, logout }) {
   const [farms, setFarms] = useState([]);
   const [farm, setFarm] = useState(null);
   const [animals, setAnimals] = useState([]);
+  const [animalTimeline, setAnimalTimeline] = useState(null);
   const [species, setSpecies] = useState([]);
   useEffect(() => {
     api('/farms').then((d) => setFarms(d.farms));
@@ -284,6 +260,10 @@ function Workspace({ user, logout }) {
     setAnimals((await api(`/farms/${item.id}/animals`)).animals);
     setPage('farm');
   }
+  async function openTimeline(animal) {
+    const result = await api(`/farms/${farm.id}/animals/${animal.id}/timeline`);
+    setAnimalTimeline({ animal, events: result.timeline });
+  }
   const admin = user.platformRoles.includes('PLATFORM_ADMIN');
   return (
     <div>
@@ -293,6 +273,10 @@ function Workspace({ user, logout }) {
           <button onClick={() => setPage('farms')}>My Farms</button>
           <button onClick={() => setPage('create')}>Create Farm</button>
           <button onClick={() => setPage('vet')}>Veterinarian Profile</button>
+          <button onClick={() => setPage('veterinary-care')}>Veterinary Care</button>
+          <button onClick={() => setPage('core-engine')}>AMU & Milk Eligibility</button>
+          <button onClick={() => setPage('certificates')}>Certificates</button>
+          <button onClick={() => setPage('dashboard')}>Dashboard & Reports</button>
           {admin && <button onClick={() => setPage('admin')}>Vet Reviews</button>}
           <button onClick={logout}>Logout</button>
         </nav>
@@ -338,9 +322,26 @@ function Workspace({ user, logout }) {
                   <p>
                     {a.species.canonicalName} · {a.status}
                   </p>
+                  <button onClick={() => openTimeline(a)}>View health timeline</button>
                 </article>
               ))}
             </div>
+            {animalTimeline && (
+              <section className="card">
+                <button className="link" onClick={() => setAnimalTimeline(null)}>
+                  Close timeline
+                </button>
+                <h2>{animalTimeline.animal.name || animalTimeline.animal.tagNumber} history</h2>
+                {animalTimeline.events.length === 0 && <p>No recorded health events.</p>}
+                {animalTimeline.events.map((event) => (
+                  <article key={event.id}>
+                    <strong>{event.title}</strong>
+                    <p>{event.description}</p>
+                    <small>{new Date(event.occurredAt).toLocaleString()}</small>
+                  </article>
+                ))}
+              </section>
+            )}
             <AnimalForm
               farmId={farm.id}
               species={species}
@@ -349,26 +350,36 @@ function Workspace({ user, logout }) {
           </section>
         )}
         {page === 'vet' && <VetProfile />}
+        {page === 'veterinary-care' && (
+          <VeterinaryWorkflow
+            farms={farms}
+            isVeterinarian={user.platformRoles.includes('VETERINARIAN')}
+          />
+        )}
+        {page === 'core-engine' && <CoreEngine farms={farms} isAdmin={admin} />}
+        {page === 'certificates' && <Certificates farms={farms} isAdmin={admin} />}
+        {page === 'dashboard' && <DashboardReports farms={farms} user={user} />}
         {page === 'admin' && admin && <AdminVets />}
       </main>
     </div>
   );
 }
 export function App() {
+  const verificationId = window.location.pathname.match(/^\/verify\/certificate\/([^/]+)$/)?.[1];
   const [mode, setMode] = useState('login');
   const [user, setUser] = useState(null);
   useEffect(() => {
-    if (token)
+    if (hasAccessToken())
       api('/auth/me')
         .then((d) => setUser(d.user))
-        .catch(() => sessionStorage.removeItem('accessToken'));
+        .catch(() => setAccessToken(null));
   }, []);
   async function logout() {
     await api('/auth/logout', { method: 'POST' });
-    token = null;
-    sessionStorage.removeItem('accessToken');
+    setAccessToken(null);
     setUser(null);
   }
+  if (verificationId) return <PublicVerification verificationId={verificationId} />;
   return user ? (
     <Workspace user={user} logout={logout} />
   ) : (

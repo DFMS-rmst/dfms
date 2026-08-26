@@ -32,4 +32,4 @@ Server state is fetched through a thin API client; a query library may be added 
 - Public QR verification uses a dedicated privacy-minimized page.
 - Chat cannot create clinical records implicitly.
 
-The initial shell includes product identity, milestone status, and API health display only. It does not contain fake dashboard statistics.
+The functional shell includes authentication, farm and animal management, veterinarian onboarding/admin review, and the Milestone 5 veterinary-service workspace. Farmers can discover verified veterinarians, submit treatment requests with optional private images, open cases, chat, and view diagnoses, prescriptions, treatment progress, and animal timeline events. Assigned veterinarians can accept/reject requests, record diagnoses and structured prescriptions, start/complete treatments, and record actual administrations separately. It does not contain fake dashboard statistics.
