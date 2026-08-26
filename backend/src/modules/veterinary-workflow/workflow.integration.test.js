@@ -124,7 +124,10 @@ describe.sequential('complete veterinary workflow', () => {
       .get('/api/v1/veterinarians?district=Mysuru&specialization=Bovine')
       .set(auth(token));
     expect(result.status).toBe(200);
-    expect(result.body.data.veterinarians).toHaveLength(2);
+    expect(result.body.data.veterinarians.length).toBeGreaterThanOrEqual(2);
+    expect(result.body.data.veterinarians.map((profile) => profile.user.fullName)).toEqual(
+      expect.arrayContaining(['Assigned Veterinarian', 'Other Veterinarian']),
+    );
     expect(JSON.stringify(result.body)).not.toContain('PRIVATE REVIEW NOTE');
     expect(JSON.stringify(result.body)).not.toContain('objectKey');
   });

@@ -198,6 +198,8 @@ model Farm {
   taluka            String?                @db.VarChar(100)
   pincode           String?                @db.VarChar(12)
   timeZone          String                 @default("Asia/Kolkata") @db.VarChar(64)
+  regulatoryJurisdiction String             @default("INDIA") @db.VarChar(64)
+  demonstrationMode Boolean                @default(false)
   createdById       String
   createdAt         DateTime               @default(now())
   updatedAt         DateTime               @updatedAt

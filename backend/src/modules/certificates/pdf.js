@@ -64,6 +64,13 @@ export async function renderCertificatePdf(certificate) {
         `${item.drug || 'Treatment'} — completed ${item.treatmentCompletedAt || 'not recorded'}; withdrawal ended ${item.withdrawalEndsAt || 'not applicable'}; rule ${rule?.code || 'none'} (${rule?.source?.organization || 'none'}).`,
       );
   }
+  if (snapshot.regulatoryContext?.warning)
+    document
+      .moveDown()
+      .fillColor('#9a3412')
+      .font('Helvetica-Bold')
+      .text(snapshot.regulatoryContext.warning, { align: 'center' })
+      .fillColor('#111827');
   document.image(qr, 220, 500, { width: 150 });
   document
     .fontSize(9)

@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "compile": "hardhat compile",
-    "test": "hardhat test",
-    "node": "hardhat node"
+    "compile": "node scripts/run-hardhat.cjs compile",
+    "test": "node scripts/run-hardhat.cjs test",
+    "node": "node scripts/run-hardhat.cjs node"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",

@@ -17,12 +17,25 @@ const evidence = {
   },
 };
 function snapshot(check, certificateNumber, issuedAt) {
+  const demonstrationReference = check.treatmentEvaluations.some(
+    (item) => item.ruleSnapshot?.demonstrationReference,
+  );
+  const disclaimer = demonstrationReference
+    ? `${CERTIFICATE_DISCLAIMER} DEMONSTRATION REFERENCE — NOT AN INDIAN REGULATORY RULE`
+    : CERTIFICATE_DISCLAIMER;
   return {
     schema: CANONICALIZATION_VERSION,
     certificateNumber,
     issuedAt: issuedAt.toISOString(),
     animal: { tagNumber: check.animal.tagNumber, species: check.animal.species.canonicalName },
     farm: { name: check.animal.farm.name },
+    regulatoryContext: {
+      jurisdiction: check.animal.farm.regulatoryJurisdiction,
+      demonstrationMode: check.animal.farm.demonstrationMode,
+      ...(demonstrationReference
+        ? { warning: 'DEMONSTRATION REFERENCE — NOT AN INDIAN REGULATORY RULE' }
+        : {}),
+    },
     eligibility: {
       evaluationId: check.id,
       evaluatedAt: check.evaluatedAt.toISOString(),
@@ -36,7 +49,7 @@ function snapshot(check, certificateNumber, issuedAt) {
         rule: item.ruleSnapshot || null,
       })),
     },
-    disclaimer: CERTIFICATE_DISCLAIMER,
+    disclaimer,
   };
 }
 const number = () =>
@@ -85,7 +98,7 @@ export async function issueCertificate(animalId, actorUserId) {
         canonicalizationVersion: CANONICALIZATION_VERSION,
         canonicalPayload,
         contentHashSha256: hashCertificatePayload(canonicalPayload),
-        disclaimer: CERTIFICATE_DISCLAIMER,
+        disclaimer: canonicalPayload.disclaimer,
       },
     });
     const members = await tx.farmMember.findMany({

@@ -23,6 +23,7 @@ import { eligibilityRouter, mrlRouter, withdrawalRouter } from './modules/eligib
 import { certificatesRouter, publicCertificatesRouter } from './modules/certificates/index.js';
 import { dashboardsRouter } from './modules/dashboards/index.js';
 import { reportsRouter } from './modules/reports/index.js';
+import { rateLimit } from './common/rate-limit.js';
 
 export function createApp() {
   const app = express();
@@ -39,7 +40,7 @@ export function createApp() {
     }),
   );
   app.use('/api/v1/health', healthRouter);
-  app.use('/api/v1/auth', authRouter);
+  app.use('/api/v1/auth', rateLimit({ windowMs: 60_000, max: 30 }), authRouter);
   app.use('/api/v1/farms', farmsRouter);
   app.use('/api/v1/farms/:farmId/animals', animalsRouter);
   app.use('/api/v1/species', speciesRouter);
@@ -56,7 +57,11 @@ export function createApp() {
   app.use('/api/v1/eligibility', eligibilityRouter);
   app.use('/api/v1/reference-data/mrl', mrlRouter);
   app.use('/api/v1/certificates', certificatesRouter);
-  app.use('/api/v1/public/certificates', publicCertificatesRouter);
+  app.use(
+    '/api/v1/public/certificates',
+    rateLimit({ windowMs: 60_000, max: 120 }),
+    publicCertificatesRouter,
+  );
   app.use('/api/v1/dashboards', dashboardsRouter);
   app.use('/api/v1/reports', reportsRouter);
   app.use((request, response) =>

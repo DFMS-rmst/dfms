@@ -26,8 +26,16 @@ export function resolveRule(rules, context) {
       routeMatches(rule.route, context.route),
   );
   if (exact.length > 1) return { status: 'REVIEW_REQUIRED', reason: 'CONFLICTING_SOURCE' };
-  if (exact.length === 1 && exact[0].verificationStatus === 'VERIFIED')
-    return { status: 'VERIFIED', rule: exact[0] };
+  if (
+    exact.length === 1 &&
+    (exact[0].verificationStatus === 'VERIFIED' ||
+      (context.allowDemonstrationReference && exact[0].verificationStatus === 'EXAMPLE_ONLY'))
+  )
+    return {
+      status: 'VERIFIED',
+      rule: exact[0],
+      demonstrationReference: exact[0].verificationStatus === 'EXAMPLE_ONLY',
+    };
   if (exact.length === 1) return { status: 'REVIEW_REQUIRED', rule: exact[0] };
   const reviewRule = rules.find(
     (rule) => rule.ruleType === 'STATUTORY_MINIMUM' && rule.jurisdiction === context.jurisdiction,
@@ -88,7 +96,8 @@ export async function calculateEligibility(animalId, evaluatedAt = new Date(), c
         drugId: administration.drugId,
         drugProductId: administration.drugProductId,
         route: administration.route,
-        jurisdiction: 'INDIA',
+        jurisdiction: animal.farm.demonstrationMode ? animal.farm.regulatoryJurisdiction : 'INDIA',
+        allowDemonstrationReference: animal.farm.demonstrationMode,
       });
       if (resolution.status !== 'VERIFIED') {
         evaluations.push({
@@ -118,7 +127,7 @@ export async function calculateEligibility(animalId, evaluatedAt = new Date(), c
         status: evaluatedAt < withdrawalEndsAt ? 'UNDER_WITHDRAWAL' : 'ELIGIBLE_FOR_MILK',
         treatmentCompletedAt: treatment.completedAt,
         withdrawalEndsAt,
-        ruleSnapshot: snapshot(resolution.rule),
+        ruleSnapshot: snapshot(resolution.rule, resolution.demonstrationReference),
       });
     }
   }
@@ -150,7 +159,7 @@ export async function calculateEligibility(animalId, evaluatedAt = new Date(), c
   };
 }
 
-function snapshot(rule) {
+function snapshot(rule, demonstrationReference = false) {
   return {
     id: rule.id,
     code: rule.code,
@@ -160,6 +169,10 @@ function snapshot(rule) {
     jurisdiction: rule.jurisdiction,
     ruleType: rule.ruleType,
     verificationStatus: rule.verificationStatus,
+    demonstrationReference,
+    ...(demonstrationReference
+      ? { warning: 'DEMONSTRATION REFERENCE — NOT AN INDIAN REGULATORY RULE' }
+      : {}),
     source: {
       organization: rule.source.organization,
       title: rule.source.title,

@@ -91,3 +91,13 @@ npm run prisma:generate
 - Only verified, assigned veterinarians can accept requests and create official diagnoses/prescriptions.
 
 See [system architecture](docs/architecture/system-architecture.md) and [research summary](docs/research/research-summary.md).
+
+## Demonstration readiness
+
+The deterministic local seed (`SEED_DEMO_DATA=true`) creates `admin@example.local`, `farmer@example.local`, and `vet@example.local` with local-only password `DemoOnly!234`; the farmer is both owner and manager. It adds a completed veterinary story, actual administration-driven AMU evidence, an eligible certificate-capable animal, and a rule-missing blocked animal. Never deploy these credentials.
+
+India is the normal fail-closed jurisdiction. The named demonstration farm alone may use an exact foreign product record already present in `data/reference/`; resulting evidence and certificate snapshots carry **DEMONSTRATION REFERENCE — NOT AN INDIAN REGULATORY RULE**. A foreign rule is never silently substituted for India.
+
+For the narrated flow and safe local reset, see [demo guide](docs/project/demo-guide.md). Security conclusions are in [security review](docs/security/security-review.md) and [dependency review](docs/security/dependency-review.md); final commands and results are in [final test report](docs/testing/final-test-report.md).
+
+Production deployment additionally requires HTTPS, managed secrets, a shared/distributed rate limiter, hardened S3/IAM policy, backups, and a dedicated blockchain signer. Local Hardhat accounts are disposable development identities only.
