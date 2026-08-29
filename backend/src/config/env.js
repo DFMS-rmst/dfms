@@ -20,6 +20,11 @@ const schema = z.object({
   BLOCKCHAIN_PRIVATE_KEY: z.string().optional(),
   BLOCKCHAIN_CONTRACT_ADDRESS: z.string().optional(),
   BLOCKCHAIN_NETWORK: z.string().default('hardhat-local'),
+  ML_SERVICE_URL: z.string().url().default('http://localhost:8000'),
+  LLM_PROVIDER: z.enum(['OPENAI_COMPATIBLE']).default('OPENAI_COMPATIBLE'),
+  LLM_API_URL: z.string().url().default('https://api.openai.com/v1'),
+  LLM_API_KEY: z.string().optional(),
+  LLM_MODEL: z.string().default('gpt-4.1-mini'),
 });
 
 export const env = schema.parse(process.env);

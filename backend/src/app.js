@@ -24,6 +24,8 @@ import { certificatesRouter, publicCertificatesRouter } from './modules/certific
 import { dashboardsRouter } from './modules/dashboards/index.js';
 import { reportsRouter } from './modules/reports/index.js';
 import { rateLimit } from './common/rate-limit.js';
+import { mlRouter } from './modules/ml/index.js';
+import { advisorRouter } from './modules/advisor/index.js';
 
 export function createApp() {
   const app = express();
@@ -64,6 +66,8 @@ export function createApp() {
   );
   app.use('/api/v1/dashboards', dashboardsRouter);
   app.use('/api/v1/reports', reportsRouter);
+  app.use('/api/v1/ml', mlRouter);
+  app.use('/api/v1/advisor', advisorRouter);
   app.use((request, response) =>
     response
       .status(404)

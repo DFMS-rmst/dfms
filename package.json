@@ -18,7 +18,9 @@
     "prisma:generate": "npm run prisma:generate --workspace backend",
     "prisma:validate": "npm run prisma:validate --workspace backend",
     "db:migrate": "npm run db:migrate --workspace backend",
-    "db:check": "npm run db:check --workspace backend"
+    "db:check": "npm run db:check --workspace backend",
+    "ml:train": "python ml/training/train.py",
+    "ml:test": "python -m pytest ml/tests"
   },
   "engines": {
     "node": ">=22"

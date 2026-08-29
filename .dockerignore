@@ -1,0 +1,15 @@
+.git
+.env
+.env.*
+!.env.example
+node_modules
+**/node_modules
+.venv-ml
+**/__pycache__
+**/.pytest_cache
+frontend/dist
+coverage
+artifacts
+cache
+logs
+*.log

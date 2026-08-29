@@ -12,6 +12,7 @@ export default [
       '**/coverage/**',
       '**/artifacts/**',
       '**/cache/**',
+      '.venv-ml/**',
     ],
   },
   js.configs.recommended,
@@ -35,7 +36,7 @@ export default [
     },
   },
   {
-    files: ['blockchain/test/**/*.cjs'],
+    files: ['blockchain/**/*.cjs'],
     languageOptions: { sourceType: 'commonjs', globals: { ...globals.node, ...globals.mocha } },
   },
 ];

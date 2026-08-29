@@ -32,3 +32,13 @@ Then show the negative animal: its missing/review-required rule blocks eligibili
 - Blockchain anchoring requires a running disposable Hardhat node, deployed contract, and local environment variables.
 - Demonstration withdrawal evidence is jurisdiction-specific and is not an Indian regulatory claim.
 - No laboratory testing, residue measurement, AI diagnosis, tokens, NFTs, or cryptocurrency exists.
+
+## AI milestone demonstration
+
+1. Open **AI Advisor**, select the authorized demonstration farm, and evaluate farm AMU pattern risk.
+2. Enter an authorized animal ID to show the animal-level feature vector, risk band, model version, contributing indicators, and decision-support disclaimer.
+3. Explain that the model was trained on **SYNTHETIC DEMONSTRATION DATA** and that HIGH means unusual relative to that distribution—not misuse, diagnosis, or a regulatory breach.
+4. Configure a local/test LLM provider key, then ask an eligibility question. Show the answer's live-platform context label and approved research sources.
+5. Remove the provider key and show the graceful unavailable message rather than a fabricated answer.
+6. Attempt an unrelated farm/animal scope and show that Express denies access before ML retrieval or LLM invocation.
+7. Return to the milk eligibility/certificate screen and emphasize that AI results have not changed the deterministic state.

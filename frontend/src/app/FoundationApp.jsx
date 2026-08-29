@@ -3,6 +3,7 @@ import { api, hasAccessToken, setAccessToken } from './api.js';
 import { VeterinaryWorkflow } from './VeterinaryWorkflow.jsx';
 import { CoreEngine } from './CoreEngine.jsx';
 import { Certificates, DashboardReports, PublicVerification } from './TrustLayer.jsx';
+import { AiLayer, AmuRiskCard } from './AiLayer.jsx';
 const Field = ({ label, name, type = 'text', required = true, defaultValue }) => (
   <label>
     {label}
@@ -277,6 +278,7 @@ function Workspace({ user, logout }) {
           <button onClick={() => setPage('core-engine')}>AMU & Milk Eligibility</button>
           <button onClick={() => setPage('certificates')}>Certificates</button>
           <button onClick={() => setPage('dashboard')}>Dashboard & Reports</button>
+          <button onClick={() => setPage('ai')}>AI Advisor</button>
           {admin && <button onClick={() => setPage('admin')}>Vet Reviews</button>}
           <button onClick={logout}>Logout</button>
         </nav>
@@ -313,6 +315,10 @@ function Workspace({ user, logout }) {
             <p>
               {farm.district}, {farm.state}
             </p>
+            <section className="card">
+              <h2>Farm AMU Pattern Risk</h2>
+              <AmuRiskCard farmId={farm.id} />
+            </section>
             <h2>Animal List</h2>
             <div className="grid">
               {animals.map((a) => (
@@ -332,6 +338,8 @@ function Workspace({ user, logout }) {
                   Close timeline
                 </button>
                 <h2>{animalTimeline.animal.name || animalTimeline.animal.tagNumber} history</h2>
+                <h3>Animal AMU Pattern Risk</h3>
+                <AmuRiskCard farmId={farm.id} animalId={animalTimeline.animal.id} />
                 {animalTimeline.events.length === 0 && <p>No recorded health events.</p>}
                 {animalTimeline.events.map((event) => (
                   <article key={event.id}>
@@ -359,6 +367,7 @@ function Workspace({ user, logout }) {
         {page === 'core-engine' && <CoreEngine farms={farms} isAdmin={admin} />}
         {page === 'certificates' && <Certificates farms={farms} isAdmin={admin} />}
         {page === 'dashboard' && <DashboardReports farms={farms} user={user} />}
+        {page === 'ai' && <AiLayer farms={farms} user={user} />}
         {page === 'admin' && admin && <AdminVets />}
       </main>
     </div>

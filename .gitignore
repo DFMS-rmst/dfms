@@ -8,6 +8,10 @@ node_modules/
 dist/
 build/
 coverage/
+.venv-ml/
+__pycache__/
+*.py[cod]
+.pytest_cache/
 .cache/
 .vite/
 frontend/.env.local

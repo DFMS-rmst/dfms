@@ -101,3 +101,14 @@ India is the normal fail-closed jurisdiction. The named demonstration farm alone
 For the narrated flow and safe local reset, see [demo guide](docs/project/demo-guide.md). Security conclusions are in [security review](docs/security/security-review.md) and [dependency review](docs/security/dependency-review.md); final commands and results are in [final test report](docs/testing/final-test-report.md).
 
 Production deployment additionally requires HTTPS, managed secrets, a shared/distributed rate limiter, hardened S3/IAM policy, backups, and a dedicated blockchain signer. Local Hardhat accounts are disposable development identities only.
+
+## AI intelligence layer
+
+The optional `ml/` FastAPI service provides two separate capabilities behind Express authorization:
+
+- Isolation Forest AMU pattern anomaly indicators derived from actual administrations. The bundled model uses **SYNTHETIC DEMONSTRATION DATA** and never claims misuse, diagnosis, or disease probability.
+- Local TF-IDF retrieval over approved `docs/research/` and `data/reference/` content with provenance.
+
+The Smart Advisor combines retrieved static knowledge with separately authorized live MySQL context, then calls a configurable OpenAI-compatible provider. Configure `LLM_API_URL`, `LLM_API_KEY`, and `LLM_MODEL` only in an ignored environment file. Without a key, the advisor returns a clear unavailable response and never fabricates an answer.
+
+`docker compose up --build` starts MySQL, the ML/retrieval service, Express, and React. ML remains decision support: the deterministic withdrawal/eligibility engine alone controls milk eligibility and certificate issuance.
