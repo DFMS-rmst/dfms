@@ -18,6 +18,8 @@ Local demo password: `DemoOnly!234`. Accounts are `admin@example.local`, `farmer
 
 ## Primary story
 
+For local blockchain proof, run `npm run node --workspace blockchain` in a dedicated terminal, then run `npm run deploy:local --workspace blockchain` in another terminal. Copy only the disposable deployment address and a disposable Hardhat account key into the ignored local backend environment as documented in `blockchain/README.md`, then restart the backend.
+
 Log in as the farm owner, open the demonstration farm and animal, discover the verified veterinarian, and review the completed veterinary case: request, chat, diagnosis, prescription, treatment, and actual administration. Show that AMU is driven by administration—not prescription. Complete/evaluate treatment, show withdrawal evidence and the current milk-eligibility state, issue a certificate only when eligible, display the PDF and QR, then anchor/verify its deterministic hash on the disposable local Hardhat network. Scan/open the public verification route and compare certificate validity with blockchain integrity.
 
 Then show the negative animal: its missing/review-required rule blocks eligibility and certificate issuance. Emphasize that no guessed fallback is used.

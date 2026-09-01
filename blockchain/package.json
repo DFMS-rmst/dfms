@@ -5,7 +5,8 @@
   "scripts": {
     "compile": "node scripts/run-hardhat.cjs compile",
     "test": "node scripts/run-hardhat.cjs test",
-    "node": "node scripts/run-hardhat.cjs node"
+    "node": "node scripts/run-hardhat.cjs node",
+    "deploy:local": "node scripts/run-hardhat.cjs run scripts/deploy-local.cjs --network localhost"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
