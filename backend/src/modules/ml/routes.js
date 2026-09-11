@@ -10,7 +10,8 @@ async function assertFarmScope(request, farmId) {
   const vetCase = await prisma.veterinaryCase.findFirst({
     where: { farmId, veterinarian: { userId: request.principal.user.id } },
   });
-  if (!vetCase) await requireFarmAccess(request.principal.user.id, farmId);
+  if (!vetCase)
+    await requireFarmAccess(request.principal.user.id, farmId, ['FARM_OWNER', 'FARM_MANAGER']);
 }
 
 export const mlRouter = Router();

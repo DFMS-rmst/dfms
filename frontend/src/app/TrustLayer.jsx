@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { api, download, publicApi } from './api.js';
 
 const label = (x) => x?.replaceAll('_', ' ');
-export function Certificates({ farms, isAdmin }) {
+export function Certificates({ farms, isAdmin, canAnchor = false, canRevoke = false }) {
   const [farmId, setFarmId] = useState(farms[0]?.id || '');
   const [items, setItems] = useState([]);
   const [selected, setSelected] = useState(null);
@@ -20,6 +20,16 @@ export function Certificates({ farms, isAdmin }) {
   async function anchor(id) {
     await api(`/certificates/${id}/blockchain/anchor`, { method: 'POST' });
     await open(id);
+  }
+  async function revoke(id) {
+    const reason = window.prompt('Administrative revocation reason');
+    if (!reason) return;
+    await api(`/certificates/${id}/revoke`, {
+      method: 'POST',
+      body: JSON.stringify({ code: 'ADMINISTRATIVE_CORRECTION', reason }),
+    });
+    await open(id);
+    await load();
   }
   return (
     <section>
@@ -74,7 +84,14 @@ export function Certificates({ farms, isAdmin }) {
             >
               Download PDF
             </button>
-            <button onClick={() => anchor(selected.certificate.id)}>Anchor / retry proof</button>
+            {canAnchor && (
+              <button onClick={() => anchor(selected.certificate.id)}>Anchor / retry proof</button>
+            )}
+            {canRevoke && selected.certificate.status === 'ACTIVE' && (
+              <button className="danger" onClick={() => revoke(selected.certificate.id)}>
+                Revoke certificate
+              </button>
+            )}
           </div>
         </article>
       )}
@@ -120,9 +137,9 @@ export function PublicVerification({ verificationId }) {
   );
 }
 
-export function DashboardReports({ farms, user }) {
-  const admin = user.platformRoles.includes('PLATFORM_ADMIN');
-  const vet = user.platformRoles.includes('VETERINARIAN');
+export function DashboardReports({ farms, workspace }) {
+  const admin = workspace.kind === 'ADMIN';
+  const vet = workspace.kind === 'VETERINARIAN';
   const [farmId, setFarmId] = useState(farms[0]?.id || '');
   const [data, setData] = useState(null);
   const endpoint = admin

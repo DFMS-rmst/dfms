@@ -30,7 +30,17 @@ export async function api(path, options = {}, retry = true) {
     }
   }
   const body = response.status === 204 ? null : await response.json();
-  if (!response.ok) throw new Error(body?.error?.message || 'Request failed');
+  if (!response.ok) {
+    const fields = body?.error?.details?.fieldErrors || {};
+    const fieldMessage = Object.entries(fields)
+      .filter(([, messages]) => messages?.length)
+      .map(([field, messages]) => `${field}: ${messages[0]}`)
+      .join('; ');
+    const error = new Error(fieldMessage || body?.error?.message || 'Request failed');
+    error.code = body?.error?.code;
+    error.details = body?.error?.details;
+    throw error;
+  }
   return body?.data;
 }
 

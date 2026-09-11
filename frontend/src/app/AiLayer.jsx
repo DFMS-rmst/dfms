@@ -13,18 +13,19 @@ const suggestions = {
   FARM: ['Can I collect milk from this animal?', 'What does this AMU risk score mean?'],
 };
 
-export function AiLayer({ farms, user }) {
+export function AiLayer({ farms, user, workspace }) {
   const [farmId, setFarmId] = useState(farms[0]?.id || '');
   const [animalId, setAnimalId] = useState('');
   const [question, setQuestion] = useState('');
   const [messages, setMessages] = useState([]);
   const [conversationId, setConversationId] = useState(null);
   const [error, setError] = useState('');
-  const role = user.platformRoles.includes('PLATFORM_ADMIN')
-    ? 'PLATFORM_ADMIN'
-    : user.platformRoles.includes('VETERINARIAN')
-      ? 'VETERINARIAN'
-      : 'FARM';
+  const role =
+    workspace?.kind === 'ADMIN' || user.platformRoles.includes('PLATFORM_ADMIN')
+      ? 'PLATFORM_ADMIN'
+      : workspace?.kind === 'VETERINARIAN'
+        ? 'VETERINARIAN'
+        : 'FARM';
   async function ask(event) {
     event.preventDefault();
     setError('');

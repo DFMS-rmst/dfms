@@ -13,6 +13,7 @@ const emails = [
   'workflow-pending-vet',
   'workflow-outsider',
   'workflow-admin',
+  'workflow-worker',
 ].map((x) => `${x}-${stamp}@example.test`);
 const ids = {};
 let farmId, animalId, requestId, caseId, diagnosisId, prescriptionId, treatmentId;
@@ -38,6 +39,7 @@ describe.sequential('complete veterinary workflow', () => {
               'Pending Veterinarian',
               'Unrelated User',
               'Platform Administrator',
+              'Farm Worker',
             ][i],
             passwordHash,
           },
@@ -45,6 +47,9 @@ describe.sequential('complete veterinary workflow', () => {
       ).id;
     await prisma.userPlatformRole.create({
       data: { userId: ids[emails[5]], role: 'PLATFORM_ADMIN' },
+    });
+    await prisma.userPlatformRole.createMany({
+      data: emails.slice(1, 4).map((email) => ({ userId: ids[email], role: 'VETERINARIAN' })),
     });
     const profiles = [];
     for (const [index, email] of emails.slice(1, 4).entries())
@@ -85,6 +90,24 @@ describe.sequential('complete veterinary workflow', () => {
       },
     });
     farmId = farm.id;
+    await prisma.farmMember.createMany({
+      data: [
+        { farmId, userId: ids[emails[1]], status: 'ACTIVE', joinedAt: new Date() },
+        { farmId, userId: ids[emails[6]], status: 'ACTIVE', joinedAt: new Date() },
+      ],
+    });
+    const mixedMember = await prisma.farmMember.findUnique({
+      where: { farmId_userId: { farmId, userId: ids[emails[1]] } },
+    });
+    const workerMember = await prisma.farmMember.findUnique({
+      where: { farmId_userId: { farmId, userId: ids[emails[6]] } },
+    });
+    await prisma.farmMemberRole.createMany({
+      data: [
+        { farmMemberId: mixedMember.id, role: 'FARM_WORKER' },
+        { farmMemberId: workerMember.id, role: 'FARM_WORKER' },
+      ],
+    });
     animalId = (
       await prisma.animal.create({
         data: {
@@ -96,6 +119,27 @@ describe.sequential('complete veterinary workflow', () => {
         },
       })
     ).id;
+  });
+  it('returns roleless, worker, veterinarian, admin, and mixed authorization contexts', async () => {
+    const contexts = await Promise.all(
+      [emails[4], emails[6], emails[3], emails[5], emails[1]].map((email) =>
+        request(app).post('/api/v1/auth/login').send({ email, password }),
+      ),
+    );
+    expect(contexts[0].body.data.user).toMatchObject({
+      platformRoles: [],
+      farmMemberships: [],
+      veterinarian: { exists: false, status: null },
+    });
+    expect(contexts[1].body.data.user.farmMemberships[0].roles).toEqual(['FARM_WORKER']);
+    expect(contexts[2].body.data.user).toMatchObject({
+      platformRoles: ['VETERINARIAN'],
+      veterinarian: { exists: true, status: 'PENDING' },
+    });
+    expect(contexts[3].body.data.user.platformRoles).toContain('PLATFORM_ADMIN');
+    expect(contexts[4].body.data.user.platformRoles).toContain('VETERINARIAN');
+    expect(contexts[4].body.data.user.veterinarian.status).toBe('VERIFIED');
+    expect(contexts[4].body.data.user.farmMemberships[0].roles).toContain('FARM_WORKER');
   });
   afterAll(async () => {
     if (farmId) {
@@ -162,6 +206,15 @@ describe.sequential('complete veterinary workflow', () => {
     });
     expect(created.status).toBe(201);
     requestId = created.body.data.request.id;
+    const worker = await login(emails[6]);
+    expect(
+      (
+        await request(app)
+          .patch(`/api/v1/treatment-requests/${requestId}/status`)
+          .set(auth(worker))
+          .send({ status: 'CANCELLED' })
+      ).status,
+    ).toBe(403);
     const otherVet = await login(emails[2]);
     expect(
       (
@@ -172,6 +225,14 @@ describe.sequential('complete veterinary workflow', () => {
       ).status,
     ).toBe(403);
     const vet = await login(emails[1]);
+    const [farmScope, veterinarianScope] = await Promise.all([
+      request(app).get(`/api/v1/treatment-requests?scope=FARM&farmId=${farmId}`).set(auth(vet)),
+      request(app).get('/api/v1/treatment-requests?scope=VETERINARIAN').set(auth(vet)),
+    ]);
+    expect(farmScope.status).toBe(200);
+    expect(veterinarianScope.status).toBe(200);
+    expect(farmScope.body.data.requests.some((item) => item.id === requestId)).toBe(true);
+    expect(veterinarianScope.body.data.requests.some((item) => item.id === requestId)).toBe(true);
     const accepted = await request(app)
       .patch(`/api/v1/treatment-requests/${requestId}/status`)
       .set(auth(vet))
@@ -190,6 +251,19 @@ describe.sequential('complete veterinary workflow', () => {
     expect(
       (await request(app).get(`/api/v1/veterinary-cases/${caseId}`).set(auth(outsider))).status,
     ).toBe(404);
+  });
+  it('protects the veterinarian dashboard and exposes pending status without clinical access', async () => {
+    const outsider = await login(emails[4]);
+    expect(
+      (await request(app).get('/api/v1/dashboards/veterinarian').set(auth(outsider))).status,
+    ).toBe(403);
+    const pending = await login(emails[3]);
+    const dashboard = await request(app).get('/api/v1/dashboards/veterinarian').set(auth(pending));
+    expect(dashboard.status).toBe(200);
+    expect(dashboard.body.data).toMatchObject({
+      veterinarianStatus: 'PENDING',
+      clinicalAccess: false,
+    });
   });
   it('allows only participants to chat and only the assigned vet to diagnose and prescribe', async () => {
     const farmer = await login(emails[0]);

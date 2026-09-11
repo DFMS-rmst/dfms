@@ -14,6 +14,7 @@ import {
   loadCaseParticipant,
   requestTransitions,
   treatmentTransitions,
+  getVetForUser,
 } from './policies.js';
 
 const requestSchema = z.object({
@@ -147,12 +148,28 @@ treatmentRequestsRouter.post(
 treatmentRequestsRouter.get(
   '/',
   asyncHandler(async (req, res) => {
+    const query = z
+      .object({ scope: z.enum(['FARM', 'VETERINARIAN']).optional(), farmId: z.string().optional() })
+      .parse(req.query);
     const vet = await prisma.veterinarianProfile.findUnique({
       where: { userId: req.principal.user.id },
     });
-    const where = vet
-      ? { requestedVeterinarianId: vet.id }
-      : { farm: { members: { some: { userId: req.principal.user.id, status: 'ACTIVE' } } } };
+    let where;
+    if (query.scope === 'FARM') {
+      if (!query.farmId) throw new AppError(400, 'FARM_ID_REQUIRED', 'Farm ID is required');
+      await requireFarmAccess(req.principal.user.id, query.farmId);
+      where = { farmId: query.farmId };
+    } else if (query.scope === 'VETERINARIAN') {
+      const scopedVet = await getVetForUser(req.principal.user.id, false);
+      where = { requestedVeterinarianId: scopedVet.id };
+    } else {
+      where = {
+        OR: [
+          { farm: { members: { some: { userId: req.principal.user.id, status: 'ACTIVE' } } } },
+          ...(vet ? [{ requestedVeterinarianId: vet.id }] : []),
+        ],
+      };
+    }
     res.json({
       data: {
         requests: await prisma.treatmentRequest.findMany({
@@ -211,7 +228,14 @@ treatmentRequestsRouter.patch(
     assertTransition(requestTransitions, item.status, req.body.status);
     const isVet = item.requestedVeterinarian.userId === req.principal.user.id;
     if (req.body.status === 'CANCELLED') {
-      if (!item.farm.members.length) throw new AppError(403, 'FORBIDDEN', 'Farm access required');
+      const isRequester = item.createdById === req.principal.user.id;
+      let canManage = false;
+      if (item.farm.members.length) {
+        const access = await requireFarmAccess(req.principal.user.id, item.farmId);
+        canManage = access.roles.some((role) => ['FARM_OWNER', 'FARM_MANAGER'].includes(role));
+      }
+      if (!isRequester && !canManage)
+        throw new AppError(403, 'FORBIDDEN', 'Requester or farm owner/manager required');
     } else if (!isVet || item.requestedVeterinarian.status !== 'VERIFIED')
       throw new AppError(
         403,
@@ -290,12 +314,28 @@ casesRouter.use(authenticate);
 casesRouter.get(
   '/',
   asyncHandler(async (req, res) => {
+    const query = z
+      .object({ scope: z.enum(['FARM', 'VETERINARIAN']).optional(), farmId: z.string().optional() })
+      .parse(req.query);
     const vet = await prisma.veterinarianProfile.findUnique({
       where: { userId: req.principal.user.id },
     });
-    const where = vet
-      ? { veterinarianId: vet.id }
-      : { farm: { members: { some: { userId: req.principal.user.id, status: 'ACTIVE' } } } };
+    let where;
+    if (query.scope === 'FARM') {
+      if (!query.farmId) throw new AppError(400, 'FARM_ID_REQUIRED', 'Farm ID is required');
+      await requireFarmAccess(req.principal.user.id, query.farmId);
+      where = { farmId: query.farmId };
+    } else if (query.scope === 'VETERINARIAN') {
+      const scopedVet = await getVetForUser(req.principal.user.id, false);
+      where = { veterinarianId: scopedVet.id };
+    } else {
+      where = {
+        OR: [
+          { farm: { members: { some: { userId: req.principal.user.id, status: 'ACTIVE' } } } },
+          ...(vet ? [{ veterinarianId: vet.id }] : []),
+        ],
+      };
+    }
     res.json({
       data: {
         cases: await prisma.veterinaryCase.findMany({

@@ -9,8 +9,10 @@ const ownerEmail = `owner-${stamp}@example.test`;
 const outsiderEmail = `outsider-${stamp}@example.test`;
 const vetEmail = `vet-${stamp}@example.test`;
 const adminEmail = `admin-${stamp}@example.test`;
+const phoneEmail = `phone-${stamp}@example.test`;
 const password = 'StrongTest!234';
 let farmId;
+let validPincodeFarmId;
 let animalId;
 let vetProfileId;
 const app = createApp();
@@ -33,13 +35,39 @@ describe.sequential('platform foundation integration', () => {
   afterAll(async () => {
     if (farmId) await prisma.animal.deleteMany({ where: { farmId } });
     if (farmId) await prisma.farm.delete({ where: { id: farmId } });
+    if (validPincodeFarmId) await prisma.farm.delete({ where: { id: validPincodeFarmId } });
     await prisma.user.deleteMany({
-      where: { email: { in: [ownerEmail, outsiderEmail, vetEmail, adminEmail] } },
+      where: { email: { in: [ownerEmail, outsiderEmail, vetEmail, adminEmail, phoneEmail] } },
     });
     await prisma.$disconnect();
   });
   it('registers, logs in, rejects a bad password, rotates refresh, and logs out', async () => {
-    expect((await register(ownerEmail, 'Farm Owner')).status).toBe(201);
+    const blankPhone = await request(app)
+      .post('/api/v1/auth/register')
+      .send({ email: ownerEmail, fullName: 'Farm Owner', password, phone: '   ' });
+    expect(blankPhone.status).toBe(201);
+    expect(blankPhone.body.data.user.phone).toBeNull();
+    const validPhone = await request(app)
+      .post('/api/v1/auth/register')
+      .send({ email: phoneEmail, fullName: 'Phone User', password, phone: '+91 9000000000' });
+    expect(validPhone.status).toBe(201);
+    expect(validPhone.body.data.user.phone).toBe('+91 9000000000');
+    expect(
+      (
+        await request(app)
+          .post('/api/v1/auth/register')
+          .send({
+            email: `bad-phone-${stamp}@example.test`,
+            fullName: 'Bad Phone',
+            password,
+            phone: '12',
+          })
+      ).status,
+    ).toBe(400);
+    expect((await register(ownerEmail, 'Duplicate Owner')).status).toBe(409);
+    expect(blankPhone.body.data.user.platformRoles).toEqual([]);
+    expect(blankPhone.body.data.user.farmMemberships).toEqual([]);
+    expect(blankPhone.body.data.user.veterinarian).toEqual({ exists: false, status: null });
     expect(
       (
         await request(app)
@@ -66,7 +94,7 @@ describe.sequential('platform foundation integration', () => {
         name: 'Integration Dairy Farm',
         state: 'Karnataka',
         district: 'Mysuru',
-        pincode: '570001',
+        pincode: '',
       });
     expect(created.status).toBe(201);
     farmId = created.body.data.farm.id;
@@ -75,6 +103,25 @@ describe.sequential('platform foundation integration', () => {
       include: { roles: true },
     });
     expect(membership.roles.map((r) => r.role).sort()).toEqual(['FARM_MANAGER', 'FARM_OWNER']);
+    const context = await request(app)
+      .get('/api/v1/auth/me')
+      .set('Authorization', `Bearer ${token}`);
+    expect(context.body.data.user.farmMemberships[0]).toMatchObject({
+      farmId,
+      farmName: 'Integration Dairy Farm',
+      roles: expect.arrayContaining(['FARM_OWNER', 'FARM_MANAGER']),
+    });
+    const validPincodeFarm = await request(app)
+      .post('/api/v1/farms')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        name: 'Valid Pincode Farm',
+        state: 'Karnataka',
+        district: 'Mysuru',
+        pincode: '570001',
+      });
+    expect(validPincodeFarm.status).toBe(201);
+    validPincodeFarmId = validPincodeFarm.body.data.farm.id;
     const outsider = await register(outsiderEmail, 'Unrelated User');
     const outsiderToken = outsider.body.data.accessToken;
     expect(
@@ -84,6 +131,39 @@ describe.sequential('platform foundation integration', () => {
           .set('Authorization', `Bearer ${outsiderToken}`)
       ).status,
     ).toBe(404);
+    const added = await request(app)
+      .post(`/api/v1/farms/${farmId}/members`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ email: phoneEmail, roles: ['FARM_WORKER'] });
+    expect(added.status).toBe(201);
+    const workerLogin = await request(app)
+      .post('/api/v1/auth/login')
+      .send({ email: phoneEmail, password });
+    const workerToken = workerLogin.body.data.accessToken;
+    const species = await prisma.species.findUnique({ where: { code: 'BOS_TAURUS' } });
+    expect(
+      (
+        await request(app)
+          .patch(`/api/v1/farms/${farmId}`)
+          .set('Authorization', `Bearer ${workerToken}`)
+          .send({ name: 'Worker cannot rename' })
+      ).status,
+    ).toBe(403);
+    expect(
+      (
+        await request(app)
+          .post(`/api/v1/farms/${farmId}/animals`)
+          .set('Authorization', `Bearer ${workerToken}`)
+          .send({ speciesId: species.id, tagNumber: 'WORKER-NO', sex: 'FEMALE' })
+      ).status,
+    ).toBe(403);
+    expect(
+      (
+        await request(app)
+          .get(`/api/v1/dashboards/farm?farmId=${farmId}`)
+          .set('Authorization', `Bearer ${workerToken}`)
+      ).status,
+    ).toBe(403);
     expect(
       (
         await request(app)
@@ -92,7 +172,6 @@ describe.sequential('platform foundation integration', () => {
           .send({ name: 'Nope' })
       ).status,
     ).toBe(404);
-    const species = await prisma.species.findUnique({ where: { code: 'BOS_TAURUS' } });
     const animal = await request(app)
       .post(`/api/v1/farms/${farmId}/animals`)
       .set('Authorization', `Bearer ${token}`)
@@ -123,6 +202,11 @@ describe.sequential('platform foundation integration', () => {
       });
     expect(submitted.status).toBe(200);
     expect(submitted.body.data.profile.status).toBe('PENDING');
+    const pendingContext = await request(app)
+      .get('/api/v1/auth/me')
+      .set('Authorization', `Bearer ${vetToken}`);
+    expect(pendingContext.body.data.user.platformRoles).toContain('VETERINARIAN');
+    expect(pendingContext.body.data.user.veterinarian).toEqual({ exists: true, status: 'PENDING' });
     vetProfileId = submitted.body.data.profile.id;
     expect(
       (
@@ -142,6 +226,10 @@ describe.sequential('platform foundation integration', () => {
     expect(verified.status).toBe(200);
     expect(verified.body.data.profile.status).toBe('VERIFIED');
     expect(verified.body.data.profile.reviewedAt).toBeTruthy();
+    const verifiedContext = await request(app)
+      .get('/api/v1/auth/me')
+      .set('Authorization', `Bearer ${vetToken}`);
+    expect(verifiedContext.body.data.user.veterinarian.status).toBe('VERIFIED');
   });
   it('protects S3 intents and validates file constraints without live AWS', async () => {
     expect((await request(app).post('/api/v1/files/upload-intents').send({})).status).toBe(401);

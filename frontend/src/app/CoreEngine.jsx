@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from './api.js';
 
 const statusLabel = (value) => value?.replaceAll('_', ' ');
-export function CoreEngine({ farms, isAdmin }) {
+export function CoreEngine({ farms, isAdmin, canIssue = false }) {
   const [farmId, setFarmId] = useState(farms[0]?.id || '');
   const [summary, setSummary] = useState(null);
   const [trends, setTrends] = useState([]);
@@ -140,7 +140,7 @@ export function CoreEngine({ farms, isAdmin }) {
               </p>
             ))}
             <button onClick={() => reevaluate(check.animal.id)}>Re-evaluate</button>
-            {check.status === 'ELIGIBLE_FOR_MILK' && (
+            {canIssue && check.status === 'ELIGIBLE_FOR_MILK' && (
               <button onClick={() => issue(check.animal.id)}>Generate Certificate</button>
             )}
           </article>

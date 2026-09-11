@@ -17,9 +17,14 @@ const credentialsSchema = z.object({
     .transform((v) => v.toLowerCase()),
   password: z.string().min(10).max(128),
 });
+const optionalTrimmedString = (schema) =>
+  z.preprocess(
+    (value) => (typeof value === 'string' && value.trim() === '' ? undefined : value),
+    schema.optional(),
+  );
 const registerSchema = credentialsSchema.extend({
   fullName: z.string().trim().min(2).max(160),
-  phone: z.string().trim().min(7).max(32).optional(),
+  phone: optionalTrimmedString(z.string().trim().min(7).max(32)),
 });
 const cookieName = 'refresh_token';
 const tokenHash = (token) => crypto.createHash('sha256').update(token).digest('hex');
@@ -30,7 +35,29 @@ const publicUser = (user) => ({
   fullName: user.fullName,
   status: user.status,
   platformRoles: (user.platformRoles || []).map((item) => item.role),
+  veterinarian: {
+    exists: Boolean(user.veterinarian),
+    status: user.veterinarian?.status || null,
+  },
+  farmMemberships: (user.memberships || []).map((membership) => ({
+    membershipId: membership.id,
+    farmId: membership.farmId,
+    farmName: membership.farm.name,
+    farmStatus: membership.farm.status,
+    roles: membership.roles.map((item) => item.role),
+  })),
 });
+const authorizationInclude = {
+  platformRoles: true,
+  veterinarian: { select: { id: true, status: true } },
+  memberships: {
+    where: { status: 'ACTIVE' },
+    include: { roles: true, farm: { select: { id: true, name: true, status: true } } },
+    orderBy: { createdAt: 'asc' },
+  },
+};
+const loadUserContext = (userId) =>
+  prisma.user.findUnique({ where: { id: userId }, include: authorizationInclude });
 const cookieOptions = {
   httpOnly: true,
   sameSite: 'lax',
@@ -83,9 +110,10 @@ authRouter.post(
       );
       return created;
     });
-    response
-      .status(201)
-      .json({ data: { user: publicUser(user), accessToken: await issueSession(user, response) } });
+    const contextUser = await loadUserContext(user.id);
+    response.status(201).json({
+      data: { user: publicUser(contextUser), accessToken: await issueSession(user, response) },
+    });
   }),
 );
 authRouter.post(
@@ -94,7 +122,7 @@ authRouter.post(
   asyncHandler(async (request, response) => {
     const user = await prisma.user.findUnique({
       where: { email: request.body.email },
-      include: { platformRoles: true },
+      include: authorizationInclude,
     });
     if (
       !user ||
@@ -149,7 +177,10 @@ authRouter.post(
     });
     response.cookie(cookieName, `${next.id}.${nextRaw}`, cookieOptions);
     response.json({
-      data: { accessToken: signAccessToken(record.userId), user: publicUser(record.user) },
+      data: {
+        accessToken: signAccessToken(record.userId),
+        user: publicUser(await loadUserContext(record.userId)),
+      },
     });
   }),
 );
@@ -166,6 +197,10 @@ authRouter.post(
     response.status(204).send();
   }),
 );
-authRouter.get('/me', authenticate, (request, response) =>
-  response.json({ data: { user: publicUser(request.principal.user) } }),
+authRouter.get(
+  '/me',
+  authenticate,
+  asyncHandler(async (request, response) =>
+    response.json({ data: { user: publicUser(await loadUserContext(request.principal.user.id)) } }),
+  ),
 );

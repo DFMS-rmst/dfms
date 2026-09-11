@@ -104,7 +104,7 @@ function RequestForm({ farms, veterinarians, refresh }) {
     </form>
   );
 }
-function CaseWorkspace({ caseId, isVeterinarian, close }) {
+function CaseWorkspace({ caseId, context, user, capabilities, close }) {
   const [item, setItem] = useState(null);
   const [messages, setMessages] = useState([]);
   const [diseases, setDiseases] = useState([]);
@@ -122,6 +122,13 @@ function CaseWorkspace({ caseId, isVeterinarian, close }) {
     return () => clearInterval(timer);
   }, [caseId]);
   if (!item) return <p>Loading veterinary case…</p>;
+  const assignedVerifiedVeterinarian =
+    context.kind === 'VETERINARIAN' &&
+    context.veterinarianStatus === 'VERIFIED' &&
+    item.veterinarian.user.id === user.id;
+  const canRecordAdministration =
+    assignedVerifiedVeterinarian ||
+    (context.kind === 'FARM' && capabilities.canRecordAdministration);
   async function message(e) {
     e.preventDefault();
     await api(`/veterinary-cases/${caseId}/messages`, {
@@ -248,7 +255,7 @@ function CaseWorkspace({ caseId, isVeterinarian, close }) {
               <p>{d.clinicalNotes}</p>
             </article>
           ))}
-          {isVeterinarian && (
+          {assignedVerifiedVeterinarian && (
             <form className="card form" onSubmit={diagnose}>
               <label>
                 Disease reference (optional)
@@ -284,12 +291,13 @@ function CaseWorkspace({ caseId, isVeterinarian, close }) {
               {x.durationValue} {x.durationUnit}
             </p>
           ))}
-          {isVeterinarian && !item.treatments.some((t) => t.prescriptionId === p.id) && (
-            <button onClick={() => startTreatment(p.id)}>Start treatment</button>
-          )}
+          {assignedVerifiedVeterinarian &&
+            !item.treatments.some((t) => t.prescriptionId === p.id) && (
+              <button onClick={() => startTreatment(p.id)}>Start treatment</button>
+            )}
         </article>
       ))}
-      {isVeterinarian && (
+      {assignedVerifiedVeterinarian && (
         <form className="card form" onSubmit={prescribe}>
           <h3>Create Prescription</h3>
           <label>
@@ -342,7 +350,7 @@ function CaseWorkspace({ caseId, isVeterinarian, close }) {
               {new Date(a.administeredAt).toLocaleString()}
             </p>
           ))}
-          {t.status === 'ACTIVE' && (
+          {t.status === 'ACTIVE' && canRecordAdministration && (
             <>
               <form className="inline-form" onSubmit={(e) => administer(e, t)}>
                 <select name="prescriptionItemId">
@@ -370,7 +378,9 @@ function CaseWorkspace({ caseId, isVeterinarian, close }) {
                 <input name="notes" placeholder="Notes" />
                 <button>Record administration</button>
               </form>
-              {isVeterinarian && <button onClick={() => complete(t.id)}>Complete treatment</button>}
+              {assignedVerifiedVeterinarian && (
+                <button onClick={() => complete(t.id)}>Complete treatment</button>
+              )}
             </>
           )}
         </article>
@@ -378,15 +388,19 @@ function CaseWorkspace({ caseId, isVeterinarian, close }) {
     </section>
   );
 }
-export function VeterinaryWorkflow({ farms, isVeterinarian }) {
+export function VeterinaryWorkflow({ farms, context, user, capabilities }) {
   const [vets, setVets] = useState([]);
   const [requests, setRequests] = useState([]);
   const [cases, setCases] = useState([]);
   const [selectedCase, setSelectedCase] = useState(null);
   const [filters, setFilters] = useState('');
   async function load() {
-    setRequests((await api('/treatment-requests')).requests);
-    setCases((await api('/veterinary-cases')).cases);
+    const query =
+      context.kind === 'FARM'
+        ? `?scope=FARM&farmId=${encodeURIComponent(context.farmId)}`
+        : '?scope=VETERINARIAN';
+    setRequests((await api(`/treatment-requests${query}`)).requests);
+    setCases((await api(`/veterinary-cases${query}`)).cases);
   }
   async function search(e) {
     e?.preventDefault();
@@ -405,7 +419,9 @@ export function VeterinaryWorkflow({ farms, isVeterinarian }) {
     return (
       <CaseWorkspace
         caseId={selectedCase}
-        isVeterinarian={isVeterinarian}
+        context={context}
+        user={user}
+        capabilities={capabilities}
         close={() => {
           setSelectedCase(null);
           load();
@@ -420,35 +436,38 @@ export function VeterinaryWorkflow({ farms, isVeterinarian }) {
     if (result.veterinaryCase) setSelectedCase(result.veterinaryCase.id);
     else load();
   }
+  const veterinarianContext = context.kind === 'VETERINARIAN';
+  const verifiedVeterinarian = veterinarianContext && context.veterinarianStatus === 'VERIFIED';
+  const farmManagementContext = context.kind === 'FARM' && capabilities.canRequestTreatment;
   return (
     <section>
       <h1>Veterinary Service</h1>
-      <form className="filter-bar" onSubmit={search}>
-        <input name="name" placeholder="Veterinarian name" />
-        <input name="state" placeholder="State" />
-        <input name="district" placeholder="District" />
-        <input name="specialization" placeholder="Specialization" />
-        <button>Search verified veterinarians</button>
-      </form>
-      <div className="grid">
-        {vets.map((v) => (
-          <article className="card" key={v.id}>
-            <h3>{v.user.fullName}</h3>
-            <p>{v.qualification}</p>
-            <p>
-              {v.specialization || 'General veterinary practice'} · {v.experienceYears ?? 0} years
-            </p>
-            <p>
-              {v.serviceAreas
-                .map((a) => [a.district, a.state].filter(Boolean).join(', '))
-                .join('; ')}
-            </p>
-            <span className="badge">VERIFIED</span>
-          </article>
-        ))}
-      </div>
-      {!isVeterinarian && <RequestForm farms={farms} veterinarians={vets} refresh={load} />}
-      <h2>{isVeterinarian ? 'Pending Treatment Requests' : 'My Treatment Requests'}</h2>
+      {farmManagementContext && (
+        <>
+          <form className="filter-bar" onSubmit={search}>
+            <input name="name" placeholder="Veterinarian name" />
+            <input name="state" placeholder="State" />
+            <input name="district" placeholder="District" />
+            <input name="specialization" placeholder="Specialization" />
+            <button>Search verified veterinarians</button>
+          </form>
+          <div className="grid">
+            {vets.map((v) => (
+              <article className="card" key={v.id}>
+                <h3>{v.user.fullName}</h3>
+                <p>{v.qualification}</p>
+                <p>
+                  {v.specialization || 'General veterinary practice'} · {v.experienceYears ?? 0}{' '}
+                  years
+                </p>
+                <span className="badge">VERIFIED</span>
+              </article>
+            ))}
+          </div>
+          <RequestForm farms={farms} veterinarians={vets} refresh={load} />
+        </>
+      )}
+      <h2>{veterinarianContext ? 'Assigned Treatment Requests' : 'Farm Treatment Requests'}</h2>
       {requests.map((r) => (
         <article className="card review" key={r.id}>
           <div>
@@ -460,7 +479,7 @@ export function VeterinaryWorkflow({ farms, isVeterinarian }) {
             <p>{r.observations}</p>
           </div>
           <div className="actions">
-            {isVeterinarian && r.status === 'REQUESTED' && (
+            {verifiedVeterinarian && r.status === 'REQUESTED' && (
               <>
                 <button onClick={() => decide(r.id, 'ACCEPTED')}>Accept</button>
                 <button className="danger" onClick={() => decide(r.id, 'REJECTED')}>
@@ -468,11 +487,13 @@ export function VeterinaryWorkflow({ farms, isVeterinarian }) {
                 </button>
               </>
             )}
-            {!isVeterinarian && r.status === 'REQUESTED' && (
-              <button className="danger" onClick={() => decide(r.id, 'CANCELLED')}>
-                Cancel
-              </button>
-            )}
+            {context.kind === 'FARM' &&
+              capabilities.canCancelRequests &&
+              r.status === 'REQUESTED' && (
+                <button className="danger" onClick={() => decide(r.id, 'CANCELLED')}>
+                  Cancel
+                </button>
+              )}
             {r.veterinaryCase && (
               <button onClick={() => setSelectedCase(r.veterinaryCase.id)}>Open case</button>
             )}

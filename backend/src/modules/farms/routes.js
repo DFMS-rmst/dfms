@@ -11,11 +11,14 @@ const farmSchema = z.object({
   state: z.string().trim().min(2).max(100),
   district: z.string().trim().min(2).max(100),
   taluka: z.string().trim().max(100).optional().nullable(),
-  pincode: z
-    .string()
-    .regex(/^\d{6}$/)
-    .optional()
-    .nullable(),
+  pincode: z.preprocess(
+    (value) => (typeof value === 'string' && value.trim() === '' ? undefined : value),
+    z
+      .string()
+      .regex(/^\d{6}$/)
+      .optional()
+      .nullable(),
+  ),
   timeZone: z.string().max(64).default('Asia/Kolkata'),
 });
 const memberSchema = z.object({
@@ -111,7 +114,10 @@ farmsRouter.patch(
 farmsRouter.get(
   '/:farmId/members',
   asyncHandler(async (request, response) => {
-    await requireFarmAccess(request.principal.user.id, request.params.farmId);
+    await requireFarmAccess(request.principal.user.id, request.params.farmId, [
+      'FARM_OWNER',
+      'FARM_MANAGER',
+    ]);
     const members = await prisma.farmMember.findMany({
       where: { farmId: request.params.farmId, status: { not: 'REMOVED' } },
       include: { roles: true, user: { select: { id: true, fullName: true, email: true } } },

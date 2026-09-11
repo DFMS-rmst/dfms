@@ -4,6 +4,12 @@ import { VeterinaryWorkflow } from './VeterinaryWorkflow.jsx';
 import { CoreEngine } from './CoreEngine.jsx';
 import { Certificates, DashboardReports, PublicVerification } from './TrustLayer.jsx';
 import { AiLayer, AmuRiskCard } from './AiLayer.jsx';
+import {
+  buildWorkspaces,
+  farmCapabilities,
+  navigationFor,
+  normalizeOptionalFields,
+} from './authorization.js';
 const Field = ({ label, name, type = 'text', required = true, defaultValue }) => (
   <label>
     {label}
@@ -15,9 +21,11 @@ function AuthPage({ mode, done, go }) {
   async function submit(e) {
     e.preventDefault();
     try {
+      const raw = Object.fromEntries(new FormData(e.currentTarget));
+      const payload = mode === 'register' ? normalizeOptionalFields(raw, ['phone']) : raw;
       const data = await api(`/auth/${mode}`, {
         method: 'POST',
-        body: JSON.stringify(Object.fromEntries(new FormData(e.currentTarget))),
+        body: JSON.stringify(payload),
       });
       setAccessToken(data.accessToken);
       done(data.user);
@@ -54,11 +62,15 @@ function AuthPage({ mode, done, go }) {
 function FarmForm({ done }) {
   async function submit(e) {
     e.preventDefault();
+    const payload = normalizeOptionalFields(Object.fromEntries(new FormData(e.currentTarget)), [
+      'taluka',
+      'pincode',
+    ]);
     done(
       (
         await api('/farms', {
           method: 'POST',
-          body: JSON.stringify(Object.fromEntries(new FormData(e.currentTarget))),
+          body: JSON.stringify(payload),
         })
       ).farm,
     );
@@ -114,7 +126,7 @@ function AnimalForm({ farmId, species, done }) {
     </form>
   );
 }
-function VetProfile() {
+function VetProfile({ onAuthorizationChanged }) {
   const [profile, setProfile] = useState(null);
   useEffect(() => {
     api('/veterinarians/me').then((d) => setProfile(d.profile));
@@ -151,6 +163,7 @@ function VetProfile() {
       await api(`/files/${intent.file.id}/complete`, { method: 'POST' });
     }
     setProfile(saved);
+    await onAuthorizationChanged?.();
   }
   return (
     <form className="card form" onSubmit={submit}>
@@ -245,8 +258,95 @@ function AdminVets() {
     </section>
   );
 }
-function Workspace({ user, logout }) {
-  const [page, setPage] = useState('farms');
+function FarmMembers({ farmId, canAssign, onAuthorizationChanged }) {
+  const [members, setMembers] = useState([]);
+  const [error, setError] = useState('');
+  async function load() {
+    setMembers((await api(`/farms/${farmId}/members`)).members);
+  }
+  useEffect(() => {
+    load();
+  }, [farmId]); // eslint-disable-line react-hooks/exhaustive-deps
+  async function add(event) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const roles = new FormData(form).getAll('roles');
+    if (!roles.length) return setError('Choose FARM_MANAGER or FARM_WORKER.');
+    try {
+      await api(`/farms/${farmId}/members`, {
+        method: 'POST',
+        body: JSON.stringify({ email: form.elements.email.value, roles }),
+      });
+      form.reset();
+      setError('');
+      await load();
+      await onAuthorizationChanged?.();
+    } catch (problem) {
+      setError(problem.message);
+    }
+  }
+  return (
+    <section>
+      <h1>Farm Members</h1>
+      <p className="notice">The person must register an account before you add their email.</p>
+      <div className="grid">
+        {members.map((member) => (
+          <article className="card" key={member.id}>
+            <h3>{member.user.fullName}</h3>
+            <p>{member.user.email}</p>
+            <p>{member.roles.map((item) => item.role.replaceAll('_', ' ')).join(' + ')}</p>
+          </article>
+        ))}
+      </div>
+      {canAssign && (
+        <form className="card form" onSubmit={add}>
+          <h2>Add registered member</h2>
+          <Field label="Registered email" name="email" type="email" />
+          <label className="check">
+            <input name="roles" type="checkbox" value="FARM_MANAGER" /> Farm manager
+          </label>
+          <label className="check">
+            <input name="roles" type="checkbox" value="FARM_WORKER" /> Farm worker
+          </label>
+          <button>Add / update member</button>
+        </form>
+      )}
+      {error && <p className="error">{error}</p>}
+    </section>
+  );
+}
+
+function VetStatus({ user, refreshContext }) {
+  const status = user.veterinarian?.status;
+  return (
+    <section>
+      <h1>Veterinarian Onboarding</h1>
+      {status && <p className="notice">Current verification status: {status}</p>}
+      {status === 'PENDING' && <p>Your credentials are awaiting platform review.</p>}
+      {status === 'REJECTED' && (
+        <p>Your application was rejected. Update and resubmit it for review.</p>
+      )}
+      {status === 'SUSPENDED' && (
+        <p>Clinical access is suspended. Contact the platform operator.</p>
+      )}
+      <VetProfile onAuthorizationChanged={refreshContext} />
+    </section>
+  );
+}
+
+const initialPageFor = (workspace) => {
+  if (workspace?.kind === 'ADMIN') return 'dashboard';
+  if (workspace?.kind === 'VETERINARIAN')
+    return workspace.veterinarianStatus === 'VERIFIED' ? 'dashboard' : 'vet';
+  if (workspace?.kind === 'FARM') return 'farm';
+  return 'home';
+};
+
+function Workspace({ user, setUser, logout }) {
+  const workspaces = buildWorkspaces(user);
+  const [workspaceId, setWorkspaceId] = useState(workspaces[0]?.id || 'account');
+  const workspace = workspaces.find((item) => item.id === workspaceId) || workspaces[0];
+  const [page, setPage] = useState(initialPageFor(workspace));
   const [farms, setFarms] = useState([]);
   const [farm, setFarm] = useState(null);
   const [animals, setAnimals] = useState([]);
@@ -256,6 +356,11 @@ function Workspace({ user, logout }) {
     api('/farms').then((d) => setFarms(d.farms));
     api('/species').then((d) => setSpecies(d.species));
   }, []);
+  async function refreshContext() {
+    const next = (await api('/auth/me')).user;
+    setUser(next);
+    return next;
+  }
   async function open(item) {
     setFarm(item);
     setAnimals((await api(`/farms/${item.id}/animals`)).animals);
@@ -265,47 +370,70 @@ function Workspace({ user, logout }) {
     const result = await api(`/farms/${farm.id}/animals/${animal.id}/timeline`);
     setAnimalTimeline({ animal, events: result.timeline });
   }
-  const admin = user.platformRoles.includes('PLATFORM_ADMIN');
+  const activeFarm =
+    workspace?.kind === 'FARM' ? farms.find((item) => item.id === workspace.farmId) : null;
+  const capabilities = workspace?.kind === 'FARM' ? farmCapabilities(workspace.roles) : {};
+  useEffect(() => {
+    if (page === 'farm' && activeFarm && farm?.id !== activeFarm.id) open(activeFarm);
+  }, [activeFarm?.id, page]); // eslint-disable-line react-hooks/exhaustive-deps
+  function selectWorkspace(id) {
+    const next = workspaces.find((item) => item.id === id);
+    setWorkspaceId(id);
+    setFarm(null);
+    setAnimalTimeline(null);
+    setPage(initialPageFor(next));
+    if (next?.kind === 'FARM') {
+      const selectedFarm = farms.find((item) => item.id === next.farmId);
+      if (selectedFarm) open(selectedFarm);
+    }
+  }
+  async function openActiveFarm() {
+    if (activeFarm) await open(activeFarm);
+  }
   return (
     <div>
       <header>
         <strong>Livestock AMU Platform</strong>
+        <label>
+          Workspace
+          <select value={workspace?.id} onChange={(event) => selectWorkspace(event.target.value)}>
+            {workspaces.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.label}
+              </option>
+            ))}
+          </select>
+        </label>
         <nav>
-          <button onClick={() => setPage('farms')}>My Farms</button>
-          <button onClick={() => setPage('create')}>Create Farm</button>
-          <button onClick={() => setPage('vet')}>Veterinarian Profile</button>
-          <button onClick={() => setPage('veterinary-care')}>Veterinary Care</button>
-          <button onClick={() => setPage('core-engine')}>AMU & Milk Eligibility</button>
-          <button onClick={() => setPage('certificates')}>Certificates</button>
-          <button onClick={() => setPage('dashboard')}>Dashboard & Reports</button>
-          <button onClick={() => setPage('ai')}>AI Advisor</button>
-          {admin && <button onClick={() => setPage('admin')}>Vet Reviews</button>}
+          {workspace &&
+            navigationFor(workspace).map(([target, label]) => (
+              <button
+                key={target}
+                onClick={() => (target === 'farm' ? openActiveFarm() : setPage(target))}
+              >
+                {label}
+              </button>
+            ))}
           <button onClick={logout}>Logout</button>
         </nav>
       </header>
       <main className="content">
         <p className="eyebrow">{user.fullName}</p>
-        {page === 'farms' && (
+        {page === 'home' && workspace?.kind === 'ACCOUNT' && (
           <section>
-            <h1>My Farms</h1>
-            <div className="grid">
-              {farms.map((f) => (
-                <button className="card farm" key={f.id} onClick={() => open(f)}>
-                  <h3>{f.name}</h3>
-                  <p>
-                    {f.district}, {f.state}
-                  </p>
-                  <span>{f._count.animals} animals</span>
-                </button>
-              ))}
-            </div>
+            <h1>Account & Onboarding</h1>
+            <p>
+              Create a farm to become its owner and manager, or submit veterinarian credentials.
+            </p>
           </section>
         )}
         {page === 'create' && (
           <FarmForm
-            done={(f) => {
+            done={async (f) => {
               setFarms((a) => [f, ...a]);
-              open(f);
+              await refreshContext();
+              setWorkspaceId(`farm:${f.id}`);
+              await open(f);
             }}
           />
         )}
@@ -315,10 +443,12 @@ function Workspace({ user, logout }) {
             <p>
               {farm.district}, {farm.state}
             </p>
-            <section className="card">
-              <h2>Farm AMU Pattern Risk</h2>
-              <AmuRiskCard farmId={farm.id} />
-            </section>
+            {capabilities.canViewManagementAnalytics && (
+              <section className="card">
+                <h2>Farm AMU Pattern Risk</h2>
+                <AmuRiskCard farmId={farm.id} />
+              </section>
+            )}
             <h2>Animal List</h2>
             <div className="grid">
               {animals.map((a) => (
@@ -338,8 +468,12 @@ function Workspace({ user, logout }) {
                   Close timeline
                 </button>
                 <h2>{animalTimeline.animal.name || animalTimeline.animal.tagNumber} history</h2>
-                <h3>Animal AMU Pattern Risk</h3>
-                <AmuRiskCard farmId={farm.id} animalId={animalTimeline.animal.id} />
+                {capabilities.canViewManagementAnalytics && (
+                  <>
+                    <h3>Animal AMU Pattern Risk</h3>
+                    <AmuRiskCard farmId={farm.id} animalId={animalTimeline.animal.id} />
+                  </>
+                )}
                 {animalTimeline.events.length === 0 && <p>No recorded health events.</p>}
                 {animalTimeline.events.map((event) => (
                   <article key={event.id}>
@@ -350,25 +484,57 @@ function Workspace({ user, logout }) {
                 ))}
               </section>
             )}
-            <AnimalForm
-              farmId={farm.id}
-              species={species}
-              done={(a) => setAnimals((all) => [a, ...all])}
-            />
+            {capabilities.canEditAnimals && (
+              <AnimalForm
+                farmId={farm.id}
+                species={species}
+                done={(a) => setAnimals((all) => [a, ...all])}
+              />
+            )}
           </section>
         )}
-        {page === 'vet' && <VetProfile />}
-        {page === 'veterinary-care' && (
-          <VeterinaryWorkflow
-            farms={farms}
-            isVeterinarian={user.platformRoles.includes('VETERINARIAN')}
+        {page === 'vet' && <VetStatus user={user} refreshContext={refreshContext} />}
+        {page === 'members' && workspace?.kind === 'FARM' && (
+          <FarmMembers
+            farmId={workspace.farmId}
+            canAssign={capabilities.owns}
+            onAuthorizationChanged={refreshContext}
           />
         )}
-        {page === 'core-engine' && <CoreEngine farms={farms} isAdmin={admin} />}
-        {page === 'certificates' && <Certificates farms={farms} isAdmin={admin} />}
-        {page === 'dashboard' && <DashboardReports farms={farms} user={user} />}
-        {page === 'ai' && <AiLayer farms={farms} user={user} />}
-        {page === 'admin' && admin && <AdminVets />}
+        {page === 'veterinary-care' && (
+          <VeterinaryWorkflow
+            farms={workspace?.kind === 'FARM' && activeFarm ? [activeFarm] : []}
+            context={workspace}
+            user={user}
+            capabilities={capabilities}
+          />
+        )}
+        {page === 'core-engine' && (
+          <CoreEngine
+            farms={workspace?.kind === 'FARM' && activeFarm ? [activeFarm] : []}
+            isAdmin={workspace?.kind === 'ADMIN'}
+            canIssue={workspace?.kind === 'ADMIN' || capabilities.canIssueCertificate}
+          />
+        )}
+        {page === 'certificates' && (
+          <Certificates
+            farms={workspace?.kind === 'FARM' && activeFarm ? [activeFarm] : []}
+            isAdmin={workspace?.kind === 'ADMIN'}
+            canAnchor={workspace?.kind === 'ADMIN' || capabilities.canAnchorCertificate}
+            canRevoke={workspace?.kind === 'ADMIN'}
+          />
+        )}
+        {page === 'dashboard' && (
+          <DashboardReports
+            farms={activeFarm ? [activeFarm] : []}
+            user={user}
+            workspace={workspace}
+          />
+        )}
+        {page === 'ai' && (
+          <AiLayer farms={activeFarm ? [activeFarm] : []} user={user} workspace={workspace} />
+        )}
+        {page === 'admin' && workspace?.kind === 'ADMIN' && <AdminVets />}
       </main>
     </div>
   );
@@ -390,7 +556,7 @@ export function App() {
   }
   if (verificationId) return <PublicVerification verificationId={verificationId} />;
   return user ? (
-    <Workspace user={user} logout={logout} />
+    <Workspace user={user} setUser={setUser} logout={logout} />
   ) : (
     <AuthPage mode={mode} done={setUser} go={setMode} />
   );

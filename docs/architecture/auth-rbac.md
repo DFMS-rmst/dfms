@@ -24,6 +24,19 @@ Passwords use Argon2id with environment-calibrated parameters. JWT signing keys/
 - Only the requested/assigned verified veterinarian may accept a request and create official diagnoses/prescriptions.
 - `PLATFORM_ADMIN` represents the dairy/operator, not government.
 
+## Implemented farm-worker baseline
+
+`FARM_WORKER` is an operational role. An active worker may view its farm, animals, treatment
+requests/cases and case information, participate in case chat, record an administration on an
+active treatment, view operational eligibility state, and receive its own alerts. A worker may not
+change farm settings, manage memberships, create or modify animal master records, create or cancel
+owner/manager treatment requests, use management AMU/dashboard/reporting views, issue or anchor a
+certificate, revoke a certificate, diagnose, prescribe, or control treatment lifecycle state.
+
+Global roles and farm roles remain separate. UI workspace selection never grants access; every
+operation is still checked by the backend against membership, professional status, assignment, and
+record state.
+
 ## Permission implementation
 
 Policies receive a normalized principal and resource facts and return allow/deny plus a stable reason code. Services repeat critical invariants inside the transaction to avoid time-of-check/time-of-use errors. Queries are always scoped by farm or assignment; authorization never depends solely on frontend visibility.

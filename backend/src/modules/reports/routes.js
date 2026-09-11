@@ -20,13 +20,29 @@ function csv(rows) {
 async function scope(req) {
   const admin = req.principal.platformRoles.includes('PLATFORM_ADMIN');
   if (req.query.farmId) {
-    if (!admin) await requireFarmAccess(req.principal.user.id, String(req.query.farmId));
+    if (!admin) {
+      const assigned = await prisma.veterinaryCase.count({
+        where: {
+          farmId: String(req.query.farmId),
+          veterinarian: { userId: req.principal.user.id },
+        },
+      });
+      if (!assigned)
+        await requireFarmAccess(req.principal.user.id, String(req.query.farmId), [
+          'FARM_OWNER',
+          'FARM_MANAGER',
+        ]);
+    }
     return [String(req.query.farmId)];
   }
   if (admin) return (await prisma.farm.findMany({ select: { id: true } })).map((x) => x.id);
   const memberships = (
     await prisma.farmMember.findMany({
-      where: { userId: req.principal.user.id, status: 'ACTIVE' },
+      where: {
+        userId: req.principal.user.id,
+        status: 'ACTIVE',
+        roles: { some: { role: { in: ['FARM_OWNER', 'FARM_MANAGER'] } } },
+      },
       select: { farmId: true },
     })
   ).map((x) => x.farmId);
@@ -36,7 +52,9 @@ async function scope(req) {
       select: { farmId: true },
     })
   ).map((x) => x.farmId);
-  return [...new Set([...memberships, ...cases])];
+  const farmIds = [...new Set([...memberships, ...cases])];
+  if (!farmIds.length) throw new AppError(403, 'FORBIDDEN', 'Management report scope required');
+  return farmIds;
 }
 export const reportsRouter = Router();
 reportsRouter.use(authenticate);

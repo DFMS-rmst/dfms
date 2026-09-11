@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { authenticate, requireFarmAccess, requirePlatformRole } from '../../common/auth.js';
-import { asyncHandler } from '../../common/errors.js';
+import { AppError, asyncHandler } from '../../common/errors.js';
 import { prisma } from '../../infrastructure/prisma/client.js';
 import { aggregateAmu, getAmuDataset, groupAmu, monthlyTrend } from '../amu/service.js';
 
@@ -62,16 +62,31 @@ dashboardsRouter.use(authenticate);
 dashboardsRouter.get(
   '/farm',
   asyncHandler(async (req, res) => {
-    await requireFarmAccess(req.principal.user.id, String(req.query.farmId));
+    await requireFarmAccess(req.principal.user.id, String(req.query.farmId), [
+      'FARM_OWNER',
+      'FARM_MANAGER',
+    ]);
     res.json({ data: await common([String(req.query.farmId)]) });
   }),
 );
 dashboardsRouter.get(
   '/veterinarian',
+  requirePlatformRole('VETERINARIAN'),
   asyncHandler(async (req, res) => {
     const vet = await prisma.veterinarianProfile.findUnique({
       where: { userId: req.principal.user.id },
     });
+    if (!vet)
+      throw new AppError(403, 'VETERINARIAN_PROFILE_REQUIRED', 'Veterinarian profile required');
+    if (vet.status !== 'VERIFIED')
+      return res.json({
+        data: {
+          veterinarianStatus: vet.status,
+          clinicalAccess: false,
+          pendingRequests: 0,
+          followUpCases: 0,
+        },
+      });
     const cases = vet
       ? await prisma.veterinaryCase.findMany({
           where: { veterinarianId: vet.id },

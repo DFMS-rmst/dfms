@@ -16,7 +16,16 @@ async function scope(req) {
     throw new AppError(400, 'INVALID_DATE_RANGE', 'Start must not be after end');
   const admin = req.principal.platformRoles.includes('PLATFORM_ADMIN');
   if (query.farmId) {
-    if (!admin) await requireFarmAccess(req.principal.user.id, query.farmId);
+    if (!admin) {
+      const assigned = await prisma.veterinaryCase.count({
+        where: { farmId: query.farmId, veterinarian: { userId: req.principal.user.id } },
+      });
+      if (!assigned)
+        await requireFarmAccess(req.principal.user.id, query.farmId, [
+          'FARM_OWNER',
+          'FARM_MANAGER',
+        ]);
+    }
     return { ...query, farmIds: [query.farmId] };
   }
   if (admin)
@@ -25,7 +34,11 @@ async function scope(req) {
       farmIds: (await prisma.farm.findMany({ select: { id: true } })).map((x) => x.id),
     };
   const memberships = await prisma.farmMember.findMany({
-    where: { userId: req.principal.user.id, status: 'ACTIVE' },
+    where: {
+      userId: req.principal.user.id,
+      status: 'ACTIVE',
+      roles: { some: { role: { in: ['FARM_OWNER', 'FARM_MANAGER'] } } },
+    },
     select: { farmId: true },
   });
   const vetCases = await prisma.veterinaryCase.findMany({
@@ -33,6 +46,7 @@ async function scope(req) {
     select: { farmId: true },
   });
   const farmIds = [...new Set([...memberships, ...vetCases].map((x) => x.farmId))];
+  if (!farmIds.length) throw new AppError(403, 'FORBIDDEN', 'AMU management scope required');
   return { ...query, farmIds };
 }
 export const amuRouter = Router();
