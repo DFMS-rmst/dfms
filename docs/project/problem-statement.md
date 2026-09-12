@@ -38,4 +38,3 @@ Build a serious academic prototype that improves traceability and responsible an
 ## Success criterion
 
 The primary demonstration succeeds when a verified veterinarian treats a registered animal, actual administrations feed AMU and withdrawal processing, the animal is blocked during treatment/withdrawal, later becomes rule-based eligible, receives a certificate, and that certificate is validated through QR and blockchain hash comparison without exposing private data.
-

@@ -30,4 +30,3 @@ An authorized domain reviewer must approve source identity, effective date, exac
 ## Revalidation schedule
 
 Check regulator amendment registers before each release/demo; review active rules at least annually and whenever a product label, authorization, regulation, or jurisdiction changes. Store retrieval and verification timestamps separately.
-

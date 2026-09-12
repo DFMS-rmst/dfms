@@ -94,4 +94,3 @@ Requirements use `FR-<domain>-<number>` identifiers for later traceability.
 ## Fixed prohibition
 
 - **FR-NOLAB-01:** The system shall contain no laboratory management, users, sampling, APIs, devices, residue measurements/predictions, simulated results, uploads, or reports, and shall never claim that residues were measured.
-

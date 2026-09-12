@@ -1,14 +1,77 @@
 {
-  "schema_version":"1.0.0",
-  "records":[
-    {"id":"DRUG-AMOXICILLIN","canonical_name":"Amoxicillin","aliases":["amoxicillin trihydrate"],"class_id":"CLASS-PENICILLIN","active_ingredient":true,"verification_status":"VERIFIED","source_ids":["SRC-FSSAI-CTR-2025","SRC-EU-UPD-LAMOXSAN","SRC-EU-UPD-REDYMOX"]},
-    {"id":"DRUG-AMPICILLIN","canonical_name":"Ampicillin","aliases":[],"class_id":"CLASS-PENICILLIN","active_ingredient":true,"verification_status":"VERIFIED","source_ids":["SRC-FSSAI-CTR-2025"]},
-    {"id":"DRUG-BENZYLPENICILLIN","canonical_name":"Benzylpenicillin","aliases":["penicillin G"],"class_id":"CLASS-PENICILLIN","active_ingredient":true,"verification_status":"VERIFIED","source_ids":["SRC-DAHD-SVTG-2024"]},
-    {"id":"DRUG-OXYTETRACYCLINE","canonical_name":"Oxytetracycline","aliases":["oxytetracycline hydrochloride"],"class_id":"CLASS-TETRACYCLINE","active_ingredient":true,"verification_status":"VERIFIED","source_ids":["SRC-EU-UPD-OXTRA","SRC-DAHD-SVTG-2024"]},
-    {"id":"DRUG-CEFTIOFUR","canonical_name":"Ceftiofur","aliases":["ceftiofur hydrochloride"],"class_id":"CLASS-CEPHALOSPORIN-3G","active_ingredient":true,"verification_status":"VERIFIED","source_ids":["SRC-FSSAI-CTR-2025","SRC-EU-UPD-CEFTIOSAN"]},
-    {"id":"DRUG-CEFAPIRIN","canonical_name":"Cefapirin","aliases":["cephapirine","cefapirin sodium"],"class_id":"CLASS-CEPHALOSPORIN-1G","active_ingredient":true,"verification_status":"VERIFIED_NAME_MAPPING_REVIEW_SOURCE_SPELLING","source_ids":["SRC-FSSAI-CTR-2025"]},
-    {"id":"DRUG-ENROFLOXACIN","canonical_name":"Enrofloxacin","aliases":[],"class_id":"CLASS-FLUOROQUINOLONE","active_ingredient":true,"verification_status":"VERIFIED","source_ids":["SRC-FSSAI-CTR-2025","SRC-DAHD-SVTG-2024"]},
-    {"id":"DRUG-SULFADIMIDINE","canonical_name":"Sulfadimidine","aliases":["sulfamethazine"],"class_id":"CLASS-SULFONAMIDE","active_ingredient":true,"verification_status":"VERIFIED_SOURCE_TERM_PRESERVED","source_ids":["SRC-FSSAI-CTR-2025"]}
+  "schema_version": "1.0.0",
+  "records": [
+    {
+      "id": "DRUG-AMOXICILLIN",
+      "canonical_name": "Amoxicillin",
+      "aliases": ["amoxicillin trihydrate"],
+      "class_id": "CLASS-PENICILLIN",
+      "active_ingredient": true,
+      "verification_status": "VERIFIED",
+      "source_ids": ["SRC-FSSAI-CTR-2025", "SRC-EU-UPD-LAMOXSAN", "SRC-EU-UPD-REDYMOX"]
+    },
+    {
+      "id": "DRUG-AMPICILLIN",
+      "canonical_name": "Ampicillin",
+      "aliases": [],
+      "class_id": "CLASS-PENICILLIN",
+      "active_ingredient": true,
+      "verification_status": "VERIFIED",
+      "source_ids": ["SRC-FSSAI-CTR-2025"]
+    },
+    {
+      "id": "DRUG-BENZYLPENICILLIN",
+      "canonical_name": "Benzylpenicillin",
+      "aliases": ["penicillin G"],
+      "class_id": "CLASS-PENICILLIN",
+      "active_ingredient": true,
+      "verification_status": "VERIFIED",
+      "source_ids": ["SRC-DAHD-SVTG-2024"]
+    },
+    {
+      "id": "DRUG-OXYTETRACYCLINE",
+      "canonical_name": "Oxytetracycline",
+      "aliases": ["oxytetracycline hydrochloride"],
+      "class_id": "CLASS-TETRACYCLINE",
+      "active_ingredient": true,
+      "verification_status": "VERIFIED",
+      "source_ids": ["SRC-EU-UPD-OXTRA", "SRC-DAHD-SVTG-2024"]
+    },
+    {
+      "id": "DRUG-CEFTIOFUR",
+      "canonical_name": "Ceftiofur",
+      "aliases": ["ceftiofur hydrochloride"],
+      "class_id": "CLASS-CEPHALOSPORIN-3G",
+      "active_ingredient": true,
+      "verification_status": "VERIFIED",
+      "source_ids": ["SRC-FSSAI-CTR-2025", "SRC-EU-UPD-CEFTIOSAN"]
+    },
+    {
+      "id": "DRUG-CEFAPIRIN",
+      "canonical_name": "Cefapirin",
+      "aliases": ["cephapirine", "cefapirin sodium"],
+      "class_id": "CLASS-CEPHALOSPORIN-1G",
+      "active_ingredient": true,
+      "verification_status": "VERIFIED_NAME_MAPPING_REVIEW_SOURCE_SPELLING",
+      "source_ids": ["SRC-FSSAI-CTR-2025"]
+    },
+    {
+      "id": "DRUG-ENROFLOXACIN",
+      "canonical_name": "Enrofloxacin",
+      "aliases": [],
+      "class_id": "CLASS-FLUOROQUINOLONE",
+      "active_ingredient": true,
+      "verification_status": "VERIFIED",
+      "source_ids": ["SRC-FSSAI-CTR-2025", "SRC-DAHD-SVTG-2024"]
+    },
+    {
+      "id": "DRUG-SULFADIMIDINE",
+      "canonical_name": "Sulfadimidine",
+      "aliases": ["sulfamethazine"],
+      "class_id": "CLASS-SULFONAMIDE",
+      "active_ingredient": true,
+      "verification_status": "VERIFIED_SOURCE_TERM_PRESERVED",
+      "source_ids": ["SRC-FSSAI-CTR-2025"]
+    }
   ]
 }
-

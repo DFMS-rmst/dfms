@@ -31,4 +31,3 @@ Issue only from `ELIGIBLE_FOR_MILK`. A new administration, corrected treatment, 
 Required disclaimer: “This certificate represents eligibility based on recorded treatment history and configured withdrawal-period reference rules. It does not represent laboratory residue testing.”
 
 MRL values never enter this decision calculation.
-

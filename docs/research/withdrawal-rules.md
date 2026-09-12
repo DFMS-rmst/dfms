@@ -33,4 +33,3 @@ Withdrawal begins at the actual last administration instant unless the authorita
 ## Required context
 
 Rule ID/version, product/authorization, active ingredients, species and production class, milk product, route, formulation/concentration, dose/use conditions, duration/unit, exact/minimum flag, jurisdiction, source organization/title/URL/section, source effective/revision/retrieval dates, verification status, reviewer, and applicability notes.
-

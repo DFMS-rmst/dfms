@@ -4,18 +4,18 @@ Validation date: **2026-08-25**
 
 ## Dataset inventory
 
-| File | Records |
-|---|---:|
-| `sources.json` | 18 |
-| `species.json` | 2 |
-| `diseases.json` | 6 |
-| `antimicrobial_classes.json` | 6 |
-| `drugs.json` | 8 |
-| `drug_species.json` | 16 |
-| `withdrawal_rules.json` | 5 |
-| `mrl_reference.json` | 5 |
-| `restrictions.json` | 3 |
-| `amu_metrics.json` | 10 |
+| File                         | Records |
+| ---------------------------- | ------: |
+| `sources.json`               |      18 |
+| `species.json`               |       2 |
+| `diseases.json`              |       6 |
+| `antimicrobial_classes.json` |       6 |
+| `drugs.json`                 |       8 |
+| `drug_species.json`          |      16 |
+| `withdrawal_rules.json`      |       5 |
+| `mrl_reference.json`         |       5 |
+| `restrictions.json`          |       3 |
+| `amu_metrics.json`           |      10 |
 
 ## Checks performed
 

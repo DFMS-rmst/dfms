@@ -61,4 +61,3 @@
 ## Compliance boundary
 
 The prototype supports organizational operations and academic evaluation. It must not claim legal certification, clinical decision automation, laboratory residue assurance, or regulatory approval.
-

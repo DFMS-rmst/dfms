@@ -2,24 +2,179 @@
   "schema_version": "1.0.0",
   "retrieval_date": "2026-08-25",
   "records": [
-    {"id":"SRC-DAHD-BAHS-2025","organization":"Department of Animal Husbandry and Dairying, Government of India","title":"Basic Animal Husbandry Statistics 2025 brochure","jurisdiction":"INDIA","url":"https://www.dahd.gov.in/sites/default/files/2025-11/BAHS2025Brochure.pdf","source_type":"GOVERNMENT_STATISTICS","verification_status":"VERIFIED"},
-    {"id":"SRC-DAHD-SVTG-2024","organization":"Department of Animal Husbandry and Dairying, Government of India","title":"Standard Veterinary Treatment Guidelines for Livestock and Poultry","jurisdiction":"INDIA","url":"https://dahd.gov.in/sites/default/files/2024-10/StandardVeterinaryTreatment.pdf","source_type":"GOVERNMENT_GUIDELINE","verification_status":"VERIFIED"},
-    {"id":"SRC-DAHD-ANTIBIOTIC-2014","organization":"Department of Animal Husbandry, Dairying and Fisheries, Government of India","title":"Advisory on use of antibiotics for treatment of food-producing animals and in animal feeding","jurisdiction":"INDIA","url":"https://cdsco.gov.in/opencms/resources/UploadCDSCOWeb/2018/UploadPublic_NoticesFiles/Combine.pdf","source_type":"GOVERNMENT_ADVISORY","publication_date":"2014-06-03","verification_status":"VERIFIED"},
-    {"id":"SRC-CDSCO-DRUG-RULES-1945","organization":"Central Drugs Standard Control Organization","title":"Drugs Rules, 1945 (regulator-hosted compilation)","jurisdiction":"INDIA","url":"https://cdsco.gov.in/opencms/resources/UploadCDSCOWeb/2022/drug_rules/Drugs%20Rules%2C%201945.pdf","source_type":"REGULATION_COMPILATION","section":"Rule 97(3A)","verification_status":"VERIFIED"},
-    {"id":"SRC-GAZETTE-GSR28-2012","organization":"Gazette of India","title":"Drugs and Cosmetics (1st Amendment) Rules, 2012, G.S.R. 28(E)","jurisdiction":"INDIA","url":"https://www.eicindia.gov.in/WebApp1/resources/PDF/GSR-28-withdrawal-period.pdf","source_type":"LEGAL_NOTIFICATION","publication_date":"2012-01-17","section":"Rule 2 inserting Rule 97(3A)","verification_status":"VERIFIED"},
-    {"id":"SRC-FSSAI-CTR-2025","organization":"Food Safety and Standards Authority of India","title":"Food Safety and Standards (Contaminants, Toxins and Residues) Regulations Compendium, Version VIII","jurisdiction":"INDIA","url":"https://fssai.gov.in/upload/uploadfiles/files/Comp_Contaminants_Regulations_2_4_2025_VIII.pdf","source_type":"REGULATION_COMPENDIUM","publication_date":"2025-04-01","section":"Sub-regulation 2.3.2, veterinary drug tolerance table","verification_status":"VERIFIED_WITH_ORIGINAL_NOTIFICATION_PRECEDENCE"},
-    {"id":"SRC-FSSAI-AMEND-2026","organization":"Food Safety and Standards Authority of India","title":"Contaminants, Toxins and Residues amendment register, Amendment 17","jurisdiction":"INDIA","url":"https://www.fssai.gov.in/cms/amendment-fss-contaminants-toxins-and-residues.php","source_type":"REGULATOR_AMENDMENT_REGISTER","publication_date":"2026-05-25","effective_date":"2026-12-01","verification_status":"VERIFIED"},
-    {"id":"SRC-DAHD-COLISTIN-2025","organization":"Department of Animal Husbandry and Dairying, Government of India","title":"Rajya Sabha Unstarred Question 3578 answer on antimicrobial use","jurisdiction":"INDIA","url":"https://www.dahd.gov.in/sites/default/files/2025-04/RS3578.pdf","source_type":"GOVERNMENT_STATEMENT","verification_status":"VERIFIED_UNDERLYING_NOTIFICATION_REQUIRED_FOR_ENFORCEMENT"},
-    {"id":"SRC-WOAH-TAHC-6.9","organization":"World Organisation for Animal Health","title":"Terrestrial Animal Health Code Chapter 6.9: Monitoring quantities and usage patterns of antimicrobial agents","jurisdiction":"INTERNATIONAL","url":"https://www.woah.org/fileadmin/Home/eng/Health_standards/tahc/2021/en_chapitre_antibio_monitoring.htm","source_type":"INTERNATIONAL_STANDARD","section":"Articles 6.9.4-6.9.5","verification_status":"VERIFIED"},
-    {"id":"SRC-WOAH-TAHC-6.10","organization":"World Organisation for Animal Health","title":"Terrestrial Animal Health Code Chapter 6.10: Responsible and prudent use of antimicrobial agents","jurisdiction":"INTERNATIONAL","url":"https://www.woah.org/fileadmin/Home/eng/Health_standards/tahc/2024/en_chapitre_antibio_use.htm","source_type":"INTERNATIONAL_STANDARD","verification_status":"VERIFIED"},
-    {"id":"SRC-FAO-AMU-FARM-2023","organization":"FAO and WOAH","title":"Guidelines on monitoring antimicrobial use at the farm level","jurisdiction":"ASIA_PACIFIC","url":"https://www.fao.org/documents/card/en/c/cc8807en","source_type":"INTERNATIONAL_GUIDELINE","publication_date":"2023","verification_status":"VERIFIED"},
-    {"id":"SRC-EMA-DDDVET-2015","organization":"European Medicines Agency","title":"Principles on assignment of DDDvet and DCDvet","jurisdiction":"EU","url":"https://www.ema.europa.eu/en/documents/scientific-guideline/principles-assignment-defined-daily-dose-animals-dddvet-and-defined-course-dose-animals-dcdvet_en.pdf","source_type":"REGULATORY_METHODOLOGY","publication_date":"2015-06-30","verification_status":"VERIFIED"},
-    {"id":"SRC-EMA-AMU-2023","organization":"European Medicines Agency","title":"Guideline on reporting antimicrobial sales and use in animals: denominators and indicators","jurisdiction":"EU","url":"https://www.ema.europa.eu/en/documents/scientific-guideline/guideline-reporting-antimicrobial-sales-and-use-animals-eu-level-denominators-and-indicators_en.pdf","source_type":"REGULATORY_METHODOLOGY","publication_date":"2023","verification_status":"VERIFIED"},
-    {"id":"SRC-EU-UPD-LAMOXSAN","organization":"European Union Veterinary Medicines Information","title":"Lamoxsan 150 mg/ml suspension for injection for cattle and pigs","jurisdiction":"IRELAND","url":"https://medicines.health.europa.eu/veterinary/en/600000986151","source_type":"AUTHORIZED_PRODUCT_INFORMATION","verification_status":"VERIFIED_FOREIGN_JURISDICTION"},
-    {"id":"SRC-EU-UPD-REDYMOX","organization":"European Union Veterinary Medicines Information","title":"Redymox 150 mg/ml suspension for injection","jurisdiction":"IRELAND","url":"https://medicines.health.europa.eu/veterinary/en/700000186534","source_type":"AUTHORIZED_PRODUCT_INFORMATION","verification_status":"VERIFIED_FOREIGN_JURISDICTION"},
-    {"id":"SRC-EU-UPD-OXTRA","organization":"European Union Veterinary Medicines Information","title":"OXTRA DD 100 mg/ml solution for injection","jurisdiction":"BELGIUM","url":"https://medicines.health.europa.eu/veterinary/en/600000050208","source_type":"AUTHORIZED_PRODUCT_INFORMATION","verification_status":"VERIFIED_FOREIGN_JURISDICTION"},
-    {"id":"SRC-EU-UPD-CEFTIOSAN","organization":"European Union Veterinary Medicines Information","title":"Ceftiosan/Alfacef RTU 50 mg/ml product information","jurisdiction":"EU_MEMBER_STATES_LISTED_BY_SOURCE","url":"https://medicines.health.europa.eu/veterinary/es/documents/secure-download/5074ac5d-1f1d-4d87-b6e2-9748db7ccf12/6bqcwZVDxqN0X2GNNaBho87oUXT4dhH6CEkpj37M","source_type":"AUTHORIZED_PRODUCT_INFORMATION","verification_status":"VERIFIED_FOREIGN_JURISDICTION"},
-    {"id":"SRC-CODEX-VETDRUG","organization":"Codex Alimentarius Commission","title":"Codex veterinary drug residues in food database","jurisdiction":"INTERNATIONAL","url":"https://www.fao.org/fao-who-codexalimentarius/codex-texts/dbs/vetdrugs/en/","source_type":"INTERNATIONAL_REGULATORY_DATABASE","verification_status":"VERIFIED_REFERENCE_ONLY"}
+    {
+      "id": "SRC-DAHD-BAHS-2025",
+      "organization": "Department of Animal Husbandry and Dairying, Government of India",
+      "title": "Basic Animal Husbandry Statistics 2025 brochure",
+      "jurisdiction": "INDIA",
+      "url": "https://www.dahd.gov.in/sites/default/files/2025-11/BAHS2025Brochure.pdf",
+      "source_type": "GOVERNMENT_STATISTICS",
+      "verification_status": "VERIFIED"
+    },
+    {
+      "id": "SRC-DAHD-SVTG-2024",
+      "organization": "Department of Animal Husbandry and Dairying, Government of India",
+      "title": "Standard Veterinary Treatment Guidelines for Livestock and Poultry",
+      "jurisdiction": "INDIA",
+      "url": "https://dahd.gov.in/sites/default/files/2024-10/StandardVeterinaryTreatment.pdf",
+      "source_type": "GOVERNMENT_GUIDELINE",
+      "verification_status": "VERIFIED"
+    },
+    {
+      "id": "SRC-DAHD-ANTIBIOTIC-2014",
+      "organization": "Department of Animal Husbandry, Dairying and Fisheries, Government of India",
+      "title": "Advisory on use of antibiotics for treatment of food-producing animals and in animal feeding",
+      "jurisdiction": "INDIA",
+      "url": "https://cdsco.gov.in/opencms/resources/UploadCDSCOWeb/2018/UploadPublic_NoticesFiles/Combine.pdf",
+      "source_type": "GOVERNMENT_ADVISORY",
+      "publication_date": "2014-06-03",
+      "verification_status": "VERIFIED"
+    },
+    {
+      "id": "SRC-CDSCO-DRUG-RULES-1945",
+      "organization": "Central Drugs Standard Control Organization",
+      "title": "Drugs Rules, 1945 (regulator-hosted compilation)",
+      "jurisdiction": "INDIA",
+      "url": "https://cdsco.gov.in/opencms/resources/UploadCDSCOWeb/2022/drug_rules/Drugs%20Rules%2C%201945.pdf",
+      "source_type": "REGULATION_COMPILATION",
+      "section": "Rule 97(3A)",
+      "verification_status": "VERIFIED"
+    },
+    {
+      "id": "SRC-GAZETTE-GSR28-2012",
+      "organization": "Gazette of India",
+      "title": "Drugs and Cosmetics (1st Amendment) Rules, 2012, G.S.R. 28(E)",
+      "jurisdiction": "INDIA",
+      "url": "https://www.eicindia.gov.in/WebApp1/resources/PDF/GSR-28-withdrawal-period.pdf",
+      "source_type": "LEGAL_NOTIFICATION",
+      "publication_date": "2012-01-17",
+      "section": "Rule 2 inserting Rule 97(3A)",
+      "verification_status": "VERIFIED"
+    },
+    {
+      "id": "SRC-FSSAI-CTR-2025",
+      "organization": "Food Safety and Standards Authority of India",
+      "title": "Food Safety and Standards (Contaminants, Toxins and Residues) Regulations Compendium, Version VIII",
+      "jurisdiction": "INDIA",
+      "url": "https://fssai.gov.in/upload/uploadfiles/files/Comp_Contaminants_Regulations_2_4_2025_VIII.pdf",
+      "source_type": "REGULATION_COMPENDIUM",
+      "publication_date": "2025-04-01",
+      "section": "Sub-regulation 2.3.2, veterinary drug tolerance table",
+      "verification_status": "VERIFIED_WITH_ORIGINAL_NOTIFICATION_PRECEDENCE"
+    },
+    {
+      "id": "SRC-FSSAI-AMEND-2026",
+      "organization": "Food Safety and Standards Authority of India",
+      "title": "Contaminants, Toxins and Residues amendment register, Amendment 17",
+      "jurisdiction": "INDIA",
+      "url": "https://www.fssai.gov.in/cms/amendment-fss-contaminants-toxins-and-residues.php",
+      "source_type": "REGULATOR_AMENDMENT_REGISTER",
+      "publication_date": "2026-05-25",
+      "effective_date": "2026-12-01",
+      "verification_status": "VERIFIED"
+    },
+    {
+      "id": "SRC-DAHD-COLISTIN-2025",
+      "organization": "Department of Animal Husbandry and Dairying, Government of India",
+      "title": "Rajya Sabha Unstarred Question 3578 answer on antimicrobial use",
+      "jurisdiction": "INDIA",
+      "url": "https://www.dahd.gov.in/sites/default/files/2025-04/RS3578.pdf",
+      "source_type": "GOVERNMENT_STATEMENT",
+      "verification_status": "VERIFIED_UNDERLYING_NOTIFICATION_REQUIRED_FOR_ENFORCEMENT"
+    },
+    {
+      "id": "SRC-WOAH-TAHC-6.9",
+      "organization": "World Organisation for Animal Health",
+      "title": "Terrestrial Animal Health Code Chapter 6.9: Monitoring quantities and usage patterns of antimicrobial agents",
+      "jurisdiction": "INTERNATIONAL",
+      "url": "https://www.woah.org/fileadmin/Home/eng/Health_standards/tahc/2021/en_chapitre_antibio_monitoring.htm",
+      "source_type": "INTERNATIONAL_STANDARD",
+      "section": "Articles 6.9.4-6.9.5",
+      "verification_status": "VERIFIED"
+    },
+    {
+      "id": "SRC-WOAH-TAHC-6.10",
+      "organization": "World Organisation for Animal Health",
+      "title": "Terrestrial Animal Health Code Chapter 6.10: Responsible and prudent use of antimicrobial agents",
+      "jurisdiction": "INTERNATIONAL",
+      "url": "https://www.woah.org/fileadmin/Home/eng/Health_standards/tahc/2024/en_chapitre_antibio_use.htm",
+      "source_type": "INTERNATIONAL_STANDARD",
+      "verification_status": "VERIFIED"
+    },
+    {
+      "id": "SRC-FAO-AMU-FARM-2023",
+      "organization": "FAO and WOAH",
+      "title": "Guidelines on monitoring antimicrobial use at the farm level",
+      "jurisdiction": "ASIA_PACIFIC",
+      "url": "https://www.fao.org/documents/card/en/c/cc8807en",
+      "source_type": "INTERNATIONAL_GUIDELINE",
+      "publication_date": "2023",
+      "verification_status": "VERIFIED"
+    },
+    {
+      "id": "SRC-EMA-DDDVET-2015",
+      "organization": "European Medicines Agency",
+      "title": "Principles on assignment of DDDvet and DCDvet",
+      "jurisdiction": "EU",
+      "url": "https://www.ema.europa.eu/en/documents/scientific-guideline/principles-assignment-defined-daily-dose-animals-dddvet-and-defined-course-dose-animals-dcdvet_en.pdf",
+      "source_type": "REGULATORY_METHODOLOGY",
+      "publication_date": "2015-06-30",
+      "verification_status": "VERIFIED"
+    },
+    {
+      "id": "SRC-EMA-AMU-2023",
+      "organization": "European Medicines Agency",
+      "title": "Guideline on reporting antimicrobial sales and use in animals: denominators and indicators",
+      "jurisdiction": "EU",
+      "url": "https://www.ema.europa.eu/en/documents/scientific-guideline/guideline-reporting-antimicrobial-sales-and-use-animals-eu-level-denominators-and-indicators_en.pdf",
+      "source_type": "REGULATORY_METHODOLOGY",
+      "publication_date": "2023",
+      "verification_status": "VERIFIED"
+    },
+    {
+      "id": "SRC-EU-UPD-LAMOXSAN",
+      "organization": "European Union Veterinary Medicines Information",
+      "title": "Lamoxsan 150 mg/ml suspension for injection for cattle and pigs",
+      "jurisdiction": "IRELAND",
+      "url": "https://medicines.health.europa.eu/veterinary/en/600000986151",
+      "source_type": "AUTHORIZED_PRODUCT_INFORMATION",
+      "verification_status": "VERIFIED_FOREIGN_JURISDICTION"
+    },
+    {
+      "id": "SRC-EU-UPD-REDYMOX",
+      "organization": "European Union Veterinary Medicines Information",
+      "title": "Redymox 150 mg/ml suspension for injection",
+      "jurisdiction": "IRELAND",
+      "url": "https://medicines.health.europa.eu/veterinary/en/700000186534",
+      "source_type": "AUTHORIZED_PRODUCT_INFORMATION",
+      "verification_status": "VERIFIED_FOREIGN_JURISDICTION"
+    },
+    {
+      "id": "SRC-EU-UPD-OXTRA",
+      "organization": "European Union Veterinary Medicines Information",
+      "title": "OXTRA DD 100 mg/ml solution for injection",
+      "jurisdiction": "BELGIUM",
+      "url": "https://medicines.health.europa.eu/veterinary/en/600000050208",
+      "source_type": "AUTHORIZED_PRODUCT_INFORMATION",
+      "verification_status": "VERIFIED_FOREIGN_JURISDICTION"
+    },
+    {
+      "id": "SRC-EU-UPD-CEFTIOSAN",
+      "organization": "European Union Veterinary Medicines Information",
+      "title": "Ceftiosan/Alfacef RTU 50 mg/ml product information",
+      "jurisdiction": "EU_MEMBER_STATES_LISTED_BY_SOURCE",
+      "url": "https://medicines.health.europa.eu/veterinary/es/documents/secure-download/5074ac5d-1f1d-4d87-b6e2-9748db7ccf12/6bqcwZVDxqN0X2GNNaBho87oUXT4dhH6CEkpj37M",
+      "source_type": "AUTHORIZED_PRODUCT_INFORMATION",
+      "verification_status": "VERIFIED_FOREIGN_JURISDICTION"
+    },
+    {
+      "id": "SRC-CODEX-VETDRUG",
+      "organization": "Codex Alimentarius Commission",
+      "title": "Codex veterinary drug residues in food database",
+      "jurisdiction": "INTERNATIONAL",
+      "url": "https://www.fao.org/fao-who-codexalimentarius/codex-texts/dbs/vetdrugs/en/",
+      "source_type": "INTERNATIONAL_REGULATORY_DATABASE",
+      "verification_status": "VERIFIED_REFERENCE_ONLY"
+    }
   ]
 }
-

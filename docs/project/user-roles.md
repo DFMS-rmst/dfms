@@ -40,17 +40,16 @@ A read-only regulator role may be evaluated later but is outside the initial MVP
 
 ## High-level permission constraints
 
-| Action | Admin | Owner/Manager | Worker | Verified vet | Public verifier |
-|---|---:|---:|---:|---:|---:|
-| Verify veterinarian submission | Yes | No | No | No | No |
-| Manage own farm/animals | Monitor/configured | Yes | Limited | No | No |
-| Create treatment request | No | Yes | If authorized | No | No |
-| Accept assigned request | No | No | No | Yes | No |
-| Diagnose/prescribe | No | No | No | Yes | No |
-| Record administration | Review | Yes if authorized | If authorized | Yes if authorized | No |
-| Govern reference data | Yes | No | No | Review input only if designed | No |
-| View farm AMU | Platform scope | Farm scope | Limited | Relevant scope | No |
-| Verify certificate summary | Yes | Yes | Limited | Relevant | Yes |
+| Action                         |              Admin |     Owner/Manager |        Worker |                  Verified vet | Public verifier |
+| ------------------------------ | -----------------: | ----------------: | ------------: | ----------------------------: | --------------: |
+| Verify veterinarian submission |                Yes |                No |            No |                            No |              No |
+| Manage own farm/animals        | Monitor/configured |               Yes |       Limited |                            No |              No |
+| Create treatment request       |                 No |               Yes | If authorized |                            No |              No |
+| Accept assigned request        |                 No |                No |            No |                           Yes |              No |
+| Diagnose/prescribe             |                 No |                No |            No |                           Yes |              No |
+| Record administration          |             Review | Yes if authorized | If authorized |             Yes if authorized |              No |
+| Govern reference data          |                Yes |                No |            No | Review input only if designed |              No |
+| View farm AMU                  |     Platform scope |        Farm scope |       Limited |                Relevant scope |              No |
+| Verify certificate summary     |                Yes |               Yes |       Limited |                      Relevant |             Yes |
 
 The detailed permission matrix, separation-of-duty rules, and record-state guards will be finalized during architecture design.
-

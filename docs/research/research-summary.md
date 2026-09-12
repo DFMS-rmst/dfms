@@ -19,14 +19,14 @@ The reference subset contains eight antimicrobial active ingredients, six dairy-
 
 ## Selected MVP scope
 
-| Area | Selection |
-|---|---|
-| Species | Dairy cattle and dairy buffalo |
-| Conditions | Clinical mastitis; metritis/endometritis; bovine respiratory bacterial disease; foot rot; haemorrhagic septicaemia; calf bacterial enteritis/septicaemia |
-| Active ingredients | Amoxicillin, ampicillin, benzylpenicillin, oxytetracycline, ceftiofur, cefapirin, enrofloxacin, sulfadimidine |
-| Classes | Penicillins, tetracyclines, third-generation cephalosporins, first-generation cephalosporins, fluoroquinolones, sulfonamides |
-| Core AMU | active-ingredient mass, mg/animal, mg/kg liveweight (only with weights), treatment incidence, antimicrobial treatment-days, course counts, class/route/disease/time breakdowns |
-| Advanced AMU | DDDvet/DCDvet indicators only after exact denominator and standardized-dose mappings are available |
+| Area               | Selection                                                                                                                                                                      |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Species            | Dairy cattle and dairy buffalo                                                                                                                                                 |
+| Conditions         | Clinical mastitis; metritis/endometritis; bovine respiratory bacterial disease; foot rot; haemorrhagic septicaemia; calf bacterial enteritis/septicaemia                       |
+| Active ingredients | Amoxicillin, ampicillin, benzylpenicillin, oxytetracycline, ceftiofur, cefapirin, enrofloxacin, sulfadimidine                                                                  |
+| Classes            | Penicillins, tetracyclines, third-generation cephalosporins, first-generation cephalosporins, fluoroquinolones, sulfonamides                                                   |
+| Core AMU           | active-ingredient mass, mg/animal, mg/kg liveweight (only with weights), treatment incidence, antimicrobial treatment-days, course counts, class/route/disease/time breakdowns |
+| Advanced AMU       | DDDvet/DCDvet indicators only after exact denominator and standardized-dose mappings are available                                                                             |
 
 ## Safety classification
 

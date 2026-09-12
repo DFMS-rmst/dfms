@@ -59,4 +59,3 @@ The MVP reference dataset will be deliberately small, authoritative, fully cited
 - Persisted polling versus WebSocket case chat
 - Choice of Hardhat or Anvil and deployment network
 - Scientifically defensible AMU metric set after methodology research and data-feasibility review
-

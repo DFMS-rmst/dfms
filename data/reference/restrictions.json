@@ -1,9 +1,33 @@
 {
-  "schema_version":"1.0.0",
-  "records":[
-    {"id":"REST-IN-COLISTIN-FOOD-ANIMALS","substance":"Colistin and its formulations","scope":"Manufacture, sale and distribution for food-producing animals, poultry, aquafarming and animal-feed supplements","jurisdiction":"INDIA","restriction_type":"PROHIBITED_FOR_STATED_SCOPE","effective_date":"2019-07-19","verification_status":"REVIEW_UNDERLYING_NOTIFICATION_BEFORE_ENFORCEMENT","source_ids":["SRC-DAHD-COLISTIN-2025"]},
-    {"id":"REST-IN-ANTIMICROBIAL-GROWTH-PROMOTION","substance":"Antimicrobials","scope":"Regular animal-feed use for growth promotion","jurisdiction":"INDIA","restriction_type":"DO_NOT_SUPPORT_IN_MVP_AND_GOVERNMENT_ADVISES_STOPPING","verification_status":"VERIFIED_POLICY_CONTEXT","source_ids":["SRC-DAHD-ANTIBIOTIC-2014","SRC-DAHD-COLISTIN-2025"]},
-    {"id":"REST-IN-PROCESSING-LIST","substance":"Nitrofurans, chloramphenicol, sulphamethoxazole, dapsone, nitroimidazoles, glycopeptides and other substances enumerated by source","scope":"Not permitted at stages of processing specified for meat/poultry/eggs/seafood; do not overgeneralize to a milk-treatment ban without exact legal scope","jurisdiction":"INDIA","restriction_type":"PROCESSING_PROHIBITION_SOURCE_SCOPE_ONLY","verification_status":"REVIEW_REQUIRED_FOR_CLINICAL_ENFORCEMENT","source_ids":["SRC-FSSAI-CTR-2025"]}
+  "schema_version": "1.0.0",
+  "records": [
+    {
+      "id": "REST-IN-COLISTIN-FOOD-ANIMALS",
+      "substance": "Colistin and its formulations",
+      "scope": "Manufacture, sale and distribution for food-producing animals, poultry, aquafarming and animal-feed supplements",
+      "jurisdiction": "INDIA",
+      "restriction_type": "PROHIBITED_FOR_STATED_SCOPE",
+      "effective_date": "2019-07-19",
+      "verification_status": "REVIEW_UNDERLYING_NOTIFICATION_BEFORE_ENFORCEMENT",
+      "source_ids": ["SRC-DAHD-COLISTIN-2025"]
+    },
+    {
+      "id": "REST-IN-ANTIMICROBIAL-GROWTH-PROMOTION",
+      "substance": "Antimicrobials",
+      "scope": "Regular animal-feed use for growth promotion",
+      "jurisdiction": "INDIA",
+      "restriction_type": "DO_NOT_SUPPORT_IN_MVP_AND_GOVERNMENT_ADVISES_STOPPING",
+      "verification_status": "VERIFIED_POLICY_CONTEXT",
+      "source_ids": ["SRC-DAHD-ANTIBIOTIC-2014", "SRC-DAHD-COLISTIN-2025"]
+    },
+    {
+      "id": "REST-IN-PROCESSING-LIST",
+      "substance": "Nitrofurans, chloramphenicol, sulphamethoxazole, dapsone, nitroimidazoles, glycopeptides and other substances enumerated by source",
+      "scope": "Not permitted at stages of processing specified for meat/poultry/eggs/seafood; do not overgeneralize to a milk-treatment ban without exact legal scope",
+      "jurisdiction": "INDIA",
+      "restriction_type": "PROCESSING_PROHIBITION_SOURCE_SCOPE_ONLY",
+      "verification_status": "REVIEW_REQUIRED_FOR_CLINICAL_ENFORCEMENT",
+      "source_ids": ["SRC-FSSAI-CTR-2025"]
+    }
   ]
 }
-

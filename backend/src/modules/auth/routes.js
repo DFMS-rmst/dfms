@@ -204,3 +204,42 @@ authRouter.get(
     response.json({ data: { user: publicUser(await loadUserContext(request.principal.user.id)) } }),
   ),
 );
+authRouter.patch(
+  '/profile',
+  authenticate,
+  validate(
+    z.object({
+      fullName: z.string().trim().min(2).max(160).optional(),
+      phone: optionalTrimmedString(z.string().trim().min(7).max(32)),
+      currentPassword: z.string().optional(),
+      newPassword: z.string().min(10).max(128).optional(),
+    }),
+  ),
+  asyncHandler(async (request, response) => {
+    const user = await prisma.user.findUnique({ where: { id: request.principal.user.id } });
+    if (!user) throw new AppError(404, 'USER_NOT_FOUND', 'User not found');
+    const dataToUpdate = {};
+    if (request.body.fullName) dataToUpdate.fullName = request.body.fullName;
+    if (request.body.phone !== undefined) dataToUpdate.phone = request.body.phone;
+    if (request.body.newPassword) {
+      if (!request.body.currentPassword)
+        throw new AppError(
+          400,
+          'CURRENT_PASSWORD_REQUIRED',
+          'Current password required to change password',
+        );
+      const valid = await argon2.verify(user.passwordHash, request.body.currentPassword);
+      if (!valid)
+        throw new AppError(400, 'INVALID_CURRENT_PASSWORD', 'Current password is incorrect');
+      dataToUpdate.passwordHash = await argon2.hash(request.body.newPassword, {
+        type: argon2.argon2id,
+      });
+    }
+    await prisma.user.update({
+      where: { id: user.id },
+      data: dataToUpdate,
+    });
+    const updated = await loadUserContext(user.id);
+    response.json({ data: { user: publicUser(updated) } });
+  }),
+);
