@@ -32,4 +32,3 @@ MySQL remains the operational source of truth. Private files remain in private S
 ## Sustainability assumptions
 
 Commercial pricing is outside this planning phase. A future operating model could use organization licensing, deployment/support services, or farm-volume tiers, but must preserve farmer access, data protection, veterinarian independence, and truthful certificate limitations.
-

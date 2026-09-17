@@ -85,4 +85,3 @@ Certificate + QR + limited hash anchor
 ## No-laboratory boundary
 
 At no point is a sample collected, residue measured/predicted, MRL compliance inferred from a measurement, or laboratory report produced. MRL may appear only as separately labelled educational reference information. Withdrawal-period compliance is a rule-and-record decision.
-

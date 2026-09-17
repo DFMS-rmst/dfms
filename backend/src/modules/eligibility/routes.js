@@ -126,6 +126,66 @@ withdrawalRouter.get(
     res.json({ data: { rules } });
   }),
 );
+withdrawalRouter.post(
+  '/rules',
+  asyncHandler(async (req, res) => {
+    if (!req.principal.platformRoles.includes('PLATFORM_ADMIN'))
+      throw new AppError(403, 'FORBIDDEN', 'Platform admin role required');
+    const {
+      code,
+      drugId,
+      speciesId,
+      foodProduct = 'MILK',
+      route,
+      durationValue,
+      durationUnit = 'DAY',
+      jurisdiction = 'INDIA',
+      organization,
+      sourceTitle,
+      sourceUrl,
+      verificationStatus = 'VERIFIED',
+    } = req.body;
+
+    if (!code || !speciesId || !route || !durationValue || !organization || !sourceTitle)
+      throw new AppError(400, 'MISSING_FIELDS', 'Required rule fields missing');
+
+    const source = await prisma.regulatorySource.upsert({
+      where: { sourceRecordId: `SRC-${organization.toUpperCase().replaceAll(/\s+/g, '-')}` },
+      create: {
+        sourceRecordId: `SRC-${organization.toUpperCase().replaceAll(/\s+/g, '-')}`,
+        organization,
+        title: sourceTitle,
+        url: sourceUrl || 'https://fssai.gov.in',
+        jurisdiction,
+        retrievalDate: new Date(),
+      },
+      update: {},
+    });
+
+    const rule = await prisma.withdrawalRule.create({
+      data: {
+        code,
+        version: 1,
+        drugId: drugId || null,
+        speciesId,
+        foodProduct,
+        route,
+        durationValue: String(durationValue),
+        durationUnit,
+        durationQualifier: 'EXACT',
+        jurisdiction,
+        sourceId: source.id,
+        verificationStatus,
+        ruleType: 'SPECIFIC_LABEL',
+        reviewedById: req.principal.user.id,
+        reviewedAt: new Date(),
+      },
+      include: { drug: true, species: true, source: true },
+    });
+
+    res.status(201).json({ data: { rule } });
+  }),
+);
 
 export const mrlRouter = Router();
 mrlRouter.use(authenticate);

@@ -16,4 +16,3 @@ DAHD reports that cattle categories contributed 53.53% and buffalo categories 43
 - Architecture may add goats, sheep, pigs, poultry, and fish later without changing canonical IDs.
 
 See `data/reference/species.json` for the machine-readable structure.
-

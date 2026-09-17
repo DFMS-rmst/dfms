@@ -258,6 +258,185 @@ function AdminVets() {
     </section>
   );
 }
+
+function UserProfileModal({ user, refreshContext, close }) {
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+
+  async function submit(e) {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+    const raw = Object.fromEntries(new FormData(e.currentTarget));
+    const payload = {};
+    if (raw.fullName) payload.fullName = raw.fullName;
+    if (raw.phone !== undefined) payload.phone = raw.phone;
+    if (raw.newPassword) {
+      payload.currentPassword = raw.currentPassword;
+      payload.newPassword = raw.newPassword;
+    }
+    try {
+      await api('/auth/profile', { method: 'PATCH', body: JSON.stringify(payload) });
+      setSuccess('Profile updated successfully!');
+      await refreshContext();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && close()}>
+      <div className="card modal">
+        <div className="flex-between">
+          <h2>User Profile & Security</h2>
+          <button type="button" className="link" onClick={close}>
+            ✕
+          </button>
+        </div>
+        <form className="form" onSubmit={submit}>
+          <Field label="Full Name" name="fullName" defaultValue={user.fullName} />
+          <Field
+            label="Phone Number"
+            name="phone"
+            required={false}
+            defaultValue={user.phone || ''}
+          />
+          <hr style={{ margin: '1rem 0' }} />
+          <h3>Security / Change Password</h3>
+          <Field label="Current Password" name="currentPassword" type="password" required={false} />
+          <Field label="New Password" name="newPassword" type="password" required={false} />
+          <button>Save Changes</button>
+          {error && <p className="error">{error}</p>}
+          {success && <p className="success-text">{success}</p>}
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function AdminRulesManager() {
+  const [rules, setRules] = useState([]);
+  const [speciesList, setSpeciesList] = useState([]);
+  const [drugsList, setDrugsList] = useState([]);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+
+  async function load() {
+    try {
+      const [r, s, d] = await Promise.all([
+        api('/withdrawal/rules'),
+        api('/species'),
+        api('/reference-data/drugs'),
+      ]);
+      setRules(r.rules);
+      setSpeciesList(s.species);
+      setDrugsList(d.drugs);
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  async function addRule(e) {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+    const raw = Object.fromEntries(new FormData(e.currentTarget));
+    try {
+      await api('/withdrawal/rules', { method: 'POST', body: JSON.stringify(raw) });
+      setSuccess('Withdrawal rule added successfully!');
+      e.currentTarget.reset();
+      await load();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  return (
+    <section style={{ marginTop: '2rem' }}>
+      <h1>Withdrawal Rules & Reference Data Manager</h1>
+      <form className="card form" onSubmit={addRule}>
+        <h2>Add Verified Regulatory Withdrawal Rule</h2>
+        <Field label="Rule Code (e.g. FSSAI-CATTLE-OXY-01)" name="code" />
+        <label>
+          Species
+          <select name="speciesId">
+            {speciesList.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.canonicalName}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Drug / Active Ingredient
+          <select name="drugId">
+            <option value="">All Drugs in Class</option>
+            {drugsList.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.canonicalName}
+              </option>
+            ))}
+          </select>
+        </label>
+        <Field label="Route (e.g. INTRAMUSCULAR)" name="route" defaultValue="INTRAMUSCULAR" />
+        <Field label="Duration Value (Days)" name="durationValue" type="number" defaultValue="7" />
+        <Field label="Organization Source" name="organization" defaultValue="FSSAI" />
+        <Field
+          label="Source Title"
+          name="sourceTitle"
+          defaultValue="Food Safety and Standards Regulations"
+        />
+        <Field
+          label="Source URL"
+          name="sourceUrl"
+          required={false}
+          defaultValue="https://fssai.gov.in"
+        />
+        <button>Add Regulatory Rule</button>
+        {error && <p className="error">{error}</p>}
+        {success && <p className="success-text">{success}</p>}
+      </form>
+
+      <h2>Configured Withdrawal Rules ({rules.length})</h2>
+      <div className="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Code</th>
+              <th>Species</th>
+              <th>Drug</th>
+              <th>Route</th>
+              <th>Duration</th>
+              <th>Jurisdiction / Source</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rules.map((r) => (
+              <tr key={r.id}>
+                <td>
+                  <strong>{r.code}</strong>
+                </td>
+                <td>{r.species?.canonicalName}</td>
+                <td>{r.drug?.canonicalName || 'All'}</td>
+                <td>{r.route}</td>
+                <td>
+                  {r.durationValue} {r.durationUnit}s
+                </td>
+                <td>
+                  {r.jurisdiction} ({r.source?.organization})
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
 function FarmMembers({ farmId, canAssign, onAuthorizationChanged }) {
   const [members, setMembers] = useState([]);
   const [error, setError] = useState('');
@@ -352,6 +531,7 @@ function Workspace({ user, setUser, logout }) {
   const [animals, setAnimals] = useState([]);
   const [animalTimeline, setAnimalTimeline] = useState(null);
   const [species, setSpecies] = useState([]);
+  const [showProfileModal, setShowProfileModal] = useState(false);
   useEffect(() => {
     api('/farms').then((d) => setFarms(d.farms));
     api('/species').then((d) => setSpecies(d.species));
@@ -414,9 +594,19 @@ function Workspace({ user, setUser, logout }) {
                 {label}
               </button>
             ))}
+          <button type="button" onClick={() => setShowProfileModal(true)}>
+            👤 Profile
+          </button>
           <button onClick={logout}>Logout</button>
         </nav>
       </header>
+      {showProfileModal && (
+        <UserProfileModal
+          user={user}
+          refreshContext={refreshContext}
+          close={() => setShowProfileModal(false)}
+        />
+      )}
       <main className="content">
         <p className="eyebrow">{user.fullName}</p>
         {page === 'home' && workspace?.kind === 'ACCOUNT' && (
@@ -534,7 +724,12 @@ function Workspace({ user, setUser, logout }) {
         {page === 'ai' && (
           <AiLayer farms={activeFarm ? [activeFarm] : []} user={user} workspace={workspace} />
         )}
-        {page === 'admin' && workspace?.kind === 'ADMIN' && <AdminVets />}
+        {page === 'admin' && workspace?.kind === 'ADMIN' && (
+          <>
+            <AdminVets />
+            <AdminRulesManager />
+          </>
+        )}
       </main>
     </div>
   );

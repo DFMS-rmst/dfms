@@ -95,4 +95,3 @@ This roadmap is phase-gated. The current initialization/planning phase creates d
 - Operator policy is needed for farm approval, treatment-record correction, certificate revocation versus supersession, optional expiry, data retention, and public farm-name display.
 - Time zones, exact administration/completion instants, inclusive/exclusive withdrawal boundaries, and rule version changes require explicit architecture decisions.
 - S3 availability and blockchain anchoring are external failure domains; workflows need observable retry and non-misleading status behavior.
-

@@ -16,4 +16,3 @@ These UTF-8 JSON files are research artifacts, not database seeds or application
 ## Files
 
 `sources`, `species`, `diseases`, `antimicrobial_classes`, `drugs`, `drug_species`, `withdrawal_rules`, `mrl_reference`, `restrictions`, and `amu_metrics`.
-

@@ -10,6 +10,6 @@ describe('App', () => {
       vi.fn(() => new Promise(() => {})),
     );
     render(<App />);
-    expect(screen.getByText('No laboratory or residue measurement')).toBeInTheDocument();
+    expect(screen.getByText('Welcome back')).toBeInTheDocument();
   });
 });

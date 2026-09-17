@@ -1,12 +1,38 @@
 {
-  "schema_version":"1.0.0",
-  "records":[
-    {"id":"CLASS-PENICILLIN","canonical_name":"Penicillins","parent":"Beta-lactams","source_ids":["SRC-WOAH-TAHC-6.9"]},
-    {"id":"CLASS-TETRACYCLINE","canonical_name":"Tetracyclines","source_ids":["SRC-WOAH-TAHC-6.9"]},
-    {"id":"CLASS-CEPHALOSPORIN-1G","canonical_name":"First-generation cephalosporins","parent":"Beta-lactams","source_ids":["SRC-WOAH-TAHC-6.9"]},
-    {"id":"CLASS-CEPHALOSPORIN-3G","canonical_name":"Third-generation cephalosporins","parent":"Beta-lactams","source_ids":["SRC-WOAH-TAHC-6.9"]},
-    {"id":"CLASS-FLUOROQUINOLONE","canonical_name":"Fluoroquinolones","source_ids":["SRC-WOAH-TAHC-6.9"]},
-    {"id":"CLASS-SULFONAMIDE","canonical_name":"Sulfonamides","source_ids":["SRC-WOAH-TAHC-6.9"]}
+  "schema_version": "1.0.0",
+  "records": [
+    {
+      "id": "CLASS-PENICILLIN",
+      "canonical_name": "Penicillins",
+      "parent": "Beta-lactams",
+      "source_ids": ["SRC-WOAH-TAHC-6.9"]
+    },
+    {
+      "id": "CLASS-TETRACYCLINE",
+      "canonical_name": "Tetracyclines",
+      "source_ids": ["SRC-WOAH-TAHC-6.9"]
+    },
+    {
+      "id": "CLASS-CEPHALOSPORIN-1G",
+      "canonical_name": "First-generation cephalosporins",
+      "parent": "Beta-lactams",
+      "source_ids": ["SRC-WOAH-TAHC-6.9"]
+    },
+    {
+      "id": "CLASS-CEPHALOSPORIN-3G",
+      "canonical_name": "Third-generation cephalosporins",
+      "parent": "Beta-lactams",
+      "source_ids": ["SRC-WOAH-TAHC-6.9"]
+    },
+    {
+      "id": "CLASS-FLUOROQUINOLONE",
+      "canonical_name": "Fluoroquinolones",
+      "source_ids": ["SRC-WOAH-TAHC-6.9"]
+    },
+    {
+      "id": "CLASS-SULFONAMIDE",
+      "canonical_name": "Sulfonamides",
+      "source_ids": ["SRC-WOAH-TAHC-6.9"]
+    }
   ]
 }
-

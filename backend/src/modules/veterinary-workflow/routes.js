@@ -6,6 +6,7 @@ import { validate } from '../../common/validation.js';
 import { prisma } from '../../infrastructure/prisma/client.js';
 import { createAlerts } from '../alerts/service.js';
 import { appendAudit } from '../audit/index.js';
+import { renderPrescriptionPdf } from '../prescriptions/pdf.js';
 import { evaluateAndPersist } from '../withdrawal/service.js';
 import {
   assertAssignedVerifiedVet,
@@ -552,6 +553,30 @@ casesRouter.post(
       return saved;
     });
     res.status(201).json({ data: { prescription } });
+  }),
+);
+casesRouter.get(
+  '/prescriptions/:prescriptionId/pdf',
+  asyncHandler(async (req, res) => {
+    const prescription = await prisma.prescription.findUnique({
+      where: { id: req.params.prescriptionId },
+      include: {
+        animal: { include: { species: true } },
+        case: { include: { farm: true } },
+        veterinarian: { include: { user: true } },
+        diagnosis: { include: { disease: true } },
+        items: { include: { drug: true } },
+      },
+    });
+    if (!prescription) throw new AppError(404, 'PRESCRIPTION_NOT_FOUND', 'Prescription not found');
+    await loadCaseParticipant(req.principal.user.id, prescription.caseId);
+    const pdfBuffer = await renderPrescriptionPdf(prescription);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename=prescription-${prescription.id}.pdf`,
+    );
+    res.send(pdfBuffer);
   }),
 );
 

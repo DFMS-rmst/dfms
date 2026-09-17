@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/exhaustive-deps -- effects deliberately synchronize selected server resources */
 import { useEffect, useState } from 'react';
-import { api } from './api.js';
+import { api, download } from './api.js';
 
 const Field = ({ label, name, type = 'text', required = true }) => (
   <label>
@@ -284,7 +284,18 @@ function CaseWorkspace({ caseId, context, user, capabilities, close }) {
       <h2>Prescriptions and Treatment</h2>
       {item.prescriptions.map((p) => (
         <article className="card" key={p.id}>
-          <h3>Prescription {new Date(p.prescribedAt).toLocaleDateString()}</h3>
+          <div className="flex-between">
+            <h3>Prescription {new Date(p.prescribedAt).toLocaleDateString()}</h3>
+            <button
+              type="button"
+              className="secondary"
+              onClick={() =>
+                download(`/veterinary-cases/prescriptions/${p.id}/pdf`, `prescription-${p.id}.pdf`)
+              }
+            >
+              📄 Download PDF
+            </button>
+          </div>
           {p.items.map((x) => (
             <p key={x.id}>
               {x.drug.canonicalName}: {x.doseValue} {x.doseUnit}, {x.route}, {x.frequency},{' '}

@@ -1,5 +1,7 @@
 # AGENTS.md
+
 # SIH25007 — Livestock AMU, Veterinary Care, Milk Eligibility
+
 # & Blockchain Traceability Platform
 
 ---
@@ -1170,30 +1172,37 @@ Reports must use actual application/reference data.
 Preferred stack unless architecture research strongly justifies otherwise:
 
 Frontend:
+
 - React
 - Vite
 
 Backend:
+
 - Node.js
 - Express
 
 Database:
+
 - PostgreSQL
 
 ORM:
+
 - Prisma or another mature ORM if justified
 
 Object storage:
+
 - AWS S3
 - private bucket
 - presigned URLs
 
 Blockchain:
+
 - Solidity
 - Hardhat or Anvil
 - ethers or equivalent
 
 Testing:
+
 - backend unit tests
 - API/integration tests
 - frontend tests where valuable
@@ -1201,6 +1210,7 @@ Testing:
 - end-to-end critical workflow tests
 
 Deployment:
+
 - Docker
 - Docker Compose
 
@@ -1239,22 +1249,26 @@ Use normalized relational design.
 Potential entities include:
 
 Authentication:
+
 - users
 - roles
 - user_roles
 
 Farm:
+
 - farms
 - farm_members
 - farm_member_roles
 
 Livestock:
+
 - animals
 - species
 - breeds
 - animal_health_records
 
 Veterinary:
+
 - veterinarian_profiles
 - veterinarian_verification_documents
 - veterinarian_service_areas
@@ -1270,6 +1284,7 @@ Veterinary:
 - treatment_administrations
 
 Reference:
+
 - drugs
 - drug_species
 - regulatory_sources
@@ -1278,17 +1293,21 @@ Reference:
 - reference_data_versions
 
 Compliance:
+
 - milk_eligibility_checks
 - milk_eligibility_certificates
 
 Monitoring:
+
 - alerts
 - audit_logs
 
 Storage:
+
 - file_objects / attachments
 
 Blockchain:
+
 - blockchain_anchors
 
 Final schema must be designed during architecture phase rather than blindly
