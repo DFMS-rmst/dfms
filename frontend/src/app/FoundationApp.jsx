@@ -18,8 +18,11 @@ const Field = ({ label, name, type = 'text', required = true, defaultValue }) =>
 );
 function AuthPage({ mode, done, go }) {
   const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+
   async function submit(e) {
     e.preventDefault();
+    setError('');
     try {
       const raw = Object.fromEntries(new FormData(e.currentTarget));
       const payload = mode === 'register' ? normalizeOptionalFields(raw, ['phone']) : raw;
@@ -33,35 +36,161 @@ function AuthPage({ mode, done, go }) {
       setError(x.message);
     }
   }
+
   return (
-    <main className="auth-page">
-      <form className="auth-form-card" onSubmit={submit}>
-        <div className="auth-form-header">
-          <h1>{mode === 'login' ? 'Welcome back' : 'Create account'}</h1>
-          <p className="auth-form-subtitle">
-            {mode === 'login' ? 'Sign in to access your dashboard' : 'Fill in your details to register'}
+    <main className="modern-auth-page">
+      <div className="modern-auth-mesh-bg">
+        <div className="mesh-blob blob-1"></div>
+        <div className="mesh-blob blob-2"></div>
+        <div className="mesh-blob blob-3"></div>
+      </div>
+
+      <div className="modern-auth-container">
+        {/* Left Side Hero Showcase */}
+        <div className="modern-auth-hero">
+          <div className="hero-tag-badge">
+            <span className="badge-sparkle">🌾</span> Commercial Ag-Tech Platform
+          </div>
+          <h1 className="hero-main-title">
+            Smart Livestock <br />
+            <span className="gradient-highlight">& AMU Management</span>
+          </h1>
+          <p className="hero-description">
+            Streamlined farm operations, verified veterinary health records, withdrawal monitoring, and milk eligibility certificates.
           </p>
+          <div className="hero-pills-container">
+            <span className="hero-pill">🐄 Livestock Tracking</span>
+            <span className="hero-pill">🩺 Verified Vets</span>
+            <span className="hero-pill">🥛 Milk Certificates</span>
+            <span className="hero-pill">🛡️ Blockchain Proof</span>
+          </div>
         </div>
-        {mode === 'register' && (
-          <>
-            <Field label="Full name" name="fullName" />
-            <Field label="Phone" name="phone" required={false} />
-          </>
-        )}
-        <Field label="Email" name="email" type="email" />
-        <Field label="Password" name="password" type="password" />
-        <button type="submit" className="auth-btn-primary">
-          {mode === 'login' ? 'Login' : 'Register'}
-        </button>
-        {error && <p className="error">{error}</p>}
-        <button
-          className="auth-btn-link"
-          type="button"
-          onClick={() => go(mode === 'login' ? 'register' : 'login')}
-        >
-          {mode === 'login' ? 'Register instead' : 'Login instead'}
-        </button>
-      </form>
+
+        {/* Right Side Glass Card Form */}
+        <div className="modern-auth-card-outer">
+          <div className="modern-auth-card">
+            {/* Pill Tab Switcher */}
+            <div className="modern-tab-switcher">
+              <button
+                type="button"
+                className={`tab-btn ${mode === 'login' ? 'active' : ''}`}
+                onClick={() => { setError(''); go('login'); }}
+              >
+                Sign In
+              </button>
+              <button
+                type="button"
+                className={`tab-btn ${mode === 'register' ? 'active' : ''}`}
+                onClick={() => { setError(''); go('register'); }}
+              >
+                Create Account
+              </button>
+            </div>
+
+            <div className="form-title-group">
+              <h2>{mode === 'login' ? 'Welcome back' : 'Create account'}</h2>
+              <p className="form-sub-text">
+                {mode === 'login'
+                  ? 'Enter your credentials to access your dashboard'
+                  : 'Register a new account to manage farms and livestock'}
+              </p>
+            </div>
+
+            <form className="modern-form" onSubmit={submit}>
+              {mode === 'register' && (
+                <>
+                  <div className="input-group">
+                    <label htmlFor="fullName">Full Name</label>
+                    <div className="input-field-wrapper">
+                      <span className="field-icon">👤</span>
+                      <input
+                        id="fullName"
+                        name="fullName"
+                        type="text"
+                        required
+                        placeholder="e.g. Ramesh Patel"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="input-group">
+                    <label htmlFor="phone">Phone Number (Optional)</label>
+                    <div className="input-field-wrapper">
+                      <span className="field-icon">📱</span>
+                      <input
+                        id="phone"
+                        name="phone"
+                        type="tel"
+                        placeholder="+91 98765 43210"
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
+
+              <div className="input-group">
+                <label htmlFor="email">Email Address</label>
+                <div className="input-field-wrapper">
+                  <span className="field-icon">✉️</span>
+                  <input
+                    id="email"
+                    name="email"
+                    type="email"
+                    required
+                    placeholder="name@example.com"
+                  />
+                </div>
+              </div>
+
+              <div className="input-group">
+                <label htmlFor="password">Password</label>
+                <div className="input-field-wrapper">
+                  <span className="field-icon">🔒</span>
+                  <input
+                    id="password"
+                    name="password"
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    placeholder="••••••••"
+                  />
+                  <button
+                    type="button"
+                    className="password-toggle-btn"
+                    onClick={() => setShowPassword(!showPassword)}
+                    aria-label="Toggle password visibility"
+                  >
+                    {showPassword ? '👁️' : '🙈'}
+                  </button>
+                </div>
+              </div>
+
+              {error && (
+                <div className="auth-error-alert">
+                  <span className="alert-icon">⚠️</span>
+                  <span>{error}</span>
+                </div>
+              )}
+
+              <button type="submit" className="modern-submit-btn">
+                {mode === 'login' ? 'Login' : 'Register'}
+              </button>
+            </form>
+
+            <div className="modern-auth-footer">
+              <p>
+                {mode === 'login' ? "Don't have an account yet?" : 'Already registered?'}
+                <button
+                  type="button"
+                  className="switch-mode-link"
+                  onClick={() => { setError(''); go(mode === 'login' ? 'register' : 'login'); }}
+                >
+                  {mode === 'login' ? 'Register instead' : 'Login instead'}
+                </button>
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
     </main>
   );
 }
@@ -388,7 +517,17 @@ function AdminRulesManager() {
             ))}
           </select>
         </label>
-        <Field label="Route (e.g. INTRAMUSCULAR)" name="route" defaultValue="INTRAMUSCULAR" />
+        <label>
+          Route of Administration
+          <select name="route" defaultValue="INTRAMUSCULAR">
+            <option value="INTRAMUSCULAR">INTRAMUSCULAR</option>
+            <option value="SUBCUTANEOUS">SUBCUTANEOUS</option>
+            <option value="ORAL">ORAL</option>
+            <option value="INTRAVENOUS">INTRAVENOUS</option>
+            <option value="TOPICAL">TOPICAL</option>
+            <option value="INTRAMAMMARY">INTRAMAMMARY</option>
+          </select>
+        </label>
         <Field label="Duration Value (Days)" name="durationValue" type="number" defaultValue="7" />
         <Field label="Organization Source" name="organization" defaultValue="FSSAI" />
         <Field
@@ -538,30 +677,38 @@ function Workspace({ user, setUser, logout }) {
   const [animalTimeline, setAnimalTimeline] = useState(null);
   const [species, setSpecies] = useState([]);
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
   useEffect(() => {
     api('/farms').then((d) => setFarms(d.farms));
     api('/species').then((d) => setSpecies(d.species));
   }, []);
+
   async function refreshContext() {
     const next = (await api('/auth/me')).user;
     setUser(next);
     return next;
   }
+
   async function open(item) {
     setFarm(item);
     setAnimals((await api(`/farms/${item.id}/animals`)).animals);
     setPage('farm');
   }
+
   async function openTimeline(animal) {
     const result = await api(`/farms/${farm.id}/animals/${animal.id}/timeline`);
     setAnimalTimeline({ animal, events: result.timeline });
   }
+
   const activeFarm =
     workspace?.kind === 'FARM' ? farms.find((item) => item.id === workspace.farmId) : null;
   const capabilities = workspace?.kind === 'FARM' ? farmCapabilities(workspace.roles) : {};
+
   useEffect(() => {
     if (page === 'farm' && activeFarm && farm?.id !== activeFarm.id) open(activeFarm);
   }, [activeFarm?.id, page]); // eslint-disable-line react-hooks/exhaustive-deps
+
   function selectWorkspace(id) {
     const next = workspaces.find((item) => item.id === id);
     setWorkspaceId(id);
@@ -573,47 +720,142 @@ function Workspace({ user, setUser, logout }) {
       if (selectedFarm) open(selectedFarm);
     }
   }
+
   async function openActiveFarm() {
     if (activeFarm) await open(activeFarm);
   }
+
+  const navIcons = {
+    home: '🏠',
+    create: '➕',
+    vet: '🩺',
+    farm: '🐄',
+    'veterinary-care': '🩺',
+    dashboard: '📊',
+    'core-engine': '🥛',
+    certificates: '📜',
+    ai: '🤖',
+    members: '👥',
+    admin: '🛡️',
+  };
+
   return (
-    <div>
-      <header>
-        <strong>Livestock AMU Platform</strong>
-        <label>
-          Workspace
-          <select value={workspace?.id} onChange={(event) => selectWorkspace(event.target.value)}>
-            {workspaces.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <nav>
+    <div className="dashboard-app-layout">
+      {/* Left Sidebar Navigation Drawer */}
+      <aside className={`dashboard-sidebar ${sidebarOpen ? 'mobile-open' : ''}`}>
+        <div className="sidebar-brand">
+          <span className="brand-icon">🌾</span>
+          <h2 className="brand-name">Digital Farm</h2>
+          <span className="brand-tag">SIH25007</span>
+        </div>
+
+        <div className="sidebar-user-card">
+          <div className="user-avatar">
+            {user.fullName ? user.fullName.charAt(0).toUpperCase() : '👤'}
+          </div>
+          <div className="user-info">
+            <span className="user-name">{user.fullName}</span>
+            <span className="user-role-badge">
+              {workspace?.kind === 'ADMIN'
+                ? 'PLATFORM ADMIN'
+                : workspace?.kind === 'VETERINARIAN'
+                  ? 'VETERINARIAN'
+                  : workspace?.roles?.[0]?.replaceAll('_', ' ') || 'USER'}
+            </span>
+          </div>
+        </div>
+
+        <nav className="sidebar-nav">
+          <div className="sidebar-section-title">MAIN NAVIGATION</div>
           {workspace &&
-            navigationFor(workspace).map(([target, label]) => (
-              <button
-                key={target}
-                onClick={() => (target === 'farm' ? openActiveFarm() : setPage(target))}
-              >
-                {label}
-              </button>
-            ))}
-          <button type="button" onClick={() => setShowProfileModal(true)}>
-            👤 Profile
-          </button>
-          <button onClick={logout}>Logout</button>
+            navigationFor(workspace).map(([target, itemLabel]) => {
+              const isActive = page === target;
+              return (
+                <button
+                  key={target}
+                  type="button"
+                  className={`sidebar-nav-item ${isActive ? 'active' : ''}`}
+                  onClick={() => {
+                    if (target === 'farm') openActiveFarm();
+                    else setPage(target);
+                    setSidebarOpen(false);
+                  }}
+                >
+                  <span className="nav-item-icon">{navIcons[target] || '📍'}</span>
+                  <span className="nav-item-text">{itemLabel}</span>
+                </button>
+              );
+            })}
         </nav>
-      </header>
-      {showProfileModal && (
-        <UserProfileModal
-          user={user}
-          refreshContext={refreshContext}
-          close={() => setShowProfileModal(false)}
-        />
-      )}
-      <main className="content">
+
+        <div className="sidebar-footer">
+          <button
+            type="button"
+            className="sidebar-logout-btn"
+            onClick={logout}
+            title="Logout"
+          >
+            🚪 Logout
+          </button>
+        </div>
+      </aside>
+
+      {/* Main Dashboard Wrapper & Topbar */}
+      <div className="dashboard-main-wrapper">
+        <header className="dashboard-topbar">
+          <div className="topbar-left">
+            <button
+              type="button"
+              className="mobile-toggle-btn"
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              aria-label="Toggle menu"
+            >
+              ☰
+            </button>
+            <h1 className="page-breadcrumb-title">{workspace?.label || 'Dashboard'}</h1>
+          </div>
+
+          <div className="topbar-right">
+            <div className="workspace-selector-group">
+              <label htmlFor="workspaceSelect" className="workspace-label">
+                Workspace:
+              </label>
+              <select
+                id="workspaceSelect"
+                className="workspace-selector-select"
+                value={workspace?.id}
+                onChange={(event) => {
+                  selectWorkspace(event.target.value);
+                  setSidebarOpen(false);
+                }}
+              >
+                {workspaces.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <button
+              type="button"
+              className="secondary"
+              style={{ fontSize: '0.86rem', padding: '0.45rem 0.85rem' }}
+              onClick={() => setShowProfileModal(true)}
+            >
+              ⚙️ Profile
+            </button>
+          </div>
+        </header>
+
+        {showProfileModal && (
+          <UserProfileModal
+            user={user}
+            refreshContext={refreshContext}
+            close={() => setShowProfileModal(false)}
+          />
+        )}
+
+        <main className="dashboard-content-area">
         <p className="eyebrow">{user.fullName}</p>
         {page === 'home' && workspace?.kind === 'ACCOUNT' && (
           <section>
@@ -736,7 +978,8 @@ function Workspace({ user, setUser, logout }) {
             <AdminRulesManager />
           </>
         )}
-      </main>
+        </main>
+      </div>
     </div>
   );
 }

@@ -1,6 +1,10 @@
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { AiLayer } from './AiLayer.jsx';
+
+vi.mock('./api.js', () => ({
+  api: vi.fn().mockResolvedValue({ animals: [] }),
+}));
 
 describe('AI intelligence UI', () => {
   it('shows risk and clinical safety boundaries without fake results', () => {
@@ -12,3 +16,6 @@ describe('AI intelligence UI', () => {
     expect(screen.queryByText(/misuse confirmed/i)).toBeNull();
   });
 });
+
+
+

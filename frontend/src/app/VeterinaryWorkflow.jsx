@@ -11,9 +11,31 @@ const Field = ({ label, name, type = 'text', required = true }) => (
 function RequestForm({ farms, veterinarians, refresh }) {
   const [farmId, setFarmId] = useState(farms[0]?.id || '');
   const [animals, setAnimals] = useState([]);
+
   useEffect(() => {
-    if (farmId) api(`/farms/${farmId}/animals`).then((d) => setAnimals(d.animals));
+    if (!farmId && farms.length > 0) {
+      setFarmId(farms[0].id);
+    }
+  }, [farms, farmId]);
+
+  useEffect(() => {
+    let active = true;
+    if (farmId) {
+      api(`/farms/${farmId}/animals`)
+        .then((d) => {
+          if (active) setAnimals(d.animals || []);
+        })
+        .catch(() => {
+          if (active) setAnimals([]);
+        });
+    } else {
+      setAnimals([]);
+    }
+    return () => {
+      active = false;
+    };
   }, [farmId]);
+
   async function submit(event) {
     event.preventDefault();
     const form = event.currentTarget;
@@ -82,10 +104,10 @@ function RequestForm({ farms, veterinarians, refresh }) {
       <label>
         Urgency
         <select name="urgency">
-          <option>ROUTINE</option>
-          <option>SOON</option>
-          <option>URGENT</option>
-          <option>EMERGENCY</option>
+          <option value="ROUTINE">ROUTINE</option>
+          <option value="SOON">SOON</option>
+          <option value="URGENT">URGENT</option>
+          <option value="EMERGENCY">EMERGENCY</option>
         </select>
       </label>
       <label>
@@ -333,11 +355,47 @@ function CaseWorkspace({ caseId, context, user, capabilities, close }) {
             </select>
           </label>
           <Field label="Dose value (veterinarian entered)" name="doseValue" type="number" />
-          <Field label="Dose unit" name="doseUnit" />
-          <Field label="Route" name="route" />
-          <Field label="Frequency" name="frequency" />
+          <label>
+            Dose unit
+            <select name="doseUnit">
+              <option value="mg">mg (milligrams)</option>
+              <option value="g">g (grams)</option>
+              <option value="ml">ml (milliliters)</option>
+              <option value="IU">IU (International Units)</option>
+              <option value="mg/kg">mg/kg</option>
+              <option value="tablets">tablets / bolus</option>
+            </select>
+          </label>
+          <label>
+            Route of administration
+            <select name="route">
+              <option value="INTRAMUSCULAR">INTRAMUSCULAR (IM)</option>
+              <option value="SUBCUTANEOUS">SUBCUTANEOUS (SC)</option>
+              <option value="ORAL">ORAL (PO)</option>
+              <option value="INTRAVENOUS">INTRAVENOUS (IV)</option>
+              <option value="TOPICAL">TOPICAL</option>
+              <option value="INTRAMAMMARY">INTRAMAMMARY</option>
+            </select>
+          </label>
+          <label>
+            Frequency
+            <select name="frequency">
+              <option value="ONCE_DAILY">ONCE_DAILY (Once a day)</option>
+              <option value="TWICE_DAILY">TWICE_DAILY (Every 12 hours)</option>
+              <option value="EVERY_8_HOURS">EVERY_8_HOURS (3 times a day)</option>
+              <option value="SINGLE_DOSE">SINGLE_DOSE (One time)</option>
+              <option value="AS_NEEDED">AS_NEEDED</option>
+            </select>
+          </label>
           <Field label="Duration value" name="durationValue" type="number" />
-          <Field label="Duration unit" name="durationUnit" />
+          <label>
+            Duration unit
+            <select name="durationUnit">
+              <option value="DAYS">DAYS</option>
+              <option value="HOURS">HOURS</option>
+              <option value="WEEKS">WEEKS</option>
+            </select>
+          </label>
           <Field label="Start date" name="startDate" type="date" />
           <Field label="Expected end date" name="expectedEndDate" type="date" required={false} />
           <label>
@@ -364,30 +422,64 @@ function CaseWorkspace({ caseId, context, user, capabilities, close }) {
           {t.status === 'ACTIVE' && canRecordAdministration && (
             <>
               <form className="inline-form" onSubmit={(e) => administer(e, t)}>
-                <select name="prescriptionItemId">
-                  {item.prescriptions
-                    .find((p) => p.id === t.prescriptionId)
-                    ?.items.map((x) => (
-                      <option key={x.id} value={x.id}>
-                        {x.drug.canonicalName}
-                      </option>
-                    ))}
-                </select>
-                <input name="amount" type="number" step="any" required placeholder="Amount" />
-                <input name="amountUnit" required placeholder="Unit" />
-                <input name="route" required placeholder="Route" />
-                <input
-                  name="activeIngredientMg"
-                  type="number"
-                  step="any"
-                  placeholder="Active ingredient mg (optional)"
-                />
-                <input
-                  name="conversionProvenance"
-                  placeholder="Mass conversion source (required with mg)"
-                />
-                <input name="notes" placeholder="Notes" />
-                <button>Record administration</button>
+                <label style={{ flex: '1 1 240px' }}>
+                  Prescribed Item
+                  <select name="prescriptionItemId">
+                    {item.prescriptions
+                      .find((p) => p.id === t.prescriptionId)
+                      ?.items.map((x) => (
+                        <option key={x.id} value={x.id}>
+                          {x.drug.canonicalName} ({x.doseValue} {x.doseUnit} · {x.route})
+                        </option>
+                      ))}
+                  </select>
+                </label>
+                <label style={{ flex: '1 1 120px' }}>
+                  Amount
+                  <input name="amount" type="number" step="any" required placeholder="Amount" />
+                </label>
+                <label style={{ flex: '1 1 100px' }}>
+                  Unit
+                  <select name="amountUnit" aria-label="Amount unit">
+                    <option value="ml">ml</option>
+                    <option value="mg">mg</option>
+                    <option value="g">g</option>
+                    <option value="IU">IU</option>
+                    <option value="tablets">tablets</option>
+                  </select>
+                </label>
+                <label style={{ flex: '1 1 160px' }}>
+                  Route
+                  <select name="route" aria-label="Route of administration">
+                    <option value="INTRAMUSCULAR">INTRAMUSCULAR</option>
+                    <option value="SUBCUTANEOUS">SUBCUTANEOUS</option>
+                    <option value="ORAL">ORAL</option>
+                    <option value="INTRAVENOUS">INTRAVENOUS</option>
+                    <option value="TOPICAL">TOPICAL</option>
+                    <option value="INTRAMAMMARY">INTRAMAMMARY</option>
+                  </select>
+                </label>
+                <label style={{ flex: '1 1 180px' }}>
+                  Active Ingredient Mg
+                  <input
+                    name="activeIngredientMg"
+                    type="number"
+                    step="any"
+                    placeholder="Optional mg"
+                  />
+                </label>
+                <label style={{ flex: '1 1 220px' }}>
+                  Conversion Source
+                  <input
+                    name="conversionProvenance"
+                    placeholder="Source (if mg entered)"
+                  />
+                </label>
+                <label style={{ flex: '1 1 180px' }}>
+                  Notes
+                  <input name="notes" placeholder="Notes" />
+                </label>
+                <button style={{ height: '42px', marginTop: 'auto' }}>Record administration</button>
               </form>
               {assignedVerifiedVeterinarian && (
                 <button onClick={() => complete(t.id)}>Complete treatment</button>
