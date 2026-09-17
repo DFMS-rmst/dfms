@@ -7,5 +7,5 @@ services:
       - ./frontend/src:/app/frontend/src
       - ./frontend/public:/app/frontend/public
       - ./frontend/index.html:/app/frontend/index.html
-    ports:
+    ports: !override
       - "5173:5173"

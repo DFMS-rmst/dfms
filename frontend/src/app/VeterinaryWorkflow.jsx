@@ -238,10 +238,17 @@ function CaseWorkspace({ caseId, context, user, capabilities, close }) {
   }
   return (
     <section>
-      <button className="link" onClick={close}>
-        ← Back to requests and cases
-      </button>
-      <h1>Veterinary Case</h1>
+      <div className="flex-between" style={{ marginBottom: '1.25rem', alignItems: 'center' }}>
+        <h1 style={{ margin: 0 }}>Veterinary Case</h1>
+        <button
+          type="button"
+          className="secondary"
+          style={{ fontSize: '0.86rem', padding: '0.45rem 0.85rem' }}
+          onClick={close}
+        >
+          ← Back to Requests & Cases
+        </button>
+      </div>
       <div className="card">
         <span className="badge">{item.status}</span>
         <h3>{item.animal.name || item.animal.tagNumber}</h3>
