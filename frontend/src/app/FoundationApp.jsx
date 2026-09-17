@@ -35,9 +35,13 @@ function AuthPage({ mode, done, go }) {
   }
   return (
     <main className="auth-page">
-      <form className="card form" onSubmit={submit}>
-        <p className="eyebrow">SIH25007 Platform</p>
-        <h1>{mode === 'login' ? 'Welcome back' : 'Create account'}</h1>
+      <form className="auth-form-card" onSubmit={submit}>
+        <div className="auth-form-header">
+          <h1>{mode === 'login' ? 'Welcome back' : 'Create account'}</h1>
+          <p className="auth-form-subtitle">
+            {mode === 'login' ? 'Sign in to access your dashboard' : 'Fill in your details to register'}
+          </p>
+        </div>
         {mode === 'register' && (
           <>
             <Field label="Full name" name="fullName" />
@@ -46,10 +50,12 @@ function AuthPage({ mode, done, go }) {
         )}
         <Field label="Email" name="email" type="email" />
         <Field label="Password" name="password" type="password" />
-        <button>{mode === 'login' ? 'Login' : 'Register'}</button>
+        <button type="submit" className="auth-btn-primary">
+          {mode === 'login' ? 'Login' : 'Register'}
+        </button>
         {error && <p className="error">{error}</p>}
         <button
-          className="link"
+          className="auth-btn-link"
           type="button"
           onClick={() => go(mode === 'login' ? 'register' : 'login')}
         >
