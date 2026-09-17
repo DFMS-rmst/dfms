@@ -398,6 +398,14 @@ function UserProfileModal({ user, refreshContext, close }) {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
+  useEffect(() => {
+    function handleKeyDown(e) {
+      if (e.key === 'Escape') close();
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [close]);
+
   async function submit(e) {
     e.preventDefault();
     setError('');
@@ -422,9 +430,15 @@ function UserProfileModal({ user, refreshContext, close }) {
   return (
     <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && close()}>
       <div className="card modal">
-        <div className="flex-between">
-          <h2>User Profile & Security</h2>
-          <button type="button" className="link" onClick={close}>
+        <div className="flex-between" style={{ marginBottom: '1.25rem' }}>
+          <h2 style={{ margin: 0 }}>User Profile & Security</h2>
+          <button
+            type="button"
+            className="modal-close-btn"
+            onClick={close}
+            aria-label="Close profile modal"
+            title="Close modal (Esc)"
+          >
             ✕
           </button>
         </div>
@@ -902,10 +916,20 @@ function Workspace({ user, setUser, logout }) {
             </div>
             {animalTimeline && (
               <section className="card">
-                <button className="link" onClick={() => setAnimalTimeline(null)}>
-                  Close timeline
-                </button>
-                <h2>{animalTimeline.animal.name || animalTimeline.animal.tagNumber} history</h2>
+                <div className="flex-between" style={{ marginBottom: '1.25rem' }}>
+                  <h2 style={{ margin: 0 }}>
+                    {animalTimeline.animal.name || animalTimeline.animal.tagNumber} History
+                  </h2>
+                  <button
+                    type="button"
+                    className="modal-close-btn"
+                    onClick={() => setAnimalTimeline(null)}
+                    aria-label="Close timeline"
+                    title="Close timeline"
+                  >
+                    ✕
+                  </button>
+                </div>
                 {capabilities.canViewManagementAnalytics && (
                   <>
                     <h3>Animal AMU Pattern Risk</h3>
