@@ -70,9 +70,13 @@ export function CoreEngine({ farms, isAdmin, canIssue = false }) {
         <>
           <h2>AMU Overview</h2>
           <div className="grid">
-            <Metric title="Administrations" value={summary.totalAdministrations} />
-            <Metric title="Antimicrobial treatments" value={summary.totalAntimicrobialTreatments} />
-            <Metric title="Treated animals" value={summary.treatedAnimals} />
+            <Metric
+              title="Recorded Administrations (Doses Given)"
+              value={summary.totalAdministrations}
+              help={summary.totalAdministrations === 0 ? "0 dosage events recorded yet. Administer a prescribed dose in Veterinary Care to record Administration #1." : "Total actual dosage events recorded across active treatments."}
+            />
+            <Metric title="Antimicrobial treatments" value={summary.totalAntimicrobialTreatments} help="Number of distinct active/completed treatment courses." />
+            <Metric title="Treated animals" value={summary.treatedAnimals} help="Distinct animals that received treatment." />
             <Metric
               title="Animals treated"
               value={`${summary.animalsTreatedPercentage.toFixed(1)}%`}
@@ -165,11 +169,12 @@ export function CoreEngine({ farms, isAdmin, canIssue = false }) {
     </section>
   );
 }
-function Metric({ title, value }) {
+function Metric({ title, value, help }) {
   return (
     <article className="card">
-      <small>{title}</small>
-      <h3>{value}</h3>
+      <small style={{ fontWeight: 700, color: '#475569' }}>{title}</small>
+      <h3 style={{ margin: '0.4rem 0 0.2rem', fontSize: '1.5rem' }}>{value}</h3>
+      {help && <small style={{ fontSize: '0.78rem', color: '#64748b', display: 'block', lineHeight: 1.35 }}>{help}</small>}
     </article>
   );
 }

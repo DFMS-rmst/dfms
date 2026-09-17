@@ -428,74 +428,138 @@ function CaseWorkspace({ caseId, context, user, capabilities, close }) {
           ))}
           {t.status === 'ACTIVE' && canRecordAdministration && (
             <>
-              <form className="inline-form" onSubmit={(e) => administer(e, t)}>
-                <label style={{ flex: '1 1 240px' }}>
-                  Prescribed Item
-                  <select name="prescriptionItemId">
-                    {item.prescriptions
-                      .find((p) => p.id === t.prescriptionId)
-                      ?.items.map((x) => (
-                        <option key={x.id} value={x.id}>
-                          {x.drug.canonicalName} ({x.doseValue} {x.doseUnit} · {x.route})
-                        </option>
-                      ))}
-                  </select>
-                </label>
-                <label style={{ flex: '1 1 120px' }}>
-                  Amount
-                  <input name="amount" type="number" step="any" required placeholder="Amount" />
-                </label>
-                <label style={{ flex: '1 1 100px' }}>
-                  Unit
-                  <select name="amountUnit" aria-label="Amount unit">
-                    <option value="ml">ml</option>
-                    <option value="mg">mg</option>
-                    <option value="g">g</option>
-                    <option value="IU">IU</option>
-                    <option value="tablets">tablets</option>
-                  </select>
-                </label>
-                <label style={{ flex: '1 1 160px' }}>
-                  Route
-                  <select name="route" aria-label="Route of administration">
-                    <option value="INTRAMUSCULAR">INTRAMUSCULAR</option>
-                    <option value="SUBCUTANEOUS">SUBCUTANEOUS</option>
-                    <option value="ORAL">ORAL</option>
-                    <option value="INTRAVENOUS">INTRAVENOUS</option>
-                    <option value="TOPICAL">TOPICAL</option>
-                    <option value="INTRAMAMMARY">INTRAMAMMARY</option>
-                  </select>
-                </label>
-                <label style={{ flex: '1 1 180px' }}>
-                  Active Ingredient Mg
-                  <input
-                    name="activeIngredientMg"
-                    type="number"
-                    step="any"
-                    placeholder="Optional mg"
-                  />
-                </label>
-                <label style={{ flex: '1 1 220px' }}>
-                  Conversion Source
-                  <input
-                    name="conversionProvenance"
-                    placeholder="Source (if mg entered)"
-                  />
-                </label>
-                <label style={{ flex: '1 1 180px' }}>
-                  Notes
-                  <input name="notes" placeholder="Notes" />
-                </label>
-                <button style={{ height: '42px', marginTop: 'auto' }}>Record administration</button>
-              </form>
+              <AdministrationForm
+                treatment={t}
+                caseItem={item}
+                onAdminister={async (v) => {
+                  v.administeredAt = new Date().toISOString();
+                  const selected = item.prescriptions
+                    .find((p) => p.id === t.prescriptionId)
+                    ?.items.find((x) => x.id === v.prescriptionItemId);
+                  v.drugId = selected?.drugId;
+                  await api(`/treatments/${t.id}/administrations`, {
+                    method: 'POST',
+                    body: JSON.stringify(v),
+                  });
+                  load();
+                }}
+              />
               {assignedVerifiedVeterinarian && (
-                <button onClick={() => complete(t.id)}>Complete treatment</button>
+                <button className="secondary" style={{ marginTop: '0.75rem' }} onClick={() => complete(t.id)}>
+                  ✅ Complete Treatment Course
+                </button>
               )}
             </>
           )}
         </article>
       ))}
     </section>
+  );
+}
+
+function AdministrationForm({ treatment, caseItem, onAdminister }) {
+  const prescription = caseItem.prescriptions.find((p) => p.id === treatment.prescriptionId);
+  const items = prescription?.items || [];
+  const [selectedItemId, setSelectedItemId] = useState(items[0]?.id || '');
+  const [amount, setAmount] = useState(items[0]?.doseValue || '');
+  const [amountUnit, setAmountUnit] = useState(items[0]?.doseUnit || 'ml');
+  const [route, setRoute] = useState(items[0]?.route || 'INTRAMUSCULAR');
+  const [notes, setNotes] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    const selected = items.find((x) => x.id === selectedItemId);
+    if (selected) {
+      setAmount(selected.doseValue || '');
+      setAmountUnit(selected.doseUnit || 'ml');
+      setRoute(selected.route || 'INTRAMUSCULAR');
+    }
+  }, [selectedItemId, items]);
+
+  async function submit(e) {
+    e.preventDefault();
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      await onAdminister({
+        prescriptionItemId: selectedItemId,
+        amount: Number(amount),
+        amountUnit,
+        route,
+        notes,
+      });
+      setNotes('');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  const nextNumber = (treatment.administrations?.length || 0) + 1;
+
+  return (
+    <form className="card form" style={{ background: '#f8fafc', marginTop: '1rem', border: '1px solid #cbd5e1' }} onSubmit={submit}>
+      <div className="flex-between" style={{ alignItems: 'center' }}>
+        <h4 style={{ margin: 0, color: '#0f172a' }}>💉 Record Administration #{nextNumber}</h4>
+        <span className="badge success">Auto-Filled Prescribed Dose</span>
+      </div>
+      <p style={{ fontSize: '0.84rem', color: '#64748b', margin: '0.35rem 0 0.85rem' }}>
+        Select a prescribed item to auto-populate the recommended dose amount, unit, and route. Recording an administration registers an actual dosage event for AMU tracking.
+      </p>
+      <label>
+        Prescribed Medicine Item
+        <select value={selectedItemId} onChange={(e) => setSelectedItemId(e.target.value)}>
+          {items.map((x) => (
+            <option key={x.id} value={x.id}>
+              {x.drug.canonicalName} — {x.doseValue} {x.doseUnit} ({x.route}, {x.frequency})
+            </option>
+          ))}
+        </select>
+      </label>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.75rem' }}>
+        <label>
+          Amount Given
+          <input
+            type="number"
+            step="any"
+            required
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+          />
+        </label>
+        <label>
+          Dose Unit
+          <select value={amountUnit} onChange={(e) => setAmountUnit(e.target.value)}>
+            <option value="ml">ml</option>
+            <option value="mg">mg</option>
+            <option value="g">g</option>
+            <option value="IU">IU</option>
+            <option value="tablets">tablets</option>
+          </select>
+        </label>
+        <label>
+          Administration Route
+          <select value={route} onChange={(e) => setRoute(e.target.value)}>
+            <option value="INTRAMUSCULAR">INTRAMUSCULAR (IM)</option>
+            <option value="SUBCUTANEOUS">SUBCUTANEOUS (SC)</option>
+            <option value="ORAL">ORAL (PO)</option>
+            <option value="INTRAVENOUS">INTRAVENOUS (IV)</option>
+            <option value="TOPICAL">TOPICAL</option>
+            <option value="INTRAMAMMARY">INTRAMAMMARY</option>
+          </select>
+        </label>
+      </div>
+      <label>
+        Administration Notes (Optional)
+        <input
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          placeholder="e.g. Dose given in neck muscle; animal calm"
+        />
+      </label>
+      <button disabled={submitting} style={{ marginTop: '0.5rem' }}>
+        {submitting ? 'Recording Dose...' : `💉 Record Administration #${nextNumber}`}
+      </button>
+    </form>
   );
 }
 export function VeterinaryWorkflow({ farms, context, user, capabilities }) {
