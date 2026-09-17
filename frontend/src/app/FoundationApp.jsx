@@ -144,7 +144,7 @@ function AuthPage({ mode, done, go }) {
 
               <div className="input-group">
                 <label htmlFor="password">Password</label>
-                <div className="input-field-wrapper">
+                <div className="input-field-wrapper has-toggle">
                   <span className="field-icon">🔒</span>
                   <input
                     id="password"
@@ -255,7 +255,7 @@ function AnimalForm({ farmId, species, done }) {
         </select>
       </label>
       <label className="check">
-        <input name="lactating" type="checkbox" /> Lactating
+        <input name="lactating" type="checkbox" /> <span>Lactating</span>
       </label>
       <button>Add animal</button>
     </form>
@@ -641,10 +641,10 @@ function FarmMembers({ farmId, canAssign, onAuthorizationChanged }) {
           <h2>Add registered member</h2>
           <Field label="Registered email" name="email" type="email" />
           <label className="check">
-            <input name="roles" type="checkbox" value="FARM_MANAGER" /> Farm manager
+            <input name="roles" type="checkbox" value="FARM_MANAGER" /> <span>Farm manager</span>
           </label>
           <label className="check">
-            <input name="roles" type="checkbox" value="FARM_WORKER" /> Farm worker
+            <input name="roles" type="checkbox" value="FARM_WORKER" /> <span>Farm worker</span>
           </label>
           <button>Add / update member</button>
         </form>
