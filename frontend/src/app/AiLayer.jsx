@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { api } from './api.js';
 
 const suggestions = {
@@ -16,10 +16,30 @@ const suggestions = {
 export function AiLayer({ farms, user, workspace }) {
   const [farmId, setFarmId] = useState(farms[0]?.id || '');
   const [animalId, setAnimalId] = useState('');
+  const [animals, setAnimals] = useState([]);
   const [question, setQuestion] = useState('');
   const [messages, setMessages] = useState([]);
   const [conversationId, setConversationId] = useState(null);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    let active = true;
+    if (farmId) {
+      api(`/farms/${farmId}/animals`)
+        .then((d) => {
+          if (active) setAnimals(d.animals || []);
+        })
+        .catch(() => {
+          if (active) setAnimals([]);
+        });
+    } else {
+      setAnimals([]);
+    }
+    return () => {
+      active = false;
+    };
+  }, [farmId]);
+
   const role =
     workspace?.kind === 'ADMIN' || user.platformRoles.includes('PLATFORM_ADMIN')
       ? 'PLATFORM_ADMIN'
@@ -70,12 +90,15 @@ export function AiLayer({ farms, user, workspace }) {
           </select>
         </label>
         <label>
-          Animal ID (optional)
-          <input
-            value={animalId}
-            onChange={(e) => setAnimalId(e.target.value)}
-            placeholder="Use an authorized animal ID"
-          />
+          Animal context (optional)
+          <select value={animalId} onChange={(e) => setAnimalId(e.target.value)}>
+            <option value="">All farm animals (Farm-level summary)</option>
+            {animals.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.tagNumber} — {a.name || a.species.canonicalName}
+              </option>
+            ))}
+          </select>
         </label>
         <AmuRiskCard farmId={farmId} animalId={animalId} />
       </section>
