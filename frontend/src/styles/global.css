@@ -1239,3 +1239,179 @@ td,
     align-items: flex-start;
   }
 }
+
+/* ==========================================================================
+   Component-by-Component Polish: Checkboxes, Input Symbols, Selects & Boxes
+   ========================================================================== */
+
+/* 1. Checkboxes positioned neatly in front of text */
+label.check,
+.check,
+.form label.check {
+  display: inline-flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 0.65rem !important;
+  cursor: pointer !important;
+  user-select: none !important;
+  font-weight: 600 !important;
+  font-size: 0.9rem !important;
+  color: #1e293b !important;
+  margin: 0.4rem 0 !important;
+  width: auto !important;
+}
+
+label.check input[type='checkbox'],
+.check input[type='checkbox'],
+input[type='checkbox'] {
+  width: 1.15rem !important;
+  height: 1.15rem !important;
+  min-width: 1.15rem !important;
+  min-height: 1.15rem !important;
+  accent-color: #059669 !important;
+  cursor: pointer !important;
+  margin: 0 !important;
+  flex-shrink: 0 !important;
+  vertical-align: middle !important;
+}
+
+/* 2. Text & Symbol Separation in Input Fields */
+.input-field-wrapper {
+  position: relative !important;
+  display: flex !important;
+  align-items: center !important;
+  width: 100% !important;
+}
+
+.input-field-wrapper .field-icon {
+  position: absolute !important;
+  left: 0.9rem !important;
+  font-size: 1.1rem !important;
+  pointer-events: none !important;
+  user-select: none !important;
+  opacity: 0.75 !important;
+  z-index: 2 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.input-field-wrapper input {
+  width: 100% !important;
+  padding-left: 2.75rem !important;
+  padding-right: 1rem !important;
+}
+
+.input-field-wrapper.has-toggle input,
+.input-field-wrapper input:has(+ .password-toggle-btn) {
+  padding-right: 2.85rem !important;
+}
+
+.password-toggle-btn {
+  position: absolute !important;
+  right: 0.75rem !important;
+  background: transparent !important;
+  border: none !important;
+  cursor: pointer !important;
+  padding: 0.3rem !important;
+  font-size: 1.1rem !important;
+  line-height: 1 !important;
+  opacity: 0.8 !important;
+  color: #64748b !important;
+  z-index: 2 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 0.4rem !important;
+  transition: var(--ag-transition) !important;
+}
+
+.password-toggle-btn:hover {
+  opacity: 1 !important;
+  color: #0f172a !important;
+  background: #f1f5f9 !important;
+}
+
+/* 3. Universal Select & Dropdown Refinements */
+select,
+.form select,
+form select {
+  width: 100% !important;
+  padding-right: 2.5rem !important; /* Prevent text from colliding with native arrow */
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border: 1.5px solid #cbd5e1 !important;
+  border-radius: var(--ag-radius) !important;
+  font-size: 0.92rem !important;
+  font-weight: 500 !important;
+  outline: none !important;
+  appearance: auto !important;
+  -webkit-appearance: auto !important;
+}
+
+/* 4. Form Labels & Textarea Spacing */
+.form label,
+form label {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.4rem;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: #334155;
+  width: 100%;
+}
+
+.form textarea,
+form textarea,
+textarea {
+  width: 100%;
+  min-height: 90px;
+  padding: 0.75rem 0.9rem;
+  border: 1.5px solid #cbd5e1;
+  border-radius: var(--ag-radius);
+  font-family: inherit;
+  font-size: 0.92rem;
+  color: #0f172a;
+  background: #ffffff;
+  outline: none;
+  resize: vertical;
+  transition: var(--ag-transition);
+}
+
+.form textarea:focus,
+form textarea:focus,
+textarea:focus {
+  border-color: #059669;
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.2);
+}
+
+/* 5. Box & Card Alignments */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.25rem;
+}
+
+.card {
+  background: #ffffff;
+  border: 1px solid var(--ag-border);
+  border-radius: 1rem;
+  padding: 1.35rem;
+  box-shadow: var(--ag-shadow-sm);
+  transition: var(--ag-transition);
+}
+
+.card:hover {
+  box-shadow: var(--ag-shadow-md);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
