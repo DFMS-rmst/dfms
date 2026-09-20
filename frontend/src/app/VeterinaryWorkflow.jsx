@@ -11,6 +11,11 @@ const Field = ({ label, name, type = 'text', required = true }) => (
 function RequestForm({ farms, veterinarians, refresh }) {
   const [farmId, setFarmId] = useState(farms[0]?.id || '');
   const [animals, setAnimals] = useState([]);
+  const [animalId, setAnimalId] = useState('');
+  const [requestedVetId, setRequestedVetId] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
   useEffect(() => {
     if (!farmId && farms.length > 0) {
@@ -23,57 +28,106 @@ function RequestForm({ farms, veterinarians, refresh }) {
     if (farmId) {
       api(`/farms/${farmId}/animals`)
         .then((d) => {
-          if (active) setAnimals(d.animals || []);
+          if (active) {
+            const list = d.animals || [];
+            setAnimals(list);
+            if (list.length > 0) setAnimalId(list[0].id);
+            else setAnimalId('');
+          }
         })
         .catch(() => {
-          if (active) setAnimals([]);
+          if (active) {
+            setAnimals([]);
+            setAnimalId('');
+          }
         });
     } else {
       setAnimals([]);
+      setAnimalId('');
     }
     return () => {
       active = false;
     };
   }, [farmId]);
 
+  useEffect(() => {
+    if (veterinarians.length > 0) {
+      if (!requestedVetId || !veterinarians.some((v) => v.id === requestedVetId)) {
+        setRequestedVetId(veterinarians[0].id);
+      }
+    } else {
+      setRequestedVetId('');
+    }
+  }, [veterinarians, requestedVetId]);
+
   async function submit(event) {
     event.preventDefault();
+    setSubmitting(true);
+    setError('');
+    setSuccess('');
     const form = event.currentTarget;
     const value = Object.fromEntries(new FormData(form));
-    const attachment = form.elements.attachment.files[0];
+    const attachment = form.elements.attachment?.files?.[0];
     delete value.attachment;
-    const created = await api('/treatment-requests', {
-      method: 'POST',
-      body: JSON.stringify(value),
-    });
-    if (attachment) {
-      const upload = await api('/files/presign-upload', {
-        method: 'POST',
-        body: JSON.stringify({
-          category: 'TREATMENT_REQUEST',
-          entityType: 'TREATMENT_REQUEST',
-          entityId: created.treatmentRequest.id,
-          originalName: attachment.name,
-          mimeType: attachment.type,
-          sizeBytes: attachment.size,
-        }),
-      });
-      const response = await fetch(upload.uploadUrl, {
-        method: 'PUT',
-        headers: { 'Content-Type': attachment.type },
-        body: attachment,
-      });
-      if (!response.ok) throw new Error('Attachment upload failed');
+
+    if (!value.observations || value.observations.trim().length < 3) {
+      setError('Observations must be at least 3 characters long.');
+      setSubmitting(false);
+      return;
     }
-    form.reset();
-    refresh();
+
+    try {
+      const created = await api('/treatment-requests', {
+        method: 'POST',
+        body: JSON.stringify(value),
+      });
+      if (attachment && created.treatmentRequest?.id) {
+        try {
+          const upload = await api('/files/presign-upload', {
+            method: 'POST',
+            body: JSON.stringify({
+              category: 'TREATMENT_REQUEST',
+              entityType: 'TREATMENT_REQUEST',
+              entityId: created.treatmentRequest.id,
+              originalName: attachment.name,
+              mimeType: attachment.type,
+              sizeBytes: attachment.size,
+            }),
+          });
+          const response = await fetch(upload.uploadUrl, {
+            method: 'PUT',
+            headers: { 'Content-Type': attachment.type },
+            body: attachment,
+          });
+          if (response.ok && upload.file?.id) {
+            await api(`/files/${upload.file.id}/complete`, { method: 'POST' });
+          }
+        } catch (fileErr) {
+          console.warn('Optional attachment upload error:', fileErr);
+        }
+      }
+      setSuccess('✅ Treatment request sent successfully! Assigned veterinarian has been notified.');
+      form.reset();
+      refresh?.();
+    } catch (err) {
+      setError(err.message || 'Failed to send treatment request');
+    } finally {
+      setSubmitting(false);
+    }
   }
+
+  const isBtnDisabled = submitting || !farmId || !animalId || !requestedVetId;
+
   return (
-    <form className="card form" onSubmit={submit}>
+    <form className="card form" onSubmit={submit} style={{ marginTop: '2rem' }}>
       <h2>Request Treatment</h2>
+      {error && <p className="error">{error}</p>}
+      {success && <p className="success-text">{success}</p>}
+
       <label>
         Farm
-        <select name="farmId" value={farmId} onChange={(e) => setFarmId(e.target.value)}>
+        <select name="farmId" value={farmId} onChange={(e) => setFarmId(e.target.value)} required>
+          {farms.length === 0 && <option value="">No farms registered</option>}
           {farms.map((f) => (
             <option key={f.id} value={f.id}>
               {f.name}
@@ -81,19 +135,35 @@ function RequestForm({ farms, veterinarians, refresh }) {
           ))}
         </select>
       </label>
+
       <label>
         Animal
-        <select name="animalId">
+        <select name="animalId" value={animalId} onChange={(e) => setAnimalId(e.target.value)} required>
+          {animals.length === 0 && <option value="">No animals found for selected farm</option>}
           {animals.map((a) => (
             <option key={a.id} value={a.id}>
-              {a.tagNumber} — {a.name || a.species.canonicalName}
+              {a.tagNumber} — {a.name || a.species?.canonicalName || 'Livestock'}
             </option>
           ))}
         </select>
       </label>
+      {animals.length === 0 && (
+        <p className="notice" style={{ marginTop: '-0.3rem', fontSize: '0.85rem' }}>
+          ⚠️ No animals found on this farm. Please add an animal to this farm before requesting treatment.
+        </p>
+      )}
+
       <label>
         Verified veterinarian
-        <select name="requestedVeterinarianId">
+        <select
+          name="requestedVeterinarianId"
+          value={requestedVetId}
+          onChange={(e) => setRequestedVetId(e.target.value)}
+          required
+        >
+          {veterinarians.length === 0 && (
+            <option value="">No verified veterinarians found in search</option>
+          )}
           {veterinarians.map((v) => (
             <option key={v.id} value={v.id}>
               {v.user.fullName} — {v.specialization || v.qualification}
@@ -101,9 +171,15 @@ function RequestForm({ farms, veterinarians, refresh }) {
           ))}
         </select>
       </label>
+      {veterinarians.length === 0 && (
+        <p className="notice" style={{ marginTop: '-0.3rem', fontSize: '0.85rem' }}>
+          ⚠️ No verified veterinarians found matching search criteria. Use search bar above or verify a veterinarian profile.
+        </p>
+      )}
+
       <label>
         Urgency
-        <select name="urgency">
+        <select name="urgency" defaultValue="ROUTINE">
           <option value="ROUTINE">ROUTINE</option>
           <option value="SOON">SOON</option>
           <option value="URGENT">URGENT</option>
@@ -111,18 +187,20 @@ function RequestForm({ farms, veterinarians, refresh }) {
         </select>
       </label>
       <label>
-        Observations
-        <textarea name="observations" required />
+        Observations (Min 3 characters)
+        <textarea name="observations" placeholder="Describe symptoms or reason for request..." required minLength={3} />
       </label>
       <label>
-        Symptoms / notes
-        <textarea name="symptoms" />
+        Symptoms / Notes (Optional)
+        <textarea name="symptoms" placeholder="Additional health notes or clinical history..." />
       </label>
       <label>
         Supporting image (optional)
         <input name="attachment" type="file" accept="image/jpeg,image/png,image/webp" />
       </label>
-      <button>Send treatment request</button>
+      <button disabled={isBtnDisabled}>
+        {submitting ? '📩 Sending treatment request...' : 'Send treatment request'}
+      </button>
     </form>
   );
 }
@@ -622,7 +700,17 @@ export function VeterinaryWorkflow({ farms, context, user, capabilities }) {
             <input name="name" placeholder="Veterinarian name" />
             <input name="state" placeholder="State" />
             <input name="district" placeholder="District" />
-            <input name="specialization" placeholder="Specialization" />
+            <select name="specialization" defaultValue="">
+              <option value="">All Specializations</option>
+              <option value="Bovine">Bovine Medicine & Surgery</option>
+              <option value="Small Ruminant">Small Ruminant Medicine</option>
+              <option value="Theriogenology">Theriogenology & Reproduction</option>
+              <option value="Preventive">Preventive Medicine & Herd Health</option>
+              <option value="General">General Farm Practice & Surgery</option>
+              <option value="Swine">Swine Health & Medicine</option>
+              <option value="Equine">Equine Medicine</option>
+              <option value="Avian">Avian & Poultry Medicine</option>
+            </select>
             <button>Search verified veterinarians</button>
           </form>
           <div className="grid">

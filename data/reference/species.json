@@ -21,6 +21,69 @@
       "verification_status": "VERIFIED",
       "source_ids": ["SRC-DAHD-BAHS-2025"],
       "limitations": "Never inherit cattle withdrawal rules without explicit authoritative applicability."
+    },
+    {
+      "id": "SP-CAPRA-HIRCUS",
+      "canonical_name": "Goat",
+      "scientific_name": "Capra hircus",
+      "aliases": ["caprine", "dairy goat"],
+      "mvp": true,
+      "verification_status": "VERIFIED",
+      "source_ids": ["SRC-DAHD-BAHS-2025"]
+    },
+    {
+      "id": "SP-OVIS-ARIES",
+      "canonical_name": "Sheep",
+      "scientific_name": "Ovis aries",
+      "aliases": ["ovine", "dairy sheep"],
+      "mvp": true,
+      "verification_status": "VERIFIED",
+      "source_ids": ["SRC-DAHD-BAHS-2025"]
+    },
+    {
+      "id": "SP-SUS-DOMESTICUS",
+      "canonical_name": "Swine / Pig",
+      "scientific_name": "Sus domesticus",
+      "aliases": ["pig", "porcine"],
+      "mvp": true,
+      "verification_status": "VERIFIED",
+      "source_ids": ["SRC-DAHD-BAHS-2025"]
+    },
+    {
+      "id": "SP-CAMELUS-DROMEDARIUS",
+      "canonical_name": "Camel",
+      "scientific_name": "Camelus dromedarius",
+      "aliases": ["dromedary camel"],
+      "mvp": true,
+      "verification_status": "VERIFIED",
+      "source_ids": ["SRC-DAHD-BAHS-2025"]
+    },
+    {
+      "id": "SP-BOS-GRUNNIENS",
+      "canonical_name": "Yak",
+      "scientific_name": "Bos grunniens",
+      "aliases": ["domestic yak"],
+      "mvp": true,
+      "verification_status": "VERIFIED",
+      "source_ids": ["SRC-DAHD-BAHS-2025"]
+    },
+    {
+      "id": "SP-EQUUS-CABALLUS",
+      "canonical_name": "Horse / Equine",
+      "scientific_name": "Equus caballus",
+      "aliases": ["horse", "equine"],
+      "mvp": true,
+      "verification_status": "VERIFIED",
+      "source_ids": ["SRC-DAHD-BAHS-2025"]
+    },
+    {
+      "id": "SP-GALLUS-GALLUS",
+      "canonical_name": "Poultry / Chicken",
+      "scientific_name": "Gallus gallus domesticus",
+      "aliases": ["chicken", "poultry"],
+      "mvp": true,
+      "verification_status": "VERIFIED",
+      "source_ids": ["SRC-DAHD-BAHS-2025"]
     }
   ]
 }

@@ -11,7 +11,16 @@ const animalSchema = z.object({
   breedId: z.string().optional().nullable(),
   tagNumber: z.string().trim().min(1).max(100),
   name: z.string().trim().max(120).optional().nullable(),
-  sex: z.enum(['FEMALE', 'MALE', 'UNKNOWN']),
+  sex: z.enum([
+    'FEMALE',
+    'MALE',
+    'INTACT_FEMALE',
+    'INTACT_MALE',
+    'NEUTERED',
+    'CASTRATED',
+    'HERMAPHRODITE',
+    'UNKNOWN',
+  ]),
   dateOfBirth: z.coerce.date().max(new Date()).optional().nullable(),
   lactating: z.boolean().default(false),
   status: z.enum(['ACTIVE', 'SOLD', 'DECEASED', 'TRANSFERRED', 'INACTIVE']).default('ACTIVE'),
@@ -45,6 +54,7 @@ animalsRouter.post(
     const animal = await prisma.$transaction(async (tx) => {
       const created = await tx.animal.create({
         data: { ...request.body, farmId: request.params.farmId },
+        include: { species: true, breed: true },
       });
       await tx.animalProfileEvent.create({
         data: {
@@ -117,7 +127,11 @@ animalsRouter.patch(
         error: { code: 'ANIMAL_NOT_FOUND', message: 'Animal not found', requestId: request.id },
       });
     const animal = await prisma.$transaction(async (tx) => {
-      const updated = await tx.animal.update({ where: { id: existing.id }, data: request.body });
+      const updated = await tx.animal.update({
+        where: { id: existing.id },
+        data: request.body,
+        include: { species: true, breed: true },
+      });
       await tx.animalProfileEvent.create({
         data: {
           animalId: updated.id,
@@ -145,5 +159,51 @@ animalsRouter.get(
       orderBy: { createdAt: 'desc' },
     });
     response.json({ data: { events } });
+  }),
+);
+
+animalsRouter.delete(
+  '/:animalId',
+  asyncHandler(async (request, response) => {
+    await requireFarmAccess(request.principal.user.id, request.params.farmId, [
+      'FARM_OWNER',
+      'FARM_MANAGER',
+    ]);
+    const existing = await prisma.animal.findFirst({
+      where: { id: request.params.animalId, farmId: request.params.farmId },
+    });
+    if (!existing)
+      return response.status(404).json({
+        error: { code: 'ANIMAL_NOT_FOUND', message: 'Animal not found', requestId: request.id },
+      });
+
+    try {
+      await prisma.$transaction(async (tx) => {
+        await tx.animalProfileEvent.deleteMany({ where: { animalId: existing.id } });
+        await tx.animal.delete({ where: { id: existing.id } });
+        await appendAudit(
+          {
+            actorUserId: request.principal.user.id,
+            action: 'ANIMAL_DELETED',
+            entityType: 'Animal',
+            entityId: existing.id,
+            farmId: request.params.farmId,
+            requestId: request.id,
+            previousData: { tagNumber: existing.tagNumber },
+          },
+          tx,
+        );
+      });
+      response.json({ data: { success: true, animalId: existing.id } });
+    } catch (err) {
+      if (err.code === 'P2003') {
+        throw new AppError(
+          400,
+          'ANIMAL_HAS_RECORDS',
+          'Cannot delete animal with existing veterinary cases, treatments, or certificates. Archive or deactivate animal instead.',
+        );
+      }
+      throw err;
+    }
   }),
 );

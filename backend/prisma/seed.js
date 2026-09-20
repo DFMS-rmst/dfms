@@ -34,7 +34,9 @@ if (process.env.SEED_DEMO_DATA === 'true') {
   });
   if (!existingFarm) {
     const species = await prisma.species.findUniqueOrThrow({ where: { code: 'BOS_TAURUS' } });
-    const drug = await prisma.drug.findUniqueOrThrow({ where: { code: 'AMOXICILLIN' } });
+    const drug = await prisma.drug.findFirstOrThrow({
+      where: { OR: [{ code: 'AMOXICILLIN' }, { code: 'DRUG-AMOXICILLIN' }, { canonicalName: 'Amoxicillin' }] },
+    });
     const product = await prisma.drugProduct.findFirstOrThrow({
       where: { sourceRecordId: 'EU-700000186534' },
     });
