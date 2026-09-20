@@ -223,125 +223,294 @@ function FarmForm({ done }) {
   );
 }
 function AnimalForm({ farmId, species, done }) {
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+
   async function submit(e) {
     e.preventDefault();
+    setSubmitting(true);
+    setError('');
     const v = Object.fromEntries(new FormData(e.currentTarget));
     v.lactating = v.lactating === 'on';
-    done(
-      (await api(`/farms/${farmId}/animals`, { method: 'POST', body: JSON.stringify(v) })).animal,
-    );
+    try {
+      const res = await api(`/farms/${farmId}/animals`, { method: 'POST', body: JSON.stringify(v) });
+      done(res.animal);
+      e.currentTarget.reset();
+    } catch (err) {
+      setError(err.message || 'Failed to add animal');
+    } finally {
+      setSubmitting(false);
+    }
   }
+
   return (
-    <form className="card form" onSubmit={submit}>
+    <form className="card form" onSubmit={submit} style={{ marginTop: '2rem' }}>
       <h2>Add Animal</h2>
-      <Field label="Tag number" name="tagNumber" />
+      {error && <p className="error">{error}</p>}
+      <Field label="Tag number" name="tagNumber" required />
       <Field label="Name" name="name" required={false} />
       <label>
-        Species
-        <select name="speciesId">
+        Species Category
+        <select name="speciesId" required defaultValue={species[0]?.id || ''}>
           {species.map((s) => (
             <option key={s.id} value={s.id}>
-              {s.canonicalName}
+              {s.canonicalName} {s.scientificName ? `(${s.scientificName})` : ''}
             </option>
           ))}
         </select>
       </label>
       <label>
-        Sex
-        <select name="sex">
-          <option>FEMALE</option>
-          <option>MALE</option>
-          <option>UNKNOWN</option>
+        Sex Category
+        <select name="sex" defaultValue="FEMALE">
+          <option value="FEMALE">Female (Cow / Ewe / Doe / Sow / Mare)</option>
+          <option value="MALE">Male</option>
+          <option value="INTACT_FEMALE">Intact Female</option>
+          <option value="INTACT_MALE">Intact Male (Bull / Ram / Buck / Stallion / Boar)</option>
+          <option value="NEUTERED">Neutered (Steer / Wether / Gelding / Barrow)</option>
+          <option value="CASTRATED">Castrated</option>
+          <option value="HERMAPHRODITE">Intersex / Hermaphrodite</option>
+          <option value="UNKNOWN">Unknown / Unspecified</option>
         </select>
       </label>
       <label className="check">
-        <input name="lactating" type="checkbox" /> <span>Lactating</span>
+        <input name="lactating" type="checkbox" /> <span>Lactating (Currently Producing Milk)</span>
       </label>
-      <button>Add animal</button>
+      <button disabled={submitting}>{submitting ? 'Adding animal...' : 'Add Animal'}</button>
     </form>
   );
 }
 function VetProfile({ onAuthorizationChanged }) {
   const [profile, setProfile] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+
   useEffect(() => {
-    api('/veterinarians/me').then((d) => setProfile(d.profile));
+    api('/veterinarians/me')
+      .then((d) => setProfile(d.profile))
+      .catch(() => {});
   }, []);
+
   async function submit(e) {
     e.preventDefault();
-    const v = Object.fromEntries(new FormData(e.currentTarget));
-    const credential = v.credential;
-    delete v.credential;
-    v.experienceYears = v.experienceYears ? Number(v.experienceYears) : null;
-    v.serviceAreas = [{ state: v.state, district: v.district || null }];
-    delete v.state;
-    delete v.district;
-    const saved = (await api('/veterinarians/me', { method: 'PUT', body: JSON.stringify(v) }))
-      .profile;
-    if (credential?.size) {
-      const intent = await api('/files/upload-intents', {
-        method: 'POST',
-        body: JSON.stringify({
-          entityType: 'VETERINARIAN_PROFILE',
-          entityId: saved.id,
-          purpose: 'REGISTRATION_CERTIFICATE',
-          mimeType: credential.type,
-          sizeBytes: credential.size,
-          originalFilename: credential.name,
-        }),
-      });
-      const upload = await fetch(intent.uploadUrl, {
-        method: 'PUT',
-        headers: { 'Content-Type': credential.type },
-        body: credential,
-      });
-      if (!upload.ok) throw new Error('Private document upload failed');
-      await api(`/files/${intent.file.id}/complete`, { method: 'POST' });
+    setSubmitting(true);
+    setError('');
+    setSuccess('');
+    try {
+      const v = Object.fromEntries(new FormData(e.currentTarget));
+      const credential = v.credential;
+      delete v.credential;
+      v.experienceYears = v.experienceYears ? Number(v.experienceYears) : null;
+      v.serviceAreas = [{ state: v.state, district: v.district || null }];
+      delete v.state;
+      delete v.district;
+      const saved = (await api('/veterinarians/me', { method: 'PUT', body: JSON.stringify(v) }))
+        .profile;
+      if (credential?.size) {
+        const intent = await api('/files/upload-intents', {
+          method: 'POST',
+          body: JSON.stringify({
+            entityType: 'VETERINARIAN_PROFILE',
+            entityId: saved.id,
+            purpose: 'REGISTRATION_CERTIFICATE',
+            mimeType: credential.type,
+            sizeBytes: credential.size,
+            originalFilename: credential.name,
+          }),
+        });
+        const upload = await fetch(intent.uploadUrl, {
+          method: 'PUT',
+          headers: { 'Content-Type': credential.type },
+          body: credential,
+        });
+        if (!upload.ok) throw new Error('Private document upload failed');
+        await api(`/files/${intent.file.id}/complete`, { method: 'POST' });
+      }
+      setProfile(saved);
+      setSuccess('✅ Veterinarian profile and credentials submitted successfully! Awaiting platform verification.');
+      await onAuthorizationChanged?.();
+    } catch (err) {
+      setError(err.message || 'Failed to submit profile credentials');
+    } finally {
+      setSubmitting(false);
     }
-    setProfile(saved);
-    await onAuthorizationChanged?.();
   }
+
+  const qualificationsList = [
+    'B.V.Sc. & A.H.',
+    'M.V.Sc.',
+    'Ph.D. in Veterinary Science',
+    'D.V.M. (Doctor of Veterinary Medicine)',
+    'Diploma in Veterinary Science / Technology',
+    'B.Sc. (Veterinary Science / Animal Husbandry)',
+  ];
+
+  const councilsList = [
+    'Veterinary Council of India (VCI)',
+    'State Veterinary Council — Maharashtra',
+    'State Veterinary Council — Karnataka',
+    'State Veterinary Council — Gujarat',
+    'State Veterinary Council — Punjab',
+    'State Veterinary Council — Haryana',
+    'State Veterinary Council — Uttar Pradesh',
+    'State Veterinary Council — Tamil Nadu',
+    'State Veterinary Council — Rajasthan',
+    'State Veterinary Council — Kerala',
+    'State Veterinary Council — Andhra Pradesh',
+    'State Veterinary Council — Telangana',
+    'State Veterinary Council — Madhya Pradesh',
+    'Other National / State Veterinary Council',
+  ];
+
+  const statesList = [
+    'Karnataka',
+    'Maharashtra',
+    'Gujarat',
+    'Punjab',
+    'Haryana',
+    'Uttar Pradesh',
+    'Tamil Nadu',
+    'Rajasthan',
+    'Kerala',
+    'Andhra Pradesh',
+    'Telangana',
+    'Madhya Pradesh',
+    'Bihar',
+    'West Bengal',
+    'Assam',
+    'Other State / Union Territory',
+  ];
+
   return (
     <form className="card form" onSubmit={submit}>
       <h2>Veterinarian Profile / Verification Submission</h2>
-      {profile && <span className="badge">{profile.status}</span>}
-      <Field label="Qualification" name="qualification" defaultValue={profile?.qualification} />
-      <Field
-        label="Specialization"
-        name="specialization"
-        required={false}
-        defaultValue={profile?.specialization}
-      />
+      {profile && <span className="badge" style={{ marginBottom: '1rem', display: 'inline-block' }}>{profile.status}</span>}
+      {error && <p className="error">{error}</p>}
+      {success && <p className="success-text">{success}</p>}
+
       <label>
-        Registration certificate (PDF, JPEG, or PNG; max 10 MB)
-        <input name="credential" type="file" accept="application/pdf,image/jpeg,image/png" />
+        Qualification
+        <select
+          name="qualification"
+          required
+          defaultValue={profile?.qualification || 'B.V.Sc. & A.H.'}
+        >
+          {profile?.qualification && !qualificationsList.includes(profile.qualification) && (
+            <option value={profile.qualification}>{profile.qualification}</option>
+          )}
+          {qualificationsList.map((q) => (
+            <option key={q} value={q}>
+              {q}
+            </option>
+          ))}
+        </select>
       </label>
+
+      <label>
+        Specialization
+        <select
+          name="specialization"
+          defaultValue={profile?.specialization || 'Bovine Medicine & Surgery'}
+        >
+          {profile?.specialization &&
+            ![
+              'Bovine Medicine & Surgery',
+              'Small Ruminant Medicine',
+              'Theriogenology & Reproduction',
+              'Preventive Medicine & Herd Health',
+              'General Farm Practice & Surgery',
+              'Swine Health & Medicine',
+              'Equine Medicine',
+              'Avian & Poultry Medicine',
+            ].includes(profile.specialization) && (
+              <option value={profile.specialization}>{profile.specialization}</option>
+            )}
+          <option value="Bovine Medicine & Surgery">Bovine Medicine & Surgery (Cattle & Buffalo)</option>
+          <option value="Small Ruminant Medicine">Small Ruminant Medicine (Goat & Sheep)</option>
+          <option value="Theriogenology & Reproduction">Theriogenology & Reproduction</option>
+          <option value="Preventive Medicine & Herd Health">Preventive Medicine & Herd Health</option>
+          <option value="General Farm Practice & Surgery">General Farm Practice & Surgery</option>
+          <option value="Swine Health & Medicine">Swine Health & Medicine</option>
+          <option value="Equine Medicine">Equine Medicine</option>
+          <option value="Avian & Poultry Medicine">Avian & Poultry Medicine</option>
+        </select>
+      </label>
+
       <Field
-        label="Experience years"
-        name="experienceYears"
-        type="number"
-        required={false}
-        defaultValue={profile?.experienceYears}
-      />
-      <Field
-        label="Registration number"
+        label="Registration number (e.g. VCI/2021/4892)"
         name="registrationNumber"
+        required
         defaultValue={profile?.registrationNumber}
       />
+
+      <label>
+        Registration council
+        <select
+          name="registrationCouncil"
+          required
+          defaultValue={profile?.registrationCouncil || 'Veterinary Council of India (VCI)'}
+        >
+          {profile?.registrationCouncil && !councilsList.includes(profile.registrationCouncil) && (
+            <option value={profile.registrationCouncil}>{profile.registrationCouncil}</option>
+          )}
+          {councilsList.map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <label>
+        Years of Experience
+        <select
+          name="experienceYears"
+          defaultValue={profile?.experienceYears ?? 5}
+        >
+          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 20].map((yr) => (
+            <option key={yr} value={yr}>
+              {yr} {yr === 1 ? 'Year' : 'Years'}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <label>
+        Service State
+        <select
+          name="state"
+          required
+          defaultValue={profile?.serviceAreas?.[0]?.state || 'Karnataka'}
+        >
+          {profile?.serviceAreas?.[0]?.state && !statesList.includes(profile.serviceAreas[0].state) && (
+            <option value={profile.serviceAreas[0].state}>{profile.serviceAreas[0].state}</option>
+          )}
+          {statesList.map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
+        </select>
+      </label>
+
       <Field
-        label="Registration council"
-        name="registrationCouncil"
-        defaultValue={profile?.registrationCouncil}
-      />
-      <Field label="Service state" name="state" defaultValue={profile?.serviceAreas?.[0]?.state} />
-      <Field
-        label="Service district"
+        label="Service District (e.g. Mysuru)"
         name="district"
         required={false}
         defaultValue={profile?.serviceAreas?.[0]?.district}
       />
-      <button>Submit profile</button>
-      <p className="muted">
-        Registration documents are private and use authorized S3 upload links.
+
+      <label>
+        Registration certificate (PDF, JPEG, or PNG; max 10 MB)
+        <input name="credential" type="file" accept="application/pdf,image/jpeg,image/png" />
+      </label>
+
+      <button disabled={submitting}>
+        {submitting ? '⏳ Submitting profile...' : 'Submit profile for verification'}
+      </button>
+
+      <p className="muted" style={{ marginTop: '0.5rem', fontSize: '0.85rem' }}>
+        🔒 Registration documents are stored securely using private AWS S3 presigned authorization.
       </p>
     </form>
   );
@@ -715,6 +884,25 @@ function Workspace({ user, setUser, logout }) {
     setAnimalTimeline({ animal, events: result.timeline });
   }
 
+  async function deleteAnimal(animal) {
+    if (
+      !window.confirm(
+        `Are you sure you want to delete animal "${animal.name || animal.tagNumber}"?`,
+      )
+    ) {
+      return;
+    }
+    try {
+      await api(`/farms/${farm.id}/animals/${animal.id}`, { method: 'DELETE' });
+      setAnimals((all) => all.filter((x) => x.id !== animal.id));
+      if (animalTimeline?.animal?.id === animal.id) {
+        setAnimalTimeline(null);
+      }
+    } catch (err) {
+      alert(err.message || 'Failed to delete animal');
+    }
+  }
+
   const activeFarm =
     workspace?.kind === 'FARM' ? farms.find((item) => item.id === workspace.farmId) : null;
   const capabilities = workspace?.kind === 'FARM' ? farmCapabilities(workspace.roles) : {};
@@ -901,16 +1089,47 @@ function Workspace({ user, setUser, logout }) {
                 <AmuRiskCard farmId={farm.id} />
               </section>
             )}
-            <h2>Animal List</h2>
+            <h2>Animal List ({animals.length})</h2>
             <div className="grid">
+              {animals.length === 0 && (
+                <p style={{ color: 'var(--ag-text-muted)' }}>No animals registered in this farm yet.</p>
+              )}
               {animals.map((a) => (
-                <article className="card" key={a.id}>
-                  <h3>{a.name || a.tagNumber}</h3>
-                  <p>Tag: {a.tagNumber}</p>
-                  <p>
-                    {a.species.canonicalName} · {a.status}
+                <article className="card animal-card" key={a.id}>
+                  <div
+                    className="flex-between"
+                    style={{ alignItems: 'flex-start', gap: '0.5rem', marginBottom: '0.4rem' }}
+                  >
+                    <h3 style={{ margin: 0, fontSize: '1.15rem' }}>{a.name || a.tagNumber}</h3>
+                    {capabilities.canEditAnimals && (
+                      <button
+                        type="button"
+                        className="icon-delete-btn"
+                        onClick={() => deleteAnimal(a)}
+                        title={`Delete ${a.name || a.tagNumber}`}
+                        aria-label={`Delete ${a.name || a.tagNumber}`}
+                      >
+                        🗑️
+                      </button>
+                    )}
+                  </div>
+                  <p style={{ margin: '0.15rem 0', fontSize: '0.88rem', color: 'var(--ag-text-muted)' }}>
+                    <strong>Tag:</strong> {a.tagNumber}
                   </p>
-                  <button onClick={() => openTimeline(a)}>View health timeline</button>
+                  <p style={{ margin: '0.3rem 0 0.85rem', fontSize: '0.86rem' }}>
+                    <strong style={{ color: 'var(--ag-forest-dark)' }}>
+                      {a.species?.canonicalName || 'Livestock'}
+                    </strong>{' '}
+                    · {a.sex ? a.sex.replaceAll('_', ' ') : 'FEMALE'} · {a.status}
+                  </p>
+                  <button
+                    type="button"
+                    className="secondary"
+                    style={{ width: '100%', fontSize: '0.84rem', padding: '0.45rem' }}
+                    onClick={() => openTimeline(a)}
+                  >
+                    📜 View health timeline
+                  </button>
                 </article>
               ))}
             </div>
@@ -950,7 +1169,7 @@ function Workspace({ user, setUser, logout }) {
               <AnimalForm
                 farmId={farm.id}
                 species={species}
-                done={(a) => setAnimals((all) => [a, ...all])}
+                done={(a) => setAnimals((all) => [{ ...a, species: a.species || species.find((s) => s.id === a.speciesId) }, ...all])}
               />
             )}
           </section>
