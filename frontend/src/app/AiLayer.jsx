@@ -21,6 +21,7 @@ export function AiLayer({ farms, user, workspace }) {
   const [messages, setMessages] = useState([]);
   const [conversationId, setConversationId] = useState(null);
   const [error, setError] = useState('');
+  const [authoritativeStatus, setAuthoritativeStatus] = useState(null);
 
   useEffect(() => {
     let active = true;
@@ -39,6 +40,26 @@ export function AiLayer({ farms, user, workspace }) {
       active = false;
     };
   }, [farmId]);
+
+  useEffect(() => {
+    let active = true;
+    if (!animalId) {
+      setAuthoritativeStatus(null);
+      return () => {
+        active = false;
+      };
+    }
+    api(`/eligibility/animals/${animalId}`)
+      .then((data) => {
+        if (active) setAuthoritativeStatus(data.eligibility || null);
+      })
+      .catch(() => {
+        if (active) setAuthoritativeStatus(null);
+      });
+    return () => {
+      active = false;
+    };
+  }, [animalId]);
 
   const role =
     workspace?.kind === 'ADMIN' || user.platformRoles.includes('PLATFORM_ADMIN')
@@ -104,6 +125,17 @@ export function AiLayer({ farms, user, workspace }) {
       </section>
       <section className="card">
         <h2>Smart Advisor</h2>
+        {animalId && (
+          <div className="notice">
+            <strong>Authoritative System Status</strong>
+            <p>
+              Current Milk Eligibility:{' '}
+              {authoritativeStatus?.status?.replaceAll('_', ' ') || 'Loading current status…'}
+            </p>
+            <small>This status is determined by the rule engine, not by AI.</small>
+          </div>
+        )}
+        <h3>AI Explanation</h3>
         <div className="actions">
           {suggestions[role].map((item) => (
             <button className="link" key={item} onClick={() => setQuestion(item)}>
@@ -188,6 +220,11 @@ export function AmuRiskCard({ farmId, animalId = '' }) {
           </div>
           <p className="muted" style={{ fontSize: '0.85rem' }}>
             {risk.risk.disclaimer}
+          </p>
+          <p className="muted" style={{ fontSize: '0.85rem' }}>
+            This is a pattern-based decision-support indicator, not a clinical diagnosis or
+            milk-safety determination. Model: {risk.risk.modelVersion}. Training disclosure:
+            SYNTHETIC DEMONSTRATION DATA.
           </p>
           <h4>Contributing Risk Factors</h4>
           <div className="grid" style={{ gap: '0.5rem' }}>

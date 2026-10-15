@@ -26,6 +26,10 @@ import { reportsRouter } from './modules/reports/index.js';
 import { rateLimit } from './common/rate-limit.js';
 import { mlRouter } from './modules/ml/index.js';
 import { advisorRouter } from './modules/advisor/index.js';
+import {
+  dailyClearanceRouter,
+  publicDailyClearanceRouter,
+} from './modules/daily-clearance/index.js';
 
 export function createApp() {
   const app = express();
@@ -59,6 +63,12 @@ export function createApp() {
   app.use('/api/v1/eligibility', eligibilityRouter);
   app.use('/api/v1/reference-data/mrl', mrlRouter);
   app.use('/api/v1/certificates', certificatesRouter);
+  app.use('/api/v1/daily-clearances', dailyClearanceRouter);
+  app.use(
+    '/api/v1/public/daily-clearances',
+    rateLimit({ windowMs: 60_000, max: 120 }),
+    publicDailyClearanceRouter,
+  );
   app.use(
     '/api/v1/public/certificates',
     rateLimit({ windowMs: 60_000, max: 120 }),

@@ -24,6 +24,17 @@ Log in as the farm owner, open the demonstration farm and animal, discover the v
 
 Then show the negative animal: its missing/review-required rule blocks eligibility and certificate issuance. Emphasize that no guessed fallback is used.
 
+## Daily milk collection workflow
+
+1. Open the farm workspace and choose **Today's Milk Eligibility**.
+2. Show the system-determined eligible and blocked lactating-animal lists. There are no farmer eligibility checkboxes or overrides.
+3. If at least one animal qualifies, download the automatically generated **Daily Milk Collection Clearance** PDF and scan its QR. The public page exposes only farm/date/version/count, operational status, integrity status, and the disclaimer.
+4. Start a treatment for an included animal through the veterinarian workflow. Return to today's view and show the new current version excluding that animal, the preserved historical version, and the farm alert.
+
+Animal Milk Eligibility, a Daily Milk Collection Clearance, laboratory residue testing, and blockchain integrity are distinct concepts. The application contains no laboratory module. Existing individual certificates, including `MEC-DEMO-0001`, remain historical animal-level evidence; the daily clearance is the farm/date operational document.
+
+For the local blockchain demonstration, an owner or manager may open the current daily clearance and choose **Anchor Clearance Proof**. The UI shows the transaction/network and verifies the canonical document hash. This action is manual and creates at most one proof per immutable clearance version; it does not recalculate or approve milk eligibility.
+
 ## Reset
 
 `docker compose down -v` removes the local MySQL volume. Then repeat start, migration, and seed. This is destructive only to local Docker demo data.

@@ -135,30 +135,44 @@ enum EventStatus {
   FAILED
 }
 
+enum DailyEvaluationStatus {
+  CURRENT
+  SUPERSEDED
+  INVALIDATED
+}
+
+enum DailyJobStatus {
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
 model User {
-  id                       String                    @id @default(cuid())
-  email                    String                    @unique @db.VarChar(191)
-  phone                    String?                   @unique @db.VarChar(32)
-  passwordHash             String                    @db.VarChar(255)
-  fullName                 String                    @db.VarChar(160)
-  status                   UserStatus                @default(ACTIVE)
-  createdAt                DateTime                  @default(now())
-  updatedAt                DateTime                  @updatedAt
+  id                       String                         @id @default(cuid())
+  email                    String                         @unique @db.VarChar(191)
+  phone                    String?                        @unique @db.VarChar(32)
+  passwordHash             String                         @db.VarChar(255)
+  fullName                 String                         @db.VarChar(160)
+  status                   UserStatus                     @default(ACTIVE)
+  createdAt                DateTime                       @default(now())
+  updatedAt                DateTime                       @updatedAt
   refreshTokens            RefreshToken[]
   platformRoles            UserPlatformRole[]
   memberships              FarmMember[]
-  createdFarms             Farm[]                    @relation("FarmCreator")
+  createdFarms             Farm[]                         @relation("FarmCreator")
   veterinarian             VeterinarianProfile?
   messages                 CaseMessage[]
-  createdRequests          TreatmentRequest[]        @relation("TreatmentRequester")
-  treatmentAdministrations TreatmentAdministration[] @relation("TreatmentAdministrator")
+  createdRequests          TreatmentRequest[]             @relation("TreatmentRequester")
+  treatmentAdministrations TreatmentAdministration[]      @relation("TreatmentAdministrator")
+  performedAdministrations TreatmentAdministration[]      @relation("TreatmentPerformer")
   alerts                   Alert[]
-  ownedFiles               FileObject[]              @relation("FileOwner")
-  reviewedVeterinarians    VeterinarianProfile[]     @relation("VeterinarianReviewer")
-  auditLogs                AuditLog[]                @relation("AuditActor")
-  issuedCertificates       MilkEligibilityCertificate[] @relation("CertificateIssuer")
-  revokedCertificates      MilkEligibilityCertificate[] @relation("CertificateRevoker")
+  ownedFiles               FileObject[]                   @relation("FileOwner")
+  reviewedVeterinarians    VeterinarianProfile[]          @relation("VeterinarianReviewer")
+  auditLogs                AuditLog[]                     @relation("AuditActor")
+  issuedCertificates       MilkEligibilityCertificate[]   @relation("CertificateIssuer")
+  revokedCertificates      MilkEligibilityCertificate[]   @relation("CertificateRevoker")
   advisorConversations     AdvisorConversation[]
+  generatedDailyClearances DailyMilkCollectionClearance[] @relation("DailyClearanceGenerator")
 
   @@index([status])
 }
@@ -191,27 +205,29 @@ model UserPlatformRole {
 }
 
 model Farm {
-  id                String                 @id @default(cuid())
-  name              String                 @db.VarChar(191)
-  status            FarmStatus             @default(PENDING)
-  state             String                 @db.VarChar(100)
-  district          String                 @db.VarChar(100)
-  taluka            String?                @db.VarChar(100)
-  pincode           String?                @db.VarChar(12)
-  timeZone          String                 @default("Asia/Kolkata") @db.VarChar(64)
-  regulatoryJurisdiction String             @default("INDIA") @db.VarChar(64)
-  demonstrationMode Boolean                @default(false)
-  createdById       String
-  createdAt         DateTime               @default(now())
-  updatedAt         DateTime               @updatedAt
-  createdBy         User                   @relation("FarmCreator", fields: [createdById], references: [id])
-  members           FarmMember[]
-  animals           Animal[]
-  requests          TreatmentRequest[]
-  cases             VeterinaryCase[]
-  treatments        Treatment[]
-  eligibilityChecks MilkEligibilityCheck[]
-  certificates      MilkEligibilityCertificate[]
+  id                     String                           @id @default(cuid())
+  name                   String                           @db.VarChar(191)
+  status                 FarmStatus                       @default(PENDING)
+  state                  String                           @db.VarChar(100)
+  district               String                           @db.VarChar(100)
+  taluka                 String?                          @db.VarChar(100)
+  pincode                String?                          @db.VarChar(12)
+  timeZone               String                           @default("Asia/Kolkata") @db.VarChar(64)
+  regulatoryJurisdiction String                           @default("INDIA") @db.VarChar(64)
+  demonstrationMode      Boolean                          @default(false)
+  createdById            String
+  createdAt              DateTime                         @default(now())
+  updatedAt              DateTime                         @updatedAt
+  createdBy              User                             @relation("FarmCreator", fields: [createdById], references: [id])
+  members                FarmMember[]
+  animals                Animal[]
+  requests               TreatmentRequest[]
+  cases                  VeterinaryCase[]
+  treatments             Treatment[]
+  eligibilityChecks      MilkEligibilityCheck[]
+  certificates           MilkEligibilityCertificate[]
+  dailyEvaluations       DailyFarmEligibilityEvaluation[]
+  dailyJobs              DailyEligibilityJob[]
 
   @@index([status, state, district])
 }
@@ -294,6 +310,7 @@ model Animal {
   eligibilityChecks        MilkEligibilityCheck[]
   certificates             MilkEligibilityCertificate[]
   treatmentAdministrations TreatmentAdministration[]
+  dailyEvaluationItems     DailyFarmEligibilityItem[]
 
   @@unique([farmId, tagNumber])
   @@index([farmId, status])
@@ -503,21 +520,22 @@ model DrugSpecies {
 }
 
 model DrugProduct {
-  id                  String                    @id @default(cuid())
-  drugId              String
-  productName         String                    @db.VarChar(255)
-  authorizationNumber String?                   @db.VarChar(120)
-  jurisdiction        String                    @db.VarChar(100)
-  formulation         String                    @db.VarChar(160)
-  concentration       Decimal?                  @db.Decimal(18, 6)
-  concentrationUnit   String?                   @db.VarChar(60)
-  route               String                    @db.VarChar(100)
-  labelVersion        String?                   @db.VarChar(80)
-  sourceRecordId      String?                   @db.VarChar(100)
-  drug                Drug                      @relation(fields: [drugId], references: [id])
-  prescriptionItems   PrescriptionItem[]
-  administrations     TreatmentAdministration[]
-  withdrawalRules     WithdrawalRule[]
+  id                     String                           @id @default(cuid())
+  drugId                 String
+  productName            String                           @db.VarChar(255)
+  authorizationNumber    String?                          @db.VarChar(120)
+  jurisdiction           String                           @db.VarChar(100)
+  formulation            String                           @db.VarChar(160)
+  concentration          Decimal?                         @db.Decimal(18, 6)
+  concentrationUnit      String?                          @db.VarChar(60)
+  route                  String                           @db.VarChar(100)
+  labelVersion           String?                          @db.VarChar(80)
+  sourceRecordId         String?                          @db.VarChar(100)
+  drug                   Drug                             @relation(fields: [drugId], references: [id])
+  prescriptionItems      PrescriptionItem[]
+  administrations        TreatmentAdministration[]
+  withdrawalRules        WithdrawalRule[]
+  eligibilityEvaluations EligibilityTreatmentEvaluation[]
 
   @@index([drugId, jurisdiction])
 }
@@ -623,6 +641,8 @@ model TreatmentAdministration {
   drugId               String
   drugProductId        String?
   administeredById     String
+  performedByUserId    String?
+  performedByName      String?           @db.VarChar(160)
   amount               Decimal           @db.Decimal(18, 6)
   amountUnit           String            @db.VarChar(60)
   activeIngredientMg   Decimal?          @db.Decimal(20, 6)
@@ -633,15 +653,18 @@ model TreatmentAdministration {
   weightMeasuredAt     DateTime?
   batchNumber          String?           @db.VarChar(120)
   notes                String?           @db.Text
+  deviationReason      String?           @db.Text
   treatment            Treatment         @relation(fields: [treatmentId], references: [id])
   animal               Animal            @relation(fields: [animalId], references: [id])
   administeredBy       User              @relation("TreatmentAdministrator", fields: [administeredById], references: [id])
+  performedBy          User?             @relation("TreatmentPerformer", fields: [performedByUserId], references: [id])
   prescriptionItem     PrescriptionItem? @relation(fields: [prescriptionItemId], references: [id])
   drug                 Drug              @relation(fields: [drugId], references: [id])
   drugProduct          DrugProduct?      @relation(fields: [drugProductId], references: [id])
 
   @@index([animalId, administeredAt])
   @@index([drugId, administeredAt])
+  @@index([performedByUserId])
 }
 
 model WithdrawalRule {
@@ -713,6 +736,7 @@ model MilkEligibilityCheck {
   farm                 Farm                             @relation(fields: [farmId], references: [id])
   treatmentEvaluations EligibilityTreatmentEvaluation[]
   certificate          MilkEligibilityCertificate?
+  dailyEvaluationItems DailyFarmEligibilityItem[]
 
   @@unique([animalId, inputHash])
   @@index([animalId, evaluatedAt])
@@ -720,11 +744,98 @@ model MilkEligibilityCheck {
   @@index([status, evaluatedAt])
 }
 
+model DailyFarmEligibilityEvaluation {
+  id                 String                          @id @default(cuid())
+  farmId             String
+  businessDate       DateTime                        @db.Date
+  timeZone           String                          @db.VarChar(64)
+  version            Int
+  status             DailyEvaluationStatus           @default(CURRENT)
+  evaluatedAt        DateTime                        @default(now())
+  applicableCount    Int
+  eligibleCount      Int
+  blockedCount       Int
+  snapshotHashSha256 String                          @db.Char(64)
+  canonicalPayload   Json
+  supersededById     String?                         @unique
+  invalidatedAt      DateTime?
+  invalidationReason String?                         @db.VarChar(255)
+  currentSlot        String?                         @unique @db.VarChar(191)
+  createdAt          DateTime                        @default(now())
+  farm               Farm                            @relation(fields: [farmId], references: [id], onDelete: Restrict)
+  items              DailyFarmEligibilityItem[]
+  clearance          DailyMilkCollectionClearance?
+  supersededBy       DailyFarmEligibilityEvaluation? @relation("DailyEvaluationSupersession", fields: [supersededById], references: [id])
+  supersedes         DailyFarmEligibilityEvaluation? @relation("DailyEvaluationSupersession")
+
+  @@unique([farmId, businessDate, version])
+  @@index([farmId, businessDate, snapshotHashSha256])
+  @@index([farmId, businessDate, status])
+}
+
+model DailyFarmEligibilityItem {
+  id                 String                         @id @default(cuid())
+  evaluationId       String
+  animalId           String
+  eligibilityCheckId String
+  included           Boolean
+  eligibilityStatus  EligibilityStatus
+  animalTagSnapshot  String                         @db.VarChar(100)
+  animalNameSnapshot String?                        @db.VarChar(120)
+  evaluatedAt        DateTime
+  eligibleFrom       DateTime?
+  blockingReason     String?                        @db.VarChar(191)
+  withdrawalEndsAt   DateTime?
+  evidenceSnapshot   Json?
+  evaluation         DailyFarmEligibilityEvaluation @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
+  animal             Animal                         @relation(fields: [animalId], references: [id], onDelete: Restrict)
+  eligibilityCheck   MilkEligibilityCheck           @relation(fields: [eligibilityCheckId], references: [id], onDelete: Restrict)
+
+  @@unique([evaluationId, animalId])
+  @@index([animalId, evaluatedAt])
+}
+
+model DailyMilkCollectionClearance {
+  id                      String                         @id @default(cuid())
+  evaluationId            String                         @unique
+  clearanceNumber         String                         @unique @db.VarChar(100)
+  verificationId          String                         @unique @db.VarChar(191)
+  generatedById           String?
+  generatedAt             DateTime                       @default(now())
+  canonicalizationVersion String                         @db.VarChar(40)
+  canonicalPayload        Json
+  contentHashSha256       String                         @db.Char(64)
+  disclaimer              String                         @db.Text
+  evaluation              DailyFarmEligibilityEvaluation @relation(fields: [evaluationId], references: [id], onDelete: Restrict)
+  generatedBy             User?                          @relation("DailyClearanceGenerator", fields: [generatedById], references: [id], onDelete: SetNull)
+
+  @@index([generatedAt])
+}
+
+model DailyEligibilityJob {
+  id           String         @id @default(cuid())
+  farmId       String
+  businessDate DateTime       @db.Date
+  status       DailyJobStatus
+  startedAt    DateTime       @default(now())
+  completedAt  DateTime?
+  lastError    String?        @db.Text
+  attemptCount Int            @default(1)
+  farm         Farm           @relation(fields: [farmId], references: [id], onDelete: Cascade)
+
+  @@unique([farmId, businessDate])
+  @@index([status, businessDate])
+}
+
 model EligibilityTreatmentEvaluation {
   id                   String               @id @default(cuid())
   eligibilityCheckId   String
+  evidenceScopeHash    String               @db.Char(64)
   treatmentId          String
   drugId               String?
+  drugProductId        String?
+  route                String?              @db.VarChar(100)
+  lastAdministrationAt DateTime?
   withdrawalRuleId     String?
   status               EligibilityStatus
   treatmentCompletedAt DateTime?
@@ -734,9 +845,10 @@ model EligibilityTreatmentEvaluation {
   eligibilityCheck     MilkEligibilityCheck @relation(fields: [eligibilityCheckId], references: [id], onDelete: Cascade)
   treatment            Treatment            @relation(fields: [treatmentId], references: [id])
   drug                 Drug?                @relation(fields: [drugId], references: [id])
+  drugProduct          DrugProduct?         @relation(fields: [drugProductId], references: [id])
   withdrawalRule       WithdrawalRule?      @relation(fields: [withdrawalRuleId], references: [id])
 
-  @@unique([eligibilityCheckId, treatmentId, drugId])
+  @@unique([eligibilityCheckId, evidenceScopeHash])
 }
 
 model MilkEligibilityCertificate {

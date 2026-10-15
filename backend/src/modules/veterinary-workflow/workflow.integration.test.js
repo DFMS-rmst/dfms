@@ -318,6 +318,7 @@ describe.sequential('complete veterinary workflow', () => {
     expect(diagnosed.status).toBe(201);
     diagnosisId = diagnosed.body.data.diagnosis.id;
     const drug = (await prisma.drug.findFirst({ where: { code: 'AMOXICILLIN' } })) || (await prisma.drug.findFirst());
+    const drugProduct = await prisma.drugProduct.findFirst({ where: { drugId: drug.id } });
     const payload = {
       diagnosisId,
       startDate: new Date().toISOString(),
@@ -325,6 +326,7 @@ describe.sequential('complete veterinary workflow', () => {
       items: [
         {
           drugId: drug.id,
+          drugProductId: drugProduct?.id || null,
           doseValue: 5,
           doseUnit: 'mL',
           route: 'IM',
@@ -352,6 +354,7 @@ describe.sequential('complete veterinary workflow', () => {
     prescriptionId = prescribed.body.data.prescription.id;
     ids.prescriptionItemId = prescribed.body.data.prescription.items[0].id;
     ids.drugId = drug.id;
+    ids.drugProductId = drugProduct?.id || null;
     expect(await prisma.treatmentAdministration.count({ where: { animalId } })).toBe(0);
   });
   it('tracks treatment transitions and actual administrations separately with timeline events', async () => {
@@ -378,11 +381,60 @@ describe.sequential('complete veterinary workflow', () => {
           .send({ status: 'ACTIVE' })
       ).status,
     ).toBe(200);
+    const prematureCompletion = await request(app)
+      .patch(`/api/v1/treatments/${treatmentId}/status`)
+      .set(auth(vet))
+      .send({ status: 'COMPLETED', notes: 'No administration exists yet' });
+    expect(prematureCompletion.status).toBe(409);
+    expect(prematureCompletion.body.error.code).toBe('ADMINISTRATION_REQUIRED_FOR_COMPLETION');
+    const neverAdministered = await request(app)
+      .post('/api/v1/treatments')
+      .set(auth(vet))
+      .send({ caseId, prescriptionId, notes: 'Course that was not administered' });
+    expect(neverAdministered.status).toBe(201);
+    const cancelled = await request(app)
+      .patch(`/api/v1/treatments/${neverAdministered.body.data.treatment.id}/status`)
+      .set(auth(vet))
+      .send({ status: 'CANCELLED', notes: 'Medicine was not administered' });
+    expect(cancelled.status).toBe(200);
+    expect(cancelled.body.data.treatment.status).toBe('CANCELLED');
+    expect(
+      (
+        await request(app)
+          .post(
+            `/api/v1/treatments/${neverAdministered.body.data.treatment.id}/administrations`,
+          )
+          .set(auth(vet))
+          .send({
+            prescriptionItemId: ids.prescriptionItemId,
+            amount: 5,
+            amountUnit: 'mL',
+            route: 'IM',
+            administeredAt: new Date().toISOString(),
+          })
+      ).status,
+    ).toBe(409);
+    const outsider = await login(emails[4]);
+    expect(
+      (
+        await request(app)
+          .post(`/api/v1/treatments/${treatmentId}/administrations`)
+          .set(auth(outsider))
+          .send({
+            prescriptionItemId: ids.prescriptionItemId,
+            amount: 5,
+            amountUnit: 'mL',
+            route: 'IM',
+            administeredAt: new Date().toISOString(),
+          })
+      ).status,
+    ).toBe(404);
     const bad = await request(app)
       .post(`/api/v1/treatments/${treatmentId}/administrations`)
       .set(auth(vet))
       .send({
         prescriptionItemId: ids.prescriptionItemId,
+        drugProductId: ids.drugProductId,
         drugId: (await prisma.drug.findFirst({ where: { NOT: { id: ids.drugId } } }))?.id,
         amount: 5,
         amountUnit: 'mL',
@@ -390,11 +442,35 @@ describe.sequential('complete veterinary workflow', () => {
         administeredAt: new Date().toISOString(),
       });
     expect(bad.status).toBe(400);
+    const worker = await login(emails[6]);
+    const workerAdministration = await request(app)
+      .post(`/api/v1/treatments/${treatmentId}/administrations`)
+      .set(auth(worker))
+      .send({
+        prescriptionItemId: ids.prescriptionItemId,
+        drugProductId: ids.drugProductId,
+        amount: 5,
+        amountUnit: 'mL',
+        route: 'IM',
+        administeredAt: new Date(Date.now() - 60_000).toISOString(),
+        performedByName: 'Farm Treatment Operator',
+        notes: 'Recorded by authorized farm worker',
+      });
+    expect(workerAdministration.status).toBe(201);
+    expect(workerAdministration.body.data.administration).toMatchObject({
+      administeredById: ids[emails[6]],
+      performedByUserId: null,
+      performedByName: 'Farm Treatment Operator',
+      prescriptionItemId: ids.prescriptionItemId,
+      drugId: ids.drugId,
+      drugProductId: ids.drugProductId,
+    });
     const administration = await request(app)
       .post(`/api/v1/treatments/${treatmentId}/administrations`)
       .set(auth(vet))
       .send({
         prescriptionItemId: ids.prescriptionItemId,
+        drugProductId: ids.drugProductId,
         drugId: ids.drugId,
         amount: 5,
         amountUnit: 'mL',
@@ -403,6 +479,12 @@ describe.sequential('complete veterinary workflow', () => {
         notes: 'Actually administered',
       });
     expect(administration.status).toBe(201);
+    expect(administration.body.data.administration).toMatchObject({
+      administeredById: ids[emails[1]],
+      performedByUserId: ids[emails[1]],
+      performedByName: null,
+      drugProductId: ids.drugProductId,
+    });
     expect(
       (
         await request(app)
@@ -411,6 +493,26 @@ describe.sequential('complete veterinary workflow', () => {
           .send({ status: 'COMPLETED', notes: 'Course completed' })
       ).status,
     ).toBe(200);
+    const retained = await prisma.treatment.findUnique({
+      where: { id: treatmentId },
+      include: { administrations: true },
+    });
+    expect(retained.status).toBe('COMPLETED');
+    expect(retained.administrations).toHaveLength(2);
+    expect(
+      (
+        await request(app)
+          .post(`/api/v1/treatments/${treatmentId}/administrations`)
+          .set(auth(vet))
+          .send({
+            prescriptionItemId: ids.prescriptionItemId,
+            amount: 5,
+            amountUnit: 'mL',
+            route: 'IM',
+            administeredAt: new Date().toISOString(),
+          })
+      ).status,
+    ).toBe(409);
     const farmer = await login(emails[0]);
     const timeline = await request(app)
       .get(`/api/v1/farms/${farmId}/animals/${animalId}/timeline`)
@@ -431,7 +533,7 @@ describe.sequential('complete veterinary workflow', () => {
       .get(`/api/v1/amu/summary?farmId=${farmId}`)
       .set(auth(farmer));
     expect(farmSummary.status).toBe(200);
-    expect(farmSummary.body.data.summary.totalAdministrations).toBe(1);
+    expect(farmSummary.body.data.summary.totalAdministrations).toBe(2);
     expect(
       (await request(app).get(`/api/v1/amu/summary?farmId=${farmId}`).set(auth(outsider))).status,
     ).toBe(404);

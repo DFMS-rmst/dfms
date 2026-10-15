@@ -1,6 +1,7 @@
 /* eslint-disable react-hooks/exhaustive-deps -- effects deliberately synchronize selected server resources */
 import { useEffect, useState } from 'react';
 import { api, download } from './api.js';
+import { canCompleteTreatment, treatmentRequestIdFromResponse } from './workflowContracts.js';
 
 const Field = ({ label, name, type = 'text', required = true }) => (
   <label>
@@ -81,14 +82,15 @@ function RequestForm({ farms, veterinarians, refresh }) {
         method: 'POST',
         body: JSON.stringify(value),
       });
-      if (attachment && created.treatmentRequest?.id) {
+      const treatmentRequestId = treatmentRequestIdFromResponse(created);
+      if (attachment && treatmentRequestId) {
         try {
           const upload = await api('/files/presign-upload', {
             method: 'POST',
             body: JSON.stringify({
               category: 'TREATMENT_REQUEST',
               entityType: 'TREATMENT_REQUEST',
-              entityId: created.treatmentRequest.id,
+              entityId: treatmentRequestId,
               originalName: attachment.name,
               mimeType: attachment.type,
               sizeBytes: attachment.size,
@@ -209,6 +211,9 @@ function CaseWorkspace({ caseId, context, user, capabilities, close }) {
   const [messages, setMessages] = useState([]);
   const [diseases, setDiseases] = useState([]);
   const [drugs, setDrugs] = useState([]);
+  const [workflowError, setWorkflowError] = useState('');
+  const [prescriptionDrugId, setPrescriptionDrugId] = useState('');
+  const [prescriptionProductId, setPrescriptionProductId] = useState('');
   async function load() {
     setItem((await api(`/veterinary-cases/${caseId}`)).case);
     setMessages((await api(`/veterinary-cases/${caseId}/messages`)).messages);
@@ -217,7 +222,10 @@ function CaseWorkspace({ caseId, context, user, capabilities, close }) {
   useEffect(() => {
     load();
     api('/reference-data/diseases').then((d) => setDiseases(d.diseases));
-    api('/reference-data/drugs').then((d) => setDrugs(d.drugs));
+    api('/reference-data/drugs').then((d) => {
+      setDrugs(d.drugs);
+      setPrescriptionDrugId((current) => current || d.drugs[0]?.id || '');
+    });
     const timer = setInterval(load, 15000);
     return () => clearInterval(timer);
   }, [caseId]);
@@ -257,6 +265,7 @@ function CaseWorkspace({ caseId, context, user, capabilities, close }) {
       items: [
         {
           drugId: v.drugId,
+          drugProductId: v.drugProductId || null,
           doseValue: Number(v.doseValue),
           doseUnit: v.doseUnit,
           route: v.route,
@@ -277,42 +286,56 @@ function CaseWorkspace({ caseId, context, user, capabilities, close }) {
     load();
   }
   async function startTreatment(prescriptionId) {
-    const treatment = (
-      await api('/treatments', { method: 'POST', body: JSON.stringify({ caseId, prescriptionId }) })
-    ).treatment;
-    await api(`/treatments/${treatment.id}/status`, {
-      method: 'PATCH',
-      body: JSON.stringify({ status: 'ACTIVE' }),
-    });
-    load();
-  }
-  async function administer(e, treatment) {
-    e.preventDefault();
-    const v = Object.fromEntries(new FormData(e.currentTarget));
-    v.amount = Number(v.amount);
-    if (v.activeIngredientMg) v.activeIngredientMg = Number(v.activeIngredientMg);
-    else {
-      delete v.activeIngredientMg;
-      delete v.conversionProvenance;
+    setWorkflowError('');
+    try {
+      await api('/treatments', {
+        method: 'POST',
+        body: JSON.stringify({ caseId, prescriptionId, startImmediately: true }),
+      });
+      await load();
+    } catch (error) {
+      setWorkflowError(error.message || 'Unable to start treatment');
     }
-    v.administeredAt = new Date().toISOString();
-    const selected = item.prescriptions
-      .find((p) => p.id === treatment.prescriptionId)
-      ?.items.find((x) => x.id === v.prescriptionItemId);
-    v.drugId = selected?.drugId;
-    await api(`/treatments/${treatment.id}/administrations`, {
-      method: 'POST',
-      body: JSON.stringify(v),
-    });
-    e.currentTarget.reset();
-    load();
   }
   async function complete(id) {
-    await api(`/treatments/${id}/status`, {
-      method: 'PATCH',
-      body: JSON.stringify({ status: 'COMPLETED', notes: 'Completed by veterinarian' }),
-    });
-    load();
+    if (!window.confirm('Complete this treatment course using the recorded administration history?'))
+      return;
+    setWorkflowError('');
+    try {
+      await api(`/treatments/${id}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: 'COMPLETED', notes: 'Completed by veterinarian' }),
+      });
+      await load();
+    } catch (error) {
+      setWorkflowError(error.message || 'Unable to complete treatment');
+    }
+  }
+  async function activateTreatment(id) {
+    setWorkflowError('');
+    try {
+      await api(`/treatments/${id}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: 'ACTIVE' }),
+      });
+      await load();
+    } catch (error) {
+      setWorkflowError(error.message || 'Unable to start planned treatment');
+    }
+  }
+  async function cancel(id) {
+    const reason = window.prompt('Why was this treatment cancelled or not administered?');
+    if (!reason?.trim()) return;
+    setWorkflowError('');
+    try {
+      await api(`/treatments/${id}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: 'CANCELLED', notes: reason.trim() }),
+      });
+      await load();
+    } catch (error) {
+      setWorkflowError(error.message || 'Unable to cancel treatment');
+    }
   }
   return (
     <section>
@@ -337,6 +360,7 @@ function CaseWorkspace({ caseId, context, user, capabilities, close }) {
           <strong>Farmer observations:</strong> {item.request.observations}
         </p>
       </div>
+      {workflowError && <p className="error">{workflowError}</p>}
       <div className="workflow-columns">
         <section>
           <h2>Case Chat</h2>
@@ -407,6 +431,8 @@ function CaseWorkspace({ caseId, context, user, capabilities, close }) {
             <p key={x.id}>
               {x.drug.canonicalName}: {x.doseValue} {x.doseUnit}, {x.route}, {x.frequency},{' '}
               {x.durationValue} {x.durationUnit}
+              <br />
+              <small>Product: {x.drugProduct?.productName || 'Not specified'}</small>
             </p>
           ))}
           {assignedVerifiedVeterinarian &&
@@ -431,12 +457,36 @@ function CaseWorkspace({ caseId, context, user, capabilities, close }) {
           </label>
           <label>
             Drug / active ingredient
-            <select name="drugId">
+            <select
+              name="drugId"
+              value={prescriptionDrugId}
+              onChange={(event) => {
+                setPrescriptionDrugId(event.target.value);
+                setPrescriptionProductId('');
+              }}
+            >
               {drugs.map((d) => (
                 <option key={d.id} value={d.id}>
                   {d.canonicalName}
                 </option>
               ))}
+            </select>
+          </label>
+          <label>
+            Approved product (optional)
+            <select
+              name="drugProductId"
+              value={prescriptionProductId}
+              onChange={(event) => setPrescriptionProductId(event.target.value)}
+            >
+              <option value="">Product not specified / no approved product available</option>
+              {(drugs.find((drug) => drug.id === prescriptionDrugId)?.products || []).map(
+                (product) => (
+                  <option key={product.id} value={product.id}>
+                    {product.productName} — {product.formulation} ({product.route})
+                  </option>
+                ),
+              )}
             </select>
           </label>
           <Field label="Dose value (veterinarian entered)" name="doseValue" type="number" />
@@ -498,23 +548,43 @@ function CaseWorkspace({ caseId, context, user, capabilities, close }) {
         <article className="card" key={t.id}>
           <h3>Treatment · {t.status}</h3>
           <p>{t.administrations.length} actual administration(s) recorded</p>
-          {t.administrations.map((a) => (
-            <p key={a.id}>
-              {a.drug.canonicalName}: {a.amount} {a.amountUnit} at{' '}
-              {new Date(a.administeredAt).toLocaleString()}
+          {t.administrations.length > 0 && (
+            <p>
+              Last administration:{' '}
+              {new Date(t.administrations[0].administeredAt).toLocaleString()}
             </p>
+          )}
+          {t.administrations.map((a, index) => (
+            <article className="card compact" key={a.id}>
+              <strong>Administration #{t.administrations.length - index}</strong>
+              <p>Medicine: {a.drug.canonicalName}</p>
+              <p>Product: {a.drugProduct?.productName || 'Not specified'}</p>
+              <p>Actual amount: {a.amount} {a.amountUnit}</p>
+              <p>Route: {a.route}</p>
+              <p>Administered at: {new Date(a.administeredAt).toLocaleString()}</p>
+              <p>Recorded by: {a.administeredBy?.fullName || 'Recorded user unavailable'}</p>
+              <p>
+                Performed by:{' '}
+                {a.performedBy?.fullName || a.performedByName || a.administeredBy?.fullName || 'Not recorded'}
+              </p>
+              <p>Notes: {a.notes || 'None'}</p>
+              <p>Deviation: {a.deviationReason || 'None recorded'}</p>
+            </article>
           ))}
+          {t.status === 'PLANNED' && assignedVerifiedVeterinarian && (
+            <div className="inline-form" style={{ marginTop: '0.75rem' }}>
+              <button onClick={() => activateTreatment(t.id)}>Start Planned Treatment</button>
+              <button className="danger" onClick={() => cancel(t.id)}>
+                Cancel / Not Administered
+              </button>
+            </div>
+          )}
           {t.status === 'ACTIVE' && canRecordAdministration && (
             <>
               <AdministrationForm
                 treatment={t}
                 caseItem={item}
                 onAdminister={async (v) => {
-                  v.administeredAt = new Date().toISOString();
-                  const selected = item.prescriptions
-                    .find((p) => p.id === t.prescriptionId)
-                    ?.items.find((x) => x.id === v.prescriptionItemId);
-                  v.drugId = selected?.drugId;
                   await api(`/treatments/${t.id}/administrations`, {
                     method: 'POST',
                     body: JSON.stringify(v),
@@ -523,9 +593,29 @@ function CaseWorkspace({ caseId, context, user, capabilities, close }) {
                 }}
               />
               {assignedVerifiedVeterinarian && (
-                <button className="secondary" style={{ marginTop: '0.75rem' }} onClick={() => complete(t.id)}>
-                  ✅ Complete Treatment Course
-                </button>
+                <div className="inline-form" style={{ marginTop: '0.75rem' }}>
+                  <button
+                    className="secondary"
+                    disabled={!canCompleteTreatment(t)}
+                    title={
+                      t.administrations.length === 0
+                        ? 'Record at least one actual administration before completion'
+                        : 'Complete treatment course'
+                    }
+                    onClick={() => complete(t.id)}
+                  >
+                    ✅ Complete Treatment Course
+                  </button>
+                  <button className="danger" onClick={() => cancel(t.id)}>
+                    Cancel / Not Administered
+                  </button>
+                </div>
+              )}
+              {assignedVerifiedVeterinarian && t.administrations.length === 0 && (
+                <p className="notice">
+                  Completion is unavailable until an actual medicine administration is recorded.
+                  If no medicine was given, cancel the treatment with a reason.
+                </p>
               )}
             </>
           )}
@@ -535,15 +625,24 @@ function CaseWorkspace({ caseId, context, user, capabilities, close }) {
   );
 }
 
-function AdministrationForm({ treatment, caseItem, onAdminister }) {
+export function AdministrationForm({ treatment, caseItem, onAdminister }) {
   const prescription = caseItem.prescriptions.find((p) => p.id === treatment.prescriptionId);
   const items = prescription?.items || [];
   const [selectedItemId, setSelectedItemId] = useState(items[0]?.id || '');
   const [amount, setAmount] = useState(items[0]?.doseValue || '');
   const [amountUnit, setAmountUnit] = useState(items[0]?.doseUnit || 'ml');
   const [route, setRoute] = useState(items[0]?.route || 'INTRAMUSCULAR');
+  const [drugProductId, setDrugProductId] = useState(items[0]?.drugProductId || '');
+  const [administeredAt, setAdministeredAt] = useState(() => {
+    const now = new Date(Date.now() - new Date().getTimezoneOffset() * 60000);
+    return now.toISOString().slice(0, 16);
+  });
+  const [samePerformer, setSamePerformer] = useState(true);
+  const [performedByName, setPerformedByName] = useState('');
+  const [deviationReason, setDeviationReason] = useState('');
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     const selected = items.find((x) => x.id === selectedItemId);
@@ -551,6 +650,8 @@ function AdministrationForm({ treatment, caseItem, onAdminister }) {
       setAmount(selected.doseValue || '');
       setAmountUnit(selected.doseUnit || 'ml');
       setRoute(selected.route || 'INTRAMUSCULAR');
+      setDrugProductId(selected.drugProductId || '');
+      setDeviationReason('');
     }
   }, [selectedItemId, items]);
 
@@ -558,21 +659,36 @@ function AdministrationForm({ treatment, caseItem, onAdminister }) {
     e.preventDefault();
     if (submitting) return;
     setSubmitting(true);
+    setError('');
     try {
       await onAdminister({
         prescriptionItemId: selectedItemId,
         amount: Number(amount),
         amountUnit,
         route,
+        drugProductId: drugProductId || null,
+        administeredAt: new Date(administeredAt).toISOString(),
+        performedByName: samePerformer ? null : performedByName,
+        deviationReason: hasDeviation ? deviationReason : null,
         notes,
       });
       setNotes('');
+    } catch (submissionError) {
+      setError(submissionError.message || 'Unable to record administration');
     } finally {
       setSubmitting(false);
     }
   }
 
   const nextNumber = (treatment.administrations?.length || 0) + 1;
+  const selectedItem = items.find((item) => item.id === selectedItemId);
+  const products = selectedItem?.drug?.products || [];
+  const hasDeviation =
+    selectedItem &&
+    (Number(selectedItem.doseValue) !== Number(amount) ||
+      selectedItem.doseUnit !== amountUnit ||
+      selectedItem.route !== route ||
+      (selectedItem.drugProductId || '') !== drugProductId);
 
   return (
     <form className="card form" style={{ background: '#f8fafc', marginTop: '1rem', border: '1px solid #cbd5e1' }} onSubmit={submit}>
@@ -583,6 +699,9 @@ function AdministrationForm({ treatment, caseItem, onAdminister }) {
       <p style={{ fontSize: '0.84rem', color: '#64748b', margin: '0.35rem 0 0.85rem' }}>
         Select a prescribed item to auto-populate the recommended dose amount, unit, and route. Recording an administration registers an actual dosage event for AMU tracking.
       </p>
+      {error && <p className="error">{error}</p>}
+      <p><strong>Animal:</strong> {caseItem.animal.name || caseItem.animal.tagNumber}</p>
+      <p><strong>Treatment:</strong> {treatment.status}</p>
       <label>
         Prescribed Medicine Item
         <select value={selectedItemId} onChange={(e) => setSelectedItemId(e.target.value)}>
@@ -593,6 +712,14 @@ function AdministrationForm({ treatment, caseItem, onAdminister }) {
           ))}
         </select>
       </label>
+      {selectedItem && (
+        <div className="notice">
+          <strong>Prescription:</strong> {selectedItem.drug.canonicalName}
+          {' · '}{selectedItem.drugProduct?.productName || 'Product not specified'}
+          {' · '}{selectedItem.doseValue} {selectedItem.doseUnit}
+          {' · '}{selectedItem.route}
+        </div>
+      )}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.75rem' }}>
         <label>
           Amount Given
@@ -625,7 +752,61 @@ function AdministrationForm({ treatment, caseItem, onAdminister }) {
             <option value="INTRAMAMMARY">INTRAMAMMARY</option>
           </select>
         </label>
+        <label>
+          Actual Product
+          <select value={drugProductId} onChange={(e) => setDrugProductId(e.target.value)}>
+            <option value="">Product unknown / not specified</option>
+            {products.map((product) => (
+              <option key={product.id} value={product.id}>
+                {product.productName} — {product.formulation}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
+      <label>
+        Actual administration date and time
+        <input
+          type="datetime-local"
+          required
+          max={new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
+            .toISOString()
+            .slice(0, 16)}
+          value={administeredAt}
+          onChange={(event) => setAdministeredAt(event.target.value)}
+        />
+      </label>
+      <label className="checkbox-line">
+        <input
+          type="checkbox"
+          checked={samePerformer}
+          onChange={(event) => setSamePerformer(event.target.checked)}
+        />
+        Medicine was performed by the same person recording this entry
+      </label>
+      {!samePerformer && (
+        <label>
+          Performed by (name)
+          <input
+            required
+            value={performedByName}
+            onChange={(event) => setPerformedByName(event.target.value)}
+            placeholder="Name of the person who administered the medicine"
+          />
+        </label>
+      )}
+      {hasDeviation && (
+        <label className="notice">
+          ⚠ Deviation from prescription — reason required
+          <textarea
+            required
+            minLength={3}
+            value={deviationReason}
+            onChange={(event) => setDeviationReason(event.target.value)}
+            placeholder="Explain why the actual amount, unit, route, or product differed"
+          />
+        </label>
+      )}
       <label>
         Administration Notes (Optional)
         <input

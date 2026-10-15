@@ -41,7 +41,11 @@ describe('authorization context helpers', () => {
       expect.arrayContaining(['Farm Dashboard', 'Farm Members', 'Certificates']),
     );
     const worker = { kind: 'FARM', roles: ['FARM_WORKER'] };
-    expect(labels(worker)).toEqual(['Farm & Animals', 'Veterinary Operations']);
+    expect(labels(worker)).toEqual([
+      'Farm & Animals',
+      'Veterinary Operations',
+      "Today's Milk Eligibility",
+    ]);
     expect(farmCapabilities(worker.roles).canEditAnimals).toBe(false);
     expect(labels({ kind: 'VETERINARIAN', veterinarianStatus: 'PENDING' })).toEqual([
       'Verification Status',
