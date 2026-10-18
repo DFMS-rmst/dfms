@@ -5,6 +5,7 @@ import { AppError, asyncHandler } from '../../common/errors.js';
 import { prisma } from '../../infrastructure/prisma/client.js';
 import { anchorCertificate, verifyCertificateIntegrity } from '../blockchain/service.js';
 import { appendAudit } from '../audit/index.js';
+import { hashCertificatePayload } from './canonical.js';
 import { issueCertificate, revokeCertificate } from './service.js';
 import { qrDataUrl, renderCertificatePdf, verificationUrl } from './pdf.js';
 
@@ -87,12 +88,17 @@ certificatesRouter.get(
     });
     if (!certificate) throw new AppError(404, 'CERTIFICATE_NOT_FOUND', 'Certificate not found');
     await authorize(req, certificate);
+    const documentIntegrity =
+      hashCertificatePayload(certificate.canonicalPayload) === certificate.contentHashSha256
+        ? 'VERIFIED'
+        : 'TAMPERED';
     const integrity = await verifyCertificateIntegrity(certificate);
     res.json({
       data: {
         certificate,
         verificationUrl: verificationUrl(certificate.verificationId),
         qrDataUrl: await qrDataUrl(certificate.verificationId),
+        documentIntegrity,
         blockchainIntegrity: integrity.status,
       },
     });
@@ -185,6 +191,10 @@ publicCertificatesRouter.get(
       include: { animal: { include: { farm: true, species: true } } },
     });
     if (!certificate) throw new AppError(404, 'CERTIFICATE_NOT_FOUND', 'Certificate not found');
+    const documentIntegrity =
+      hashCertificatePayload(certificate.canonicalPayload) === certificate.contentHashSha256
+        ? 'VERIFIED'
+        : 'TAMPERED';
     const integrity = await verifyCertificateIntegrity(certificate);
     res.json({
       data: {
@@ -198,6 +208,7 @@ publicCertificatesRouter.get(
         referenceSources: certificate.canonicalPayload.eligibility.treatments
           .map((x) => x.rule?.source?.organization)
           .filter(Boolean),
+        documentIntegrity,
         blockchainIntegrity: integrity.status,
         disclaimer: certificate.disclaimer,
       },

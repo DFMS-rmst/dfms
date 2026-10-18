@@ -1,8 +1,13 @@
 import { Router } from 'express';
 import { authenticate, requireFarmAccess } from '../../common/auth.js';
 import { AppError, asyncHandler } from '../../common/errors.js';
+import { validate } from '../../common/validation.js';
 import { prisma } from '../../infrastructure/prisma/client.js';
 import { evaluateAndPersist } from '../withdrawal/service.js';
+import {
+  manualRuleRecord,
+  manualWithdrawalRuleSchema,
+} from '../withdrawal/reference-governance.js';
 
 async function authorizeAnimal(req, animalId) {
   const animal = await prisma.animal.findUnique({
@@ -47,17 +52,16 @@ eligibilityRouter.get(
       farmIds = [...new Set([...member, ...cases].map((x) => x.farmId))];
     }
     const statuses = req.query.status ? String(req.query.status).split(',') : undefined;
-    const missing = await prisma.animal.findMany({
+    const applicableAnimals = await prisma.animal.findMany({
       where: {
         farmId: { in: farmIds },
         lactating: true,
         status: 'ACTIVE',
-        eligibilityChecks: { none: { isCurrent: true } },
       },
       select: { id: true },
     });
-    for (const animal of missing)
-      await evaluateAndPersist(animal.id, 'INITIAL_LIST_EVALUATION', req.principal.user.id);
+    for (const animal of applicableAnimals)
+      await evaluateAndPersist(animal.id, 'CURRENT_LIST_READ', req.principal.user.id);
     const checks = await prisma.milkEligibilityCheck.findMany({
       where: {
         farmId: { in: farmIds },
@@ -67,7 +71,12 @@ eligibilityRouter.get(
       include: {
         animal: { include: { species: true, farm: true } },
         treatmentEvaluations: {
-          include: { treatment: true, drug: true, withdrawalRule: { include: { source: true } } },
+          include: {
+            treatment: true,
+            drug: true,
+            drugProduct: true,
+            withdrawalRule: { include: { source: true, species: true, drugProduct: true } },
+          },
         },
       },
       orderBy: { evaluatedAt: 'desc' },
@@ -79,20 +88,20 @@ eligibilityRouter.get(
   '/animals/:animalId',
   asyncHandler(async (req, res) => {
     await authorizeAnimal(req, req.params.animalId);
-    let check = await prisma.milkEligibilityCheck.findFirst({
+    await evaluateAndPersist(req.params.animalId, 'CURRENT_DETAIL_READ', req.principal.user.id);
+    const check = await prisma.milkEligibilityCheck.findFirst({
       where: { animalId: req.params.animalId, isCurrent: true },
       include: {
         treatmentEvaluations: {
           include: {
             treatment: true,
             drug: { include: { antimicrobialClass: true } },
-            withdrawalRule: { include: { source: true } },
+            drugProduct: true,
+            withdrawalRule: { include: { source: true, species: true, drugProduct: true } },
           },
         },
       },
     });
-    if (!check)
-      check = await evaluateAndPersist(req.params.animalId, 'INITIAL_READ', req.principal.user.id);
     res.json({ data: { eligibility: check } });
   }),
 );
@@ -128,58 +137,46 @@ withdrawalRouter.get(
 );
 withdrawalRouter.post(
   '/rules',
+  validate(manualWithdrawalRuleSchema),
   asyncHandler(async (req, res) => {
     if (!req.principal.platformRoles.includes('PLATFORM_ADMIN'))
       throw new AppError(403, 'FORBIDDEN', 'Platform admin role required');
     const {
       code,
       drugId,
-      speciesId,
-      foodProduct = 'MILK',
-      route,
-      durationValue,
-      durationUnit = 'DAY',
-      jurisdiction = 'INDIA',
+      drugProductId,
+      jurisdiction,
       organization,
       sourceTitle,
       sourceUrl,
-      verificationStatus = 'VERIFIED',
     } = req.body;
 
-    if (!code || !speciesId || !route || !durationValue || !organization || !sourceTitle)
-      throw new AppError(400, 'MISSING_FIELDS', 'Required rule fields missing');
+    const product = await prisma.drugProduct.findFirst({
+      where: { id: drugProductId, drugId },
+    });
+    if (!product)
+      throw new AppError(
+        400,
+        'DRUG_PRODUCT_MISMATCH',
+        'Selected product does not belong to the selected drug',
+      );
 
+    const sourceRecordId = `SRC-MANUAL-${code.toUpperCase().replaceAll(/[^A-Z0-9]+/g, '-')}`;
     const source = await prisma.regulatorySource.upsert({
-      where: { sourceRecordId: `SRC-${organization.toUpperCase().replaceAll(/\s+/g, '-')}` },
+      where: { sourceRecordId },
       create: {
-        sourceRecordId: `SRC-${organization.toUpperCase().replaceAll(/\s+/g, '-')}`,
+        sourceRecordId,
         organization,
         title: sourceTitle,
-        url: sourceUrl || 'https://fssai.gov.in',
+        url: sourceUrl,
         jurisdiction,
         retrievalDate: new Date(),
       },
-      update: {},
+      update: { organization, title: sourceTitle, url: sourceUrl, jurisdiction },
     });
 
     const rule = await prisma.withdrawalRule.create({
-      data: {
-        code,
-        version: 1,
-        drugId: drugId || null,
-        speciesId,
-        foodProduct,
-        route,
-        durationValue: String(durationValue),
-        durationUnit,
-        durationQualifier: 'EXACT',
-        jurisdiction,
-        sourceId: source.id,
-        verificationStatus,
-        ruleType: 'SPECIFIC_LABEL',
-        reviewedById: req.principal.user.id,
-        reviewedAt: new Date(),
-      },
+      data: manualRuleRecord(req.body, source.id),
       include: { drug: true, species: true, source: true },
     });
 

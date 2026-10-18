@@ -13,6 +13,7 @@ ENV NODE_ENV=production
 COPY --from=dependencies /app/node_modules ./node_modules
 COPY --from=dependencies /app/backend/node_modules ./backend/node_modules
 COPY backend ./backend
+COPY data/reference ./data/reference
 WORKDIR /app/backend
 EXPOSE 3000
 CMD ["node", "src/server.js"]

@@ -39,6 +39,29 @@ function defaultAdapter() {
   };
 }
 
+const ZERO_HASH = `0x${'0'.repeat(64)}`;
+async function restoreEphemeralLocalAnchor(anchor, chainRecordId, adapter) {
+  if (anchor.status !== 'ANCHORED' || env.BLOCKCHAIN_NETWORK !== 'hardhat-local') return anchor;
+  try {
+    const onChain = await adapter.read(chainRecordId);
+    if (String(onChain.contentHash).toLowerCase() !== ZERO_HASH) return anchor;
+    return prisma.blockchainAnchor.update({
+      where: { id: anchor.id },
+      data: {
+        status: 'PENDING',
+        chainId: null,
+        contractAddress: null,
+        transactionHash: null,
+        blockNumber: null,
+        anchoredAt: null,
+        lastErrorCode: 'LOCAL_CHAIN_STATE_RESET',
+      },
+    });
+  } catch {
+    return anchor;
+  }
+}
+
 async function notify(client, certificate, type, message, suffix) {
   const members = await client.farmMember.findMany({
     where: { farmId: certificate.farmId, status: 'ACTIVE' },
@@ -83,7 +106,11 @@ export async function anchorCertificate(certificateId, actorUserId, adapter = nu
     },
     update: {},
   });
-  if (anchor.status === 'ANCHORED') return anchor;
+  if (anchor.status === 'ANCHORED') {
+    const connection = adapter || defaultAdapter();
+    anchor = await restoreEphemeralLocalAnchor(anchor, certificate.id, connection);
+    if (anchor.status === 'ANCHORED') return anchor;
+  }
   await appendAudit({
     actorUserId,
     action: anchor.attemptCount ? 'BLOCKCHAIN_ANCHOR_RETRIED' : 'BLOCKCHAIN_ANCHOR_SUBMITTED',
@@ -92,10 +119,8 @@ export async function anchorCertificate(certificateId, actorUserId, adapter = nu
     farmId: certificate.farmId,
   });
   try {
-    const result = await (adapter || defaultAdapter()).anchor(
-      certificate.id,
-      certificate.contentHashSha256,
-    );
+    const connection = adapter || defaultAdapter();
+    const result = await connection.anchor(certificate.id, certificate.contentHashSha256);
     anchor = await prisma.blockchainAnchor.update({
       where: { id: anchor.id },
       data: {
@@ -170,6 +195,118 @@ export async function verifyCertificateIntegrity(certificate, adapter = null) {
   if (anchor.status === 'FAILED') return { status: 'VERIFICATION_ERROR', anchor };
   try {
     const onChain = await (adapter || defaultAdapter()).read(certificate.id);
+    return {
+      status:
+        String(onChain.contentHash).toLowerCase() === `0x${recomputed}` ? 'VERIFIED' : 'TAMPERED',
+      anchor,
+    };
+  } catch {
+    return { status: 'VERIFICATION_ERROR', anchor };
+  }
+}
+
+const DAILY_CLEARANCE_RECORD_TYPE = 'DAILY_MILK_COLLECTION_CLEARANCE';
+const dailyChainId = (clearanceId) => `daily-clearance:${clearanceId}`;
+
+export async function anchorDailyClearance(clearanceId, actorUserId, adapter = null) {
+  const clearance = await prisma.dailyMilkCollectionClearance.findUnique({
+    where: { id: clearanceId },
+    include: { evaluation: true },
+  });
+  if (!clearance) return null;
+  if (clearance.evaluation.status !== 'CURRENT')
+    throw Object.assign(new Error('Only the current daily clearance can be anchored'), {
+      code: 'CLEARANCE_NOT_CURRENT',
+      status: 409,
+    });
+  let anchor = await prisma.blockchainAnchor.upsert({
+    where: {
+      recordType_recordId_contentHash: {
+        recordType: DAILY_CLEARANCE_RECORD_TYPE,
+        recordId: clearance.id,
+        contentHash: clearance.contentHashSha256,
+      },
+    },
+    create: {
+      recordType: DAILY_CLEARANCE_RECORD_TYPE,
+      recordId: clearance.id,
+      contentHash: clearance.contentHashSha256,
+      status: 'PENDING',
+    },
+    update: {},
+  });
+  if (anchor.status === 'ANCHORED') {
+    const connection = adapter || defaultAdapter();
+    anchor = await restoreEphemeralLocalAnchor(anchor, dailyChainId(clearance.id), connection);
+    if (anchor.status === 'ANCHORED') return anchor;
+  }
+  await appendAudit({
+    actorUserId,
+    action: anchor.attemptCount ? 'BLOCKCHAIN_ANCHOR_RETRIED' : 'BLOCKCHAIN_ANCHOR_SUBMITTED',
+    entityType: 'BlockchainAnchor',
+    entityId: anchor.id,
+    farmId: clearance.evaluation.farmId,
+  });
+  try {
+    const connection = adapter || defaultAdapter();
+    const result = await connection.anchor(dailyChainId(clearance.id), clearance.contentHashSha256);
+    anchor = await prisma.blockchainAnchor.update({
+      where: { id: anchor.id },
+      data: {
+        ...result,
+        status: 'ANCHORED',
+        attemptCount: { increment: 1 },
+        anchoredAt: new Date(),
+        lastErrorCode: null,
+      },
+    });
+    await appendAudit({
+      actorUserId,
+      action: 'BLOCKCHAIN_ANCHOR_SUCCEEDED',
+      entityType: 'BlockchainAnchor',
+      entityId: anchor.id,
+      farmId: clearance.evaluation.farmId,
+      newData: { recordType: DAILY_CLEARANCE_RECORD_TYPE, transactionHash: anchor.transactionHash },
+    });
+    return anchor;
+  } catch (error) {
+    anchor = await prisma.blockchainAnchor.update({
+      where: { id: anchor.id },
+      data: {
+        status: 'FAILED',
+        attemptCount: { increment: 1 },
+        lastErrorCode: error.code || 'BLOCKCHAIN_ERROR',
+      },
+    });
+    await appendAudit({
+      actorUserId,
+      action: 'BLOCKCHAIN_ANCHOR_FAILED',
+      entityType: 'BlockchainAnchor',
+      entityId: anchor.id,
+      farmId: clearance.evaluation.farmId,
+      newData: { recordType: DAILY_CLEARANCE_RECORD_TYPE, errorCode: anchor.lastErrorCode },
+    });
+    return anchor;
+  }
+}
+
+export async function verifyDailyClearanceIntegrity(clearance, adapter = null) {
+  const recomputed = hashCertificatePayload(clearance.canonicalPayload);
+  if (recomputed !== clearance.contentHashSha256) return { status: 'TAMPERED' };
+  const anchor = await prisma.blockchainAnchor.findUnique({
+    where: {
+      recordType_recordId_contentHash: {
+        recordType: DAILY_CLEARANCE_RECORD_TYPE,
+        recordId: clearance.id,
+        contentHash: clearance.contentHashSha256,
+      },
+    },
+  });
+  if (!anchor || anchor.status === 'PENDING')
+    return { status: 'NOT_ANCHORED', anchor: anchor || null };
+  if (anchor.status === 'FAILED') return { status: 'VERIFICATION_ERROR', anchor };
+  try {
+    const onChain = await (adapter || defaultAdapter()).read(dailyChainId(clearance.id));
     return {
       status:
         String(onChain.contentHash).toLowerCase() === `0x${recomputed}` ? 'VERIFIED' : 'TAMPERED',
