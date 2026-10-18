@@ -13,13 +13,16 @@ import {
   navigationFor,
   normalizeOptionalFields,
 } from './authorization.js';
+import { VerificationPage } from './VerificationPage.jsx';
+import { AdminVerifications } from './AdminVerifications.jsx';
+import { DairyFarmerLookup } from './DairyFarmerLookup.jsx';
 const Field = ({ label, name, type = 'text', required = true, defaultValue }) => (
   <label>
     {label}
     <input name={name} type={type} required={required} defaultValue={defaultValue} />
   </label>
 );
-function AuthPage({ mode, done, go }) {
+function AuthPage({ mode, done, go, onRequireVerification }) {
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
@@ -33,9 +36,25 @@ function AuthPage({ mode, done, go }) {
         method: 'POST',
         body: JSON.stringify(payload),
       });
+      if (data.requiresVerification) {
+        onRequireVerification?.({
+          user: data.user,
+          role: data.role || payload.role,
+          token: data.verificationToken,
+        });
+        return;
+      }
       setAccessToken(data.accessToken);
       done(data.user);
     } catch (x) {
+      if (x.data?.requiresVerification && x.data?.verificationToken) {
+        onRequireVerification?.({
+          user: x.data.user,
+          role: x.data.role,
+          token: x.data.verificationToken,
+        });
+        return;
+      }
       setError(x.message);
     }
   }
@@ -124,10 +143,16 @@ function AuthPage({ mode, done, go }) {
                   </div>
 
                   <div className="input-group">
-                    <label htmlFor="phone">Phone Number (Optional)</label>
+                    <label htmlFor="phone">Phone Number</label>
                     <div className="input-field-wrapper">
                       <span className="field-icon">📱</span>
-                      <input id="phone" name="phone" type="tel" placeholder="+91 98765 43210" />
+                      <input
+                        id="phone"
+                        name="phone"
+                        type="tel"
+                        required
+                        placeholder="+91 98765 43210"
+                      />
                     </div>
                   </div>
                 </>
@@ -168,6 +193,20 @@ function AuthPage({ mode, done, go }) {
                   </button>
                 </div>
               </div>
+
+              {mode === 'register' && (
+                <div className="input-group">
+                  <label htmlFor="userRole">Account Role / Type</label>
+                  <div className="input-field-wrapper">
+                    <span className="field-icon">🏷️</span>
+                    <select id="userRole" name="role" required defaultValue="FARMER">
+                      <option value="FARMER">🌾 Farmer / Livestock Owner</option>
+                      <option value="VETERINARIAN">🩺 Veterinarian</option>
+                      <option value="DAIRY_OWNER">🥛 Dairy Owner / Cooperative</option>
+                    </select>
+                  </div>
+                </div>
+              )}
 
               {error && (
                 <div className="auth-error-alert">
@@ -898,6 +937,7 @@ function VetStatus({ user, refreshContext }) {
 
 const initialPageFor = (workspace) => {
   if (workspace?.kind === 'ADMIN') return 'dashboard';
+  if (workspace?.kind === 'DAIRY_OWNER') return 'dairy-farmers';
   if (workspace?.kind === 'VETERINARIAN')
     return workspace.veterinarianStatus === 'VERIFIED' ? 'dashboard' : 'vet';
   if (workspace?.kind === 'FARM') return 'farm';
@@ -1273,6 +1313,7 @@ function Workspace({ user, setUser, logout }) {
     ai: '🤖',
     members: '👥',
     admin: '🛡️',
+    'dairy-farmers': '🥛',
   };
 
   return (
@@ -1282,7 +1323,7 @@ function Workspace({ user, setUser, logout }) {
         <div className="sidebar-brand">
           <span className="brand-icon">🌾</span>
           <h2 className="brand-name">Digital Farm</h2>
-          <span className="brand-tag">SIH25007</span>
+          <span className="brand-tag">DFMS</span>
         </div>
 
         <div className="sidebar-user-card">
@@ -1296,7 +1337,9 @@ function Workspace({ user, setUser, logout }) {
                 ? 'PLATFORM ADMIN'
                 : workspace?.kind === 'VETERINARIAN'
                   ? 'VETERINARIAN'
-                  : workspace?.roles?.[0]?.replaceAll('_', ' ') || 'USER'}
+                  : workspace?.kind === 'DAIRY_OWNER'
+                    ? 'DAIRY OPERATOR'
+                    : workspace?.roles?.[0]?.replaceAll('_', ' ') || 'USER'}
             </span>
           </div>
         </div>
@@ -1568,8 +1611,10 @@ function Workspace({ user, setUser, logout }) {
           {page === 'ai' && (
             <AiLayer farms={activeFarm ? [activeFarm] : []} user={user} workspace={workspace} />
           )}
+          {page === 'dairy-farmers' && <DairyFarmerLookup />}
           {page === 'admin' && workspace?.kind === 'ADMIN' && (
             <>
+              <AdminVerifications />
               <AdminVets />
               <AdminRulesManager />
             </>
@@ -1589,23 +1634,62 @@ export function App() {
   )?.[1];
   const [mode, setMode] = useState('login');
   const [user, setUser] = useState(null);
+  const [pendingVerification, setPendingVerification] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem('dfms_pending_verification');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
   useEffect(() => {
     if (hasAccessToken())
       api('/auth/me')
         .then((d) => setUser(d.user))
         .catch(() => setAccessToken(null));
   }, []);
+
   async function logout() {
     await api('/auth/logout', { method: 'POST' });
     setAccessToken(null);
     setUser(null);
   }
+
   if (verificationId) return <PublicVerification verificationId={verificationId} />;
   if (dailyVerificationId) return <PublicDailyClearance verificationId={dailyVerificationId} />;
   if (animalVerificationId) return <PublicAnimalVerification verificationId={animalVerificationId} />;
+  if (pendingVerification) {
+    return (
+      <VerificationPage
+        pendingData={pendingVerification}
+        pendingUser={pendingVerification?.user}
+        verificationToken={pendingVerification?.token || pendingVerification?.verificationToken}
+        onComplete={() => {
+          sessionStorage.removeItem('dfms_pending_verification');
+          setPendingVerification(null);
+          setMode('login');
+        }}
+        onBack={() => {
+          sessionStorage.removeItem('dfms_pending_verification');
+          setPendingVerification(null);
+          setMode('login');
+        }}
+      />
+    );
+  }
+
   return user ? (
     <Workspace user={user} setUser={setUser} logout={logout} />
   ) : (
-    <AuthPage mode={mode} done={setUser} go={setMode} />
+    <AuthPage
+      mode={mode}
+      done={setUser}
+      go={setMode}
+      onRequireVerification={(verificationData) => {
+        sessionStorage.setItem('dfms_pending_verification', JSON.stringify(verificationData));
+        setPendingVerification(verificationData);
+      }}
+    />
   );
 }

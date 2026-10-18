@@ -5,6 +5,15 @@ export function buildWorkspaces(user) {
   const workspaces = [];
   if (user.platformRoles.includes('PLATFORM_ADMIN'))
     workspaces.push({ id: 'admin', kind: 'ADMIN', label: 'Platform Administration' });
+  if (user.platformRoles.includes('DAIRY_OWNER') || user.dairyOwnerProfile?.exists)
+    workspaces.push({
+      id: 'dairy',
+      kind: 'DAIRY_OWNER',
+      label: user.dairyOwnerProfile?.dairyName
+        ? `${user.dairyOwnerProfile.dairyName} (Dairy)`
+        : 'Dairy Owner Workspace',
+      dairyStatus: user.dairyOwnerProfile?.status || 'VERIFIED',
+    });
   if (user.veterinarian?.exists || user.platformRoles.includes('VETERINARIAN'))
     workspaces.push({
       id: 'veterinarian',
@@ -19,7 +28,7 @@ export function buildWorkspaces(user) {
       label: membership.farmName,
       ...membership,
     });
-  if (!user.platformRoles.includes('PLATFORM_ADMIN'))
+  if (!user.platformRoles.includes('PLATFORM_ADMIN') && !user.platformRoles.includes('DAIRY_OWNER'))
     workspaces.push({ id: 'account', kind: 'ACCOUNT', label: 'Account & Onboarding' });
   return workspaces;
 }
@@ -43,9 +52,15 @@ export function navigationFor(workspace) {
   if (workspace.kind === 'ADMIN')
     return [
       ['dashboard', 'Platform Dashboard'],
-      ['admin', 'Vet Reviews'],
+      ['admin', 'User Verifications'],
       ['core-engine', 'Organization Analytics'],
       ['certificates', 'Certificates'],
+      ['ai', 'AI Advisor'],
+    ];
+  if (workspace.kind === 'DAIRY_OWNER')
+    return [
+      ['dairy-farmers', 'Farmer & Livestock Health'],
+      ['core-engine', 'Procurement & AMU Analysis'],
       ['ai', 'AI Advisor'],
     ];
   if (workspace.kind === 'VETERINARIAN')

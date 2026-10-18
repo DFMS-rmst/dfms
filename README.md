@@ -1,4 +1,4 @@
-# SIH25007 Livestock AMU and Milk Eligibility Platform
+# Digital Farm Management System (DFMS) — Livestock AMU and Milk Eligibility Platform
 
 JavaScript/MySQL monorepo for a B.Tech final-year academic prototype connecting veterinary care, actual antimicrobial usage (AMU), withdrawal enforcement, rule-based milk eligibility, certificates, QR verification, and limited blockchain integrity proof.
 

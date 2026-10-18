@@ -20,7 +20,7 @@ export async function renderPrescriptionPdf(prescription) {
   document
     .fillColor('#1e40af')
     .fontSize(12)
-    .text('SIH25007 Verified Veterinary Care Platform', { align: 'center' });
+    .text('Digital Farm Management — Verified Veterinary Care Platform', { align: 'center' });
   document.moveDown(0.4).fontSize(22).text('OFFICIAL VETERINARY PRESCRIPTION', { align: 'center' });
 
   document.moveDown(1.5).fillColor('#1f2937').fontSize(11);

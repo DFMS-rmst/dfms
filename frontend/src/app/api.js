@@ -51,6 +51,7 @@ export async function api(path, options = {}, retry = true) {
     );
     error.code = body?.error?.code;
     error.details = body?.error?.details;
+    error.data = body?.data;
     throw error;
   }
   return body?.data;

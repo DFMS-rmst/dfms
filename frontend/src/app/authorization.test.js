@@ -34,7 +34,7 @@ describe('authorization context helpers', () => {
   });
 
   it('provides role-aware admin, owner, worker, pending-vet and verified-vet navigation', () => {
-    expect(labels({ kind: 'ADMIN' })).toContain('Vet Reviews');
+    expect(labels({ kind: 'ADMIN' })).toContain('User Verifications');
     expect(labels({ kind: 'ADMIN' })).not.toContain('Veterinarian Onboarding');
     const owner = { kind: 'FARM', roles: ['FARM_OWNER', 'FARM_MANAGER'] };
     expect(labels(owner)).toEqual(

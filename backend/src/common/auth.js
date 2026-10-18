@@ -8,6 +8,34 @@ const secret = () => env.JWT_SECRET || 'development-only-jwt-secret-change-me-12
 export const signAccessToken = (userId) =>
   jwt.sign({ sub: userId }, secret(), { expiresIn: env.JWT_EXPIRES_IN });
 
+export const signVerificationToken = (userId, role) =>
+  jwt.sign({ sub: userId, role, purpose: 'VERIFICATION' }, secret(), { expiresIn: '24h' });
+
+export const authenticateVerificationToken = asyncHandler(async (request, _response, next) => {
+  const [scheme, token] = (request.headers.authorization || '').split(' ');
+  if (scheme !== 'Bearer' || !token || token === 'undefined' || token === 'null')
+    throw new AppError(401, 'AUTH_REQUIRED', 'Verification authorization token is missing or expired');
+  let payload;
+  try {
+    payload = jwt.verify(token, secret());
+  } catch {
+    throw new AppError(401, 'INVALID_VERIFICATION_TOKEN', 'Verification token is invalid or expired');
+  }
+  const user = await prisma.user.findUnique({
+    where: { id: payload.sub },
+    include: {
+      platformRoles: true,
+      veterinarian: true,
+      farmerProfile: true,
+      dairyOwnerProfile: true,
+    },
+  });
+  if (!user) throw new AppError(404, 'USER_NOT_FOUND', 'User not found');
+  request.verificationUser = user;
+  request.verificationRole = payload.role || user.pendingRole;
+  next();
+});
+
 export const authenticate = asyncHandler(async (request, _response, next) => {
   const [scheme, token] = (request.headers.authorization || '').split(' ');
   if (scheme !== 'Bearer' || !token)

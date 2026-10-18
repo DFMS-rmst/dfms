@@ -15,7 +15,7 @@ def approved_chunks():
             chunks.append({
                 "id": f"{path.stem}:{index}", "title": path.stem.replace("-", " ").title(),
                 "content": part, "contentType": "PROJECT_APPROVED_RESEARCH",
-                "sourceOrganization": "SIH25007 research synthesis",
+                "sourceOrganization": "DFMS research synthesis",
                 "sourceReference": str(path.relative_to(ROOT)).replace("\\", "/"),
                 "jurisdiction": "AS_STATED_IN_CHUNK",
             })

@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 from .model import FEATURES, infer, load
 from .retrieval import retrieve
 
-app = FastAPI(title="SIH25007 ML and Retrieval Service", version="1.0.0")
+app = FastAPI(title="DFMS ML and Retrieval Service", version="1.0.0")
 
 
 class RiskRequest(BaseModel):

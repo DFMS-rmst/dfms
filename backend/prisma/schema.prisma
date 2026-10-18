@@ -11,11 +11,14 @@ enum UserStatus {
   ACTIVE
   SUSPENDED
   DISABLED
+  PENDING_VERIFICATION
 }
 
 enum PlatformRole {
   PLATFORM_ADMIN
   VETERINARIAN
+  FARMER
+  DAIRY_OWNER
 }
 
 enum FarmStatus {
@@ -171,6 +174,11 @@ model User {
   auditLogs                AuditLog[]                     @relation("AuditActor")
   issuedCertificates       MilkEligibilityCertificate[]   @relation("CertificateIssuer")
   revokedCertificates      MilkEligibilityCertificate[]   @relation("CertificateRevoker")
+  pendingRole              String?                        @db.VarChar(32)
+  farmerProfile            FarmerProfile?                 @relation("UserFarmerProfile")
+  dairyOwnerProfile        DairyOwnerProfile?             @relation("UserDairyOwnerProfile")
+  reviewedFarmers          FarmerProfile[]                @relation("FarmerReviewer")
+  reviewedDairyOwners      DairyOwnerProfile[]            @relation("DairyOwnerReviewer")
   advisorConversations     AdvisorConversation[]
   generatedDailyClearances DailyMilkCollectionClearance[] @relation("DailyClearanceGenerator")
 
@@ -344,6 +352,8 @@ model VeterinarianProfile {
   reviewNotes         String?                   @db.Text
   createdAt           DateTime                  @default(now())
   updatedAt           DateTime                  @updatedAt
+  documentName        String?                   @db.VarChar(255)
+  documentData        String?                   @db.LongText
   user                User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
   reviewedBy          User?                     @relation("VeterinarianReviewer", fields: [reviewedById], references: [id])
   documents           FileObject[]              @relation("VeterinarianDocuments")
@@ -368,6 +378,55 @@ model VeterinarianServiceArea {
   veterinarian   VeterinarianProfile @relation(fields: [veterinarianId], references: [id], onDelete: Cascade)
 
   @@index([state, district])
+}
+
+model FarmerProfile {
+  id              String                @id @default(cuid())
+  userId          String                @unique
+  farmerIdNumber  String?               @db.VarChar(100)
+  farmName        String                @db.VarChar(191)
+  state           String                @db.VarChar(100)
+  district        String                @db.VarChar(100)
+  taluka          String?               @db.VarChar(100)
+  pincode         String?               @db.VarChar(12)
+  totalCattle     Int?                  @default(0)
+  documentName    String?               @db.VarChar(255)
+  documentData    String?               @db.LongText
+  status          VetVerificationStatus @default(PENDING)
+  reviewedById    String?
+  reviewedAt      DateTime?
+  reviewNotes     String?               @db.Text
+  farmId          String?               @db.VarChar(191)
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+  user            User                  @relation("UserFarmerProfile", fields: [userId], references: [id], onDelete: Cascade)
+  reviewedBy      User?                 @relation("FarmerReviewer", fields: [reviewedById], references: [id])
+
+  @@index([status, state, district])
+  @@index([farmerIdNumber])
+}
+
+model DairyOwnerProfile {
+  id                  String                @id @default(cuid())
+  userId              String                @unique
+  dairyName           String                @db.VarChar(191)
+  fssaiLicenseNumber  String                @db.VarChar(100)
+  state               String                @db.VarChar(100)
+  district            String                @db.VarChar(100)
+  operationalArea     String?               @db.VarChar(191)
+  dailyCapacityLiters Int?                  @default(0)
+  documentName        String?               @db.VarChar(255)
+  documentData        String?               @db.LongText
+  status              VetVerificationStatus @default(PENDING)
+  reviewedById        String?
+  reviewedAt          DateTime?
+  reviewNotes         String?               @db.Text
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  user                User                  @relation("UserDairyOwnerProfile", fields: [userId], references: [id], onDelete: Cascade)
+  reviewedBy          User?                 @relation("DairyOwnerReviewer", fields: [reviewedById], references: [id])
+
+  @@index([status, state, district])
 }
 
 model FileObject {

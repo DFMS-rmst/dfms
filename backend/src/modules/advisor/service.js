@@ -5,7 +5,7 @@ import { animalAmuFeatures } from '../ml/features.js';
 import { inferRisk, retrieveKnowledge } from '../ml/client.js';
 import { llmProvider } from './provider.js';
 
-const safety = `You are the SIH25007 Smart Advisor. Use only supplied context. Never diagnose, prescribe, invent a dose or withdrawal period, override eligibility, declare milk safe independently, claim laboratory or measured-residue evidence, or call an anomaly proof of misuse. Deterministic platform records are authoritative. If context is insufficient, say so and recommend a verified veterinarian where clinically appropriate. Cite supplied sources by title/reference.`;
+const safety = `You are the DFMS Smart Advisor. Use only supplied context. Never diagnose, prescribe, invent a dose or withdrawal period, override eligibility, declare milk safe independently, claim laboratory or measured-residue evidence, or call an anomaly proof of misuse. Deterministic platform records are authoritative. If context is insufficient, say so and recommend a verified veterinarian where clinically appropriate. Cite supplied sources by title/reference.`;
 
 export async function liveContext({ farmId, animalId }) {
   const context = {};

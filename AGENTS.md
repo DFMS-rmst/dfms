@@ -1,6 +1,6 @@
 # AGENTS.md
 
-# SIH25007 — Livestock AMU, Veterinary Care, Milk Eligibility
+# DFMS — Livestock AMU, Veterinary Care, Milk Eligibility
 
 # & Blockchain Traceability Platform
 
@@ -9,7 +9,7 @@
 # 1. PROJECT OVERVIEW
 
 This repository contains a B.Tech final-year mega project based on
-SIH25007.
+DFMS.
 
 The project is a digital livestock and dairy management platform focused on:
 
@@ -1422,7 +1422,7 @@ Use meaningful commits.
 
 Examples:
 
-chore: initialize SIH25007 project
+chore: initialize DFMS project
 
 docs: add veterinary domain research
 

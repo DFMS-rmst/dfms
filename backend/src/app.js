@@ -30,6 +30,8 @@ import {
   dailyClearanceRouter,
   publicDailyClearanceRouter,
 } from './modules/daily-clearance/index.js';
+import { adminVerificationsRouter } from './modules/admin/verifications.js';
+import { dairyRouter } from './modules/dairy/routes.js';
 
 export function createApp() {
   const app = express();
@@ -37,7 +39,7 @@ export function createApp() {
   app.disable('x-powered-by');
   app.use(helmet());
   app.use(cors({ origin: env.FRONTEND_URL, credentials: true }));
-  app.use(express.json({ limit: '1mb' }));
+  app.use(express.json({ limit: '10mb' }));
   app.use(cookieParser());
   app.use(
     pinoHttp({
@@ -52,6 +54,8 @@ export function createApp() {
   app.use('/api/v1/species', speciesRouter);
   app.use('/api/v1/veterinarians', veterinariansRouter);
   app.use('/api/v1/admin/veterinarians', adminVeterinariansRouter);
+  app.use('/api/v1/admin/verifications', adminVerificationsRouter);
+  app.use('/api/v1/dairy', dairyRouter);
   app.use('/api/v1/files', filesRouter);
   app.use('/api/v1/treatment-requests', treatmentRequestsRouter);
   app.use('/api/v1/veterinary-cases', casesRouter);

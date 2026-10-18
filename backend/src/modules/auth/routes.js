@@ -3,7 +3,12 @@ import argon2 from 'argon2';
 import { Router } from 'express';
 import { z } from 'zod';
 import { env } from '../../config/env.js';
-import { authenticate, signAccessToken } from '../../common/auth.js';
+import {
+  authenticate,
+  authenticateVerificationToken,
+  signAccessToken,
+  signVerificationToken,
+} from '../../common/auth.js';
 import { AppError, asyncHandler } from '../../common/errors.js';
 import { validate } from '../../common/validation.js';
 import { prisma } from '../../infrastructure/prisma/client.js';
@@ -25,6 +30,7 @@ const optionalTrimmedString = (schema) =>
 const registerSchema = credentialsSchema.extend({
   fullName: z.string().trim().min(2).max(160),
   phone: optionalTrimmedString(z.string().trim().min(7).max(32)),
+  role: z.enum(['VETERINARIAN', 'FARMER', 'DAIRY_OWNER']).optional(),
 });
 const cookieName = 'refresh_token';
 const tokenHash = (token) => crypto.createHash('sha256').update(token).digest('hex');
@@ -34,10 +40,24 @@ const publicUser = (user) => ({
   phone: user.phone,
   fullName: user.fullName,
   status: user.status,
+  pendingRole: user.pendingRole || null,
   platformRoles: (user.platformRoles || []).map((item) => item.role),
   veterinarian: {
     exists: Boolean(user.veterinarian),
     status: user.veterinarian?.status || null,
+  },
+  farmerProfile: {
+    exists: Boolean(user.farmerProfile),
+    status: user.farmerProfile?.status || null,
+    farmName: user.farmerProfile?.farmName || null,
+    farmerIdNumber: user.farmerProfile?.farmerIdNumber || null,
+    farmId: user.farmerProfile?.farmId || null,
+  },
+  dairyOwnerProfile: {
+    exists: Boolean(user.dairyOwnerProfile),
+    status: user.dairyOwnerProfile?.status || null,
+    dairyName: user.dairyOwnerProfile?.dairyName || null,
+    fssaiLicenseNumber: user.dairyOwnerProfile?.fssaiLicenseNumber || null,
   },
   farmMemberships: (user.memberships || []).map((membership) => ({
     membershipId: membership.id,
@@ -49,7 +69,15 @@ const publicUser = (user) => ({
 });
 const authorizationInclude = {
   platformRoles: true,
-  veterinarian: { select: { id: true, status: true } },
+  veterinarian: {
+    select: { id: true, status: true, registrationNumber: true, qualification: true },
+  },
+  farmerProfile: {
+    select: { id: true, status: true, farmName: true, farmerIdNumber: true, farmId: true },
+  },
+  dairyOwnerProfile: {
+    select: { id: true, status: true, dairyName: true, fssaiLicenseNumber: true },
+  },
   memberships: {
     where: { status: 'ACTIVE' },
     include: { roles: true, farm: { select: { id: true, name: true, status: true } } },
@@ -87,7 +115,16 @@ authRouter.post(
   asyncHandler(async (request, response) => {
     if (await prisma.user.findUnique({ where: { email: request.body.email } }))
       throw new AppError(409, 'EMAIL_IN_USE', 'Email is already registered');
+    if (
+      request.body.phone &&
+      (await prisma.user.findUnique({ where: { phone: request.body.phone } }))
+    )
+      throw new AppError(409, 'PHONE_IN_USE', 'Phone number is already registered');
+
     const passwordHash = await argon2.hash(request.body.password, { type: argon2.argon2id });
+    const hasRole = Boolean(request.body.role);
+    const initialStatus = hasRole ? 'PENDING_VERIFICATION' : 'ACTIVE';
+
     const user = await prisma.$transaction(async (tx) => {
       const created = await tx.user.create({
         data: {
@@ -95,6 +132,8 @@ authRouter.post(
           phone: request.body.phone,
           fullName: request.body.fullName,
           passwordHash,
+          status: initialStatus,
+          pendingRole: request.body.role || null,
         },
         include: { platformRoles: true },
       });
@@ -105,17 +144,237 @@ authRouter.post(
           entityType: 'User',
           entityId: created.id,
           requestId: request.id,
+          newData: { role: request.body.role || null, status: initialStatus },
         },
         tx,
       );
       return created;
     });
+
+    if (hasRole) {
+      const verificationToken = signVerificationToken(user.id, request.body.role);
+      return response.status(201).json({
+        data: {
+          user: {
+            id: user.id,
+            email: user.email,
+            phone: user.phone,
+            fullName: user.fullName,
+            status: user.status,
+            role: request.body.role,
+          },
+          verificationToken,
+          requiresVerification: true,
+          redirectTo: '/verify',
+        },
+      });
+    }
+
     const contextUser = await loadUserContext(user.id);
     response.status(201).json({
       data: { user: publicUser(contextUser), accessToken: await issueSession(user, response) },
     });
   }),
 );
+
+authRouter.post(
+  '/verification/submit',
+  authenticateVerificationToken,
+  asyncHandler(async (request, response) => {
+    const user = request.verificationUser;
+    const role = request.body.role || request.verificationRole || user.pendingRole;
+    if (!role || !['VETERINARIAN', 'FARMER', 'DAIRY_OWNER'].includes(role)) {
+      throw new AppError(400, 'INVALID_ROLE', 'Valid user role is required for verification');
+    }
+
+    await prisma.$transaction(async (tx) => {
+      if (role === 'VETERINARIAN') {
+        const {
+          qualification,
+          registrationCouncil,
+          registrationNumber,
+          specialization,
+          experienceYears,
+          state,
+          district,
+          taluka,
+          pincode,
+          documentName,
+          documentData,
+        } = request.body;
+        if (!registrationNumber || !registrationCouncil || !qualification || !state) {
+          throw new AppError(400, 'MISSING_FIELDS', 'Required veterinarian fields missing');
+        }
+        await tx.veterinarianProfile.upsert({
+          where: { userId: user.id },
+          create: {
+            userId: user.id,
+            qualification,
+            registrationCouncil,
+            registrationNumber,
+            specialization: specialization || null,
+            experienceYears: experienceYears ? Number(experienceYears) : null,
+            status: 'PENDING',
+            documentName: documentName || null,
+            documentData: documentData || null,
+            serviceAreas: {
+              create: [{ state, district: district || null, taluka: taluka || null, pincode: pincode || null }],
+            },
+          },
+          update: {
+            qualification,
+            registrationCouncil,
+            registrationNumber,
+            specialization: specialization || null,
+            experienceYears: experienceYears ? Number(experienceYears) : null,
+            status: 'PENDING',
+            documentName: documentName || null,
+            documentData: documentData || null,
+            serviceAreas: {
+              deleteMany: {},
+              create: [{ state, district: district || null, taluka: taluka || null, pincode: pincode || null }],
+            },
+          },
+        });
+      } else if (role === 'FARMER') {
+        const {
+          farmName,
+          farmerIdNumber,
+          state,
+          district,
+          taluka,
+          pincode,
+          totalCattle,
+          documentName,
+          documentData,
+        } = request.body;
+        if (!farmName || !state || !district) {
+          throw new AppError(400, 'MISSING_FIELDS', 'Required farmer fields missing (farmName, state, district)');
+        }
+        let farm = await tx.farm.findFirst({ where: { createdById: user.id } });
+        if (!farm) {
+          farm = await tx.farm.create({
+            data: {
+              name: farmName,
+              state,
+              district,
+              taluka: taluka || null,
+              pincode: pincode || null,
+              status: 'PENDING',
+              createdById: user.id,
+            },
+          });
+          await tx.farmMember.create({
+            data: {
+              farmId: farm.id,
+              userId: user.id,
+              status: 'INVITED',
+              roles: { create: [{ role: 'FARM_OWNER' }, { role: 'FARM_MANAGER' }] },
+            },
+          });
+        }
+        await tx.farmerProfile.upsert({
+          where: { userId: user.id },
+          create: {
+            userId: user.id,
+            farmerIdNumber: farmerIdNumber || null,
+            farmName,
+            state,
+            district,
+            taluka: taluka || null,
+            pincode: pincode || null,
+            totalCattle: totalCattle ? Number(totalCattle) : 0,
+            documentName: documentName || null,
+            documentData: documentData || null,
+            status: 'PENDING',
+            farmId: farm.id,
+          },
+          update: {
+            farmerIdNumber: farmerIdNumber || null,
+            farmName,
+            state,
+            district,
+            taluka: taluka || null,
+            pincode: pincode || null,
+            totalCattle: totalCattle ? Number(totalCattle) : 0,
+            documentName: documentName || null,
+            documentData: documentData || null,
+            status: 'PENDING',
+            farmId: farm.id,
+          },
+        });
+      } else if (role === 'DAIRY_OWNER') {
+        const {
+          dairyName,
+          fssaiLicenseNumber,
+          state,
+          district,
+          operationalArea,
+          dailyCapacityLiters,
+          documentName,
+          documentData,
+        } = request.body;
+        if (!dairyName || !fssaiLicenseNumber || !state || !district) {
+          throw new AppError(400, 'MISSING_FIELDS', 'Required dairy fields missing (dairyName, fssaiLicenseNumber, state, district)');
+        }
+        await tx.dairyOwnerProfile.upsert({
+          where: { userId: user.id },
+          create: {
+            userId: user.id,
+            dairyName,
+            fssaiLicenseNumber,
+            state,
+            district,
+            operationalArea: operationalArea || null,
+            dailyCapacityLiters: dailyCapacityLiters ? Number(dailyCapacityLiters) : 0,
+            documentName: documentName || null,
+            documentData: documentData || null,
+            status: 'PENDING',
+          },
+          update: {
+            dairyName,
+            fssaiLicenseNumber,
+            state,
+            district,
+            operationalArea: operationalArea || null,
+            dailyCapacityLiters: dailyCapacityLiters ? Number(dailyCapacityLiters) : 0,
+            documentName: documentName || null,
+            documentData: documentData || null,
+            status: 'PENDING',
+          },
+        });
+      }
+
+      await tx.user.update({
+        where: { id: user.id },
+        data: { pendingRole: role, status: 'PENDING_VERIFICATION' },
+      });
+
+      await appendAudit(
+        {
+          actorUserId: user.id,
+          action: 'USER_VERIFICATION_SUBMITTED',
+          entityType: 'User',
+          entityId: user.id,
+          requestId: request.id,
+          newData: { role, submittedAt: new Date().toISOString() },
+        },
+        tx,
+      );
+    });
+
+    response.json({
+      data: {
+        success: true,
+        message:
+          'Verification submitted successfully. Your account is pending administrator validation before login is allowed.',
+        status: 'PENDING_VERIFICATION',
+        role,
+      },
+    });
+  }),
+);
+
 authRouter.post(
   '/login',
   validate(credentialsSchema),
@@ -124,12 +383,35 @@ authRouter.post(
       where: { email: request.body.email },
       include: authorizationInclude,
     });
-    if (
-      !user ||
-      user.status !== 'ACTIVE' ||
-      !(await argon2.verify(user.passwordHash, request.body.password))
-    )
+    if (!user || !(await argon2.verify(user.passwordHash, request.body.password)))
       throw new AppError(401, 'INVALID_CREDENTIALS', 'Email or password is incorrect');
+
+    if (user.status === 'PENDING_VERIFICATION') {
+      const hasSubmitted = Boolean(
+        user.veterinarian?.id || user.farmerProfile?.id || user.dairyOwnerProfile?.id,
+      );
+      const verificationToken = signVerificationToken(user.id, user.pendingRole || 'FARMER');
+      return response.status(403).json({
+        error: {
+          code: 'PENDING_VERIFICATION',
+          message: hasSubmitted
+            ? 'Your account verification is pending administrator review. Once approved, you will be able to log in.'
+            : 'Your account registration is incomplete. Please submit your profile verification details for administrator review.',
+        },
+        data: {
+          requiresVerification: !hasSubmitted,
+          alreadySubmitted: hasSubmitted,
+          verificationToken,
+          user: publicUser(user),
+          role: user.pendingRole || 'FARMER',
+        },
+      });
+    }
+
+    if (user.status !== 'ACTIVE') {
+      throw new AppError(403, 'ACCOUNT_INACTIVE', 'Your account is currently disabled or suspended.');
+    }
+
     response.json({
       data: { user: publicUser(user), accessToken: await issueSession(user, response) },
     });
