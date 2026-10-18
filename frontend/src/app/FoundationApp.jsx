@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react';
-import { api, hasAccessToken, setAccessToken } from './api.js';
+import { api, download, hasAccessToken, setAccessToken } from './api.js';
 import { VeterinaryWorkflow } from './VeterinaryWorkflow.jsx';
 import { CoreEngine } from './CoreEngine.jsx';
 import { Certificates, DashboardReports, PublicVerification } from './TrustLayer.jsx';
 import { AiLayer, AmuRiskCard } from './AiLayer.jsx';
+import { DailyClearance, PublicDailyClearance } from './DailyClearance.jsx';
+import { PublicAnimalVerification } from './PublicAnimalVerification.jsx';
+import { formatTimelineDate, timelineEventLabel, timelineEventsFromResponse } from './timeline.js';
 import {
   buildWorkspaces,
   farmCapabilities,
@@ -56,13 +59,14 @@ function AuthPage({ mode, done, go }) {
             <span className="gradient-highlight">& AMU Management</span>
           </h1>
           <p className="hero-description">
-            Streamlined farm operations, verified veterinary health records, withdrawal monitoring, and milk eligibility certificates.
+            Streamlined farm operations, verified veterinary health records, withdrawal monitoring,
+            and milk eligibility certificates.
           </p>
           <div className="hero-pills-container">
             <span className="hero-pill">🐄 Livestock Tracking</span>
             <span className="hero-pill">🩺 Verified Vets</span>
             <span className="hero-pill">🥛 Milk Certificates</span>
-            <span className="hero-pill">🛡️ Blockchain Proof</span>
+            <span className="hero-pill">🛡️ Cryptographic Integrity</span>
           </div>
         </div>
 
@@ -74,14 +78,20 @@ function AuthPage({ mode, done, go }) {
               <button
                 type="button"
                 className={`tab-btn ${mode === 'login' ? 'active' : ''}`}
-                onClick={() => { setError(''); go('login'); }}
+                onClick={() => {
+                  setError('');
+                  go('login');
+                }}
               >
                 Sign In
               </button>
               <button
                 type="button"
                 className={`tab-btn ${mode === 'register' ? 'active' : ''}`}
-                onClick={() => { setError(''); go('register'); }}
+                onClick={() => {
+                  setError('');
+                  go('register');
+                }}
               >
                 Create Account
               </button>
@@ -117,12 +127,7 @@ function AuthPage({ mode, done, go }) {
                     <label htmlFor="phone">Phone Number (Optional)</label>
                     <div className="input-field-wrapper">
                       <span className="field-icon">📱</span>
-                      <input
-                        id="phone"
-                        name="phone"
-                        type="tel"
-                        placeholder="+91 98765 43210"
-                      />
+                      <input id="phone" name="phone" type="tel" placeholder="+91 98765 43210" />
                     </div>
                   </div>
                 </>
@@ -182,7 +187,10 @@ function AuthPage({ mode, done, go }) {
                 <button
                   type="button"
                   className="switch-mode-link"
-                  onClick={() => { setError(''); go(mode === 'login' ? 'register' : 'login'); }}
+                  onClick={() => {
+                    setError('');
+                    go(mode === 'login' ? 'register' : 'login');
+                  }}
                 >
                   {mode === 'login' ? 'Register instead' : 'Login instead'}
                 </button>
@@ -233,7 +241,10 @@ function AnimalForm({ farmId, species, done }) {
     const v = Object.fromEntries(new FormData(e.currentTarget));
     v.lactating = v.lactating === 'on';
     try {
-      const res = await api(`/farms/${farmId}/animals`, { method: 'POST', body: JSON.stringify(v) });
+      const res = await api(`/farms/${farmId}/animals`, {
+        method: 'POST',
+        body: JSON.stringify(v),
+      });
       done(res.animal);
       e.currentTarget.reset();
     } catch (err) {
@@ -327,7 +338,9 @@ function VetProfile({ onAuthorizationChanged }) {
         await api(`/files/${intent.file.id}/complete`, { method: 'POST' });
       }
       setProfile(saved);
-      setSuccess('✅ Veterinarian profile and credentials submitted successfully! Awaiting platform verification.');
+      setSuccess(
+        '✅ Veterinarian profile and credentials submitted successfully! Awaiting platform verification.',
+      );
       await onAuthorizationChanged?.();
     } catch (err) {
       setError(err.message || 'Failed to submit profile credentials');
@@ -384,7 +397,11 @@ function VetProfile({ onAuthorizationChanged }) {
   return (
     <form className="card form" onSubmit={submit}>
       <h2>Veterinarian Profile / Verification Submission</h2>
-      {profile && <span className="badge" style={{ marginBottom: '1rem', display: 'inline-block' }}>{profile.status}</span>}
+      {profile && (
+        <span className="badge" style={{ marginBottom: '1rem', display: 'inline-block' }}>
+          {profile.status}
+        </span>
+      )}
       {error && <p className="error">{error}</p>}
       {success && <p className="success-text">{success}</p>}
 
@@ -425,10 +442,14 @@ function VetProfile({ onAuthorizationChanged }) {
             ].includes(profile.specialization) && (
               <option value={profile.specialization}>{profile.specialization}</option>
             )}
-          <option value="Bovine Medicine & Surgery">Bovine Medicine & Surgery (Cattle & Buffalo)</option>
+          <option value="Bovine Medicine & Surgery">
+            Bovine Medicine & Surgery (Cattle & Buffalo)
+          </option>
           <option value="Small Ruminant Medicine">Small Ruminant Medicine (Goat & Sheep)</option>
           <option value="Theriogenology & Reproduction">Theriogenology & Reproduction</option>
-          <option value="Preventive Medicine & Herd Health">Preventive Medicine & Herd Health</option>
+          <option value="Preventive Medicine & Herd Health">
+            Preventive Medicine & Herd Health
+          </option>
           <option value="General Farm Practice & Surgery">General Farm Practice & Surgery</option>
           <option value="Swine Health & Medicine">Swine Health & Medicine</option>
           <option value="Equine Medicine">Equine Medicine</option>
@@ -463,10 +484,7 @@ function VetProfile({ onAuthorizationChanged }) {
 
       <label>
         Years of Experience
-        <select
-          name="experienceYears"
-          defaultValue={profile?.experienceYears ?? 5}
-        >
+        <select name="experienceYears" defaultValue={profile?.experienceYears ?? 5}>
           {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 20].map((yr) => (
             <option key={yr} value={yr}>
               {yr} {yr === 1 ? 'Year' : 'Years'}
@@ -482,9 +500,10 @@ function VetProfile({ onAuthorizationChanged }) {
           required
           defaultValue={profile?.serviceAreas?.[0]?.state || 'Karnataka'}
         >
-          {profile?.serviceAreas?.[0]?.state && !statesList.includes(profile.serviceAreas[0].state) && (
-            <option value={profile.serviceAreas[0].state}>{profile.serviceAreas[0].state}</option>
-          )}
+          {profile?.serviceAreas?.[0]?.state &&
+            !statesList.includes(profile.serviceAreas[0].state) && (
+              <option value={profile.serviceAreas[0].state}>{profile.serviceAreas[0].state}</option>
+            )}
           {statesList.map((s) => (
             <option key={s} value={s}>
               {s}
@@ -638,6 +657,7 @@ function AdminRulesManager() {
   const [drugsList, setDrugsList] = useState([]);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [selectedDrugId, setSelectedDrugId] = useState('');
 
   async function load() {
     try {
@@ -649,6 +669,7 @@ function AdminRulesManager() {
       setRules(r.rules);
       setSpeciesList(s.species);
       setDrugsList(d.drugs);
+      setSelectedDrugId((current) => current || d.drugs[0]?.id || '');
     } catch (err) {
       setError(err.message);
     }
@@ -665,7 +686,9 @@ function AdminRulesManager() {
     const raw = Object.fromEntries(new FormData(e.currentTarget));
     try {
       await api('/withdrawal/rules', { method: 'POST', body: JSON.stringify(raw) });
-      setSuccess('Withdrawal rule added successfully!');
+      setSuccess(
+        'Reference submitted as REVIEW REQUIRED. It cannot drive eligibility until independently reviewed.',
+      );
       e.currentTarget.reset();
       await load();
     } catch (err) {
@@ -677,8 +700,12 @@ function AdminRulesManager() {
     <section style={{ marginTop: '2rem' }}>
       <h1>Withdrawal Rules & Reference Data Manager</h1>
       <form className="card form" onSubmit={addRule}>
-        <h2>Add Verified Regulatory Withdrawal Rule</h2>
-        <Field label="Rule Code (e.g. FSSAI-CATTLE-OXY-01)" name="code" />
+        <h2>Submit Withdrawal Reference for Review</h2>
+        <p className="notice">
+          Manual entries are never automatically authoritative. Provide exact product context and
+          provenance; new entries remain REVIEW REQUIRED and cannot make an animal eligible.
+        </p>
+        <Field label="Rule Code" name="code" />
         <label>
           Species
           <select name="speciesId">
@@ -691,13 +718,32 @@ function AdminRulesManager() {
         </label>
         <label>
           Drug / Active Ingredient
-          <select name="drugId">
-            <option value="">All Drugs in Class</option>
+          <select
+            name="drugId"
+            value={selectedDrugId}
+            onChange={(event) => setSelectedDrugId(event.target.value)}
+            required
+          >
             {drugsList.map((d) => (
               <option key={d.id} value={d.id}>
                 {d.canonicalName}
               </option>
             ))}
+          </select>
+        </label>
+        <label>
+          Exact approved product
+          <select name="drugProductId" required defaultValue="">
+            <option value="" disabled>
+              Select a referenced product
+            </option>
+            {(drugsList.find((drug) => drug.id === selectedDrugId)?.products || []).map(
+              (product) => (
+                <option key={product.id} value={product.id}>
+                  {product.productName} — {product.formulation}
+                </option>
+              ),
+            )}
           </select>
         </label>
         <label>
@@ -711,20 +757,27 @@ function AdminRulesManager() {
             <option value="INTRAMAMMARY">INTRAMAMMARY</option>
           </select>
         </label>
-        <Field label="Duration Value (Days)" name="durationValue" type="number" defaultValue="7" />
-        <Field label="Organization Source" name="organization" defaultValue="FSSAI" />
-        <Field
-          label="Source Title"
-          name="sourceTitle"
-          defaultValue="Food Safety and Standards Regulations"
-        />
-        <Field
-          label="Source URL"
-          name="sourceUrl"
-          required={false}
-          defaultValue="https://fssai.gov.in"
-        />
-        <button>Add Regulatory Rule</button>
+        <Field label="Exact formulation" name="formulation" />
+        <Field label="Withdrawal duration" name="durationValue" type="number" />
+        <label>
+          Duration unit
+          <select name="durationUnit">
+            <option value="HOUR">Hours</option>
+            <option value="DAY">Days</option>
+          </select>
+        </label>
+        <Field label="Jurisdiction" name="jurisdiction" />
+        <Field label="Source organization" name="organization" />
+        <Field label="Source document/title" name="sourceTitle" />
+        <Field label="Source URL" name="sourceUrl" type="url" />
+        <Field label="Page/table/section" name="sourceSection" />
+        <Field label="Effective from" name="effectiveFrom" type="date" required={false} />
+        <label>
+          Use conditions
+          <textarea name="useConditions" required />
+        </label>
+        <input type="hidden" name="foodProduct" value="MILK" />
+        <button>Submit Reference for Review</button>
         {error && <p className="error">{error}</p>}
         {success && <p className="success-text">{success}</p>}
       </form>
@@ -740,6 +793,7 @@ function AdminRulesManager() {
               <th>Route</th>
               <th>Duration</th>
               <th>Jurisdiction / Source</th>
+              <th>Verification</th>
             </tr>
           </thead>
           <tbody>
@@ -757,6 +811,7 @@ function AdminRulesManager() {
                 <td>
                   {r.jurisdiction} ({r.source?.organization})
                 </td>
+                <td>{r.verificationStatus?.replaceAll('_', ' ')}</td>
               </tr>
             ))}
           </tbody>
@@ -849,6 +904,254 @@ const initialPageFor = (workspace) => {
   return 'home';
 };
 
+function TimelineDetails({ details }) {
+  if (!details || typeof details !== 'object' || Array.isArray(details)) return null;
+
+  const items = [];
+  if (typeof details.tagNumber === 'string') items.push(['Animal tag', details.tagNumber]);
+  if (typeof details.name === 'string') items.push(['Animal name', details.name]);
+  if (typeof details.status === 'string') {
+    items.push(['Status', details.status.replaceAll('_', ' ')]);
+  }
+  if (typeof details.previousStatus === 'string') {
+    items.push(['Previous status', details.previousStatus.replaceAll('_', ' ')]);
+  }
+  if (typeof details.lactating === 'boolean') {
+    items.push(['Lactating', details.lactating ? 'Yes' : 'No']);
+  }
+  if (details.eligibilityDate) {
+    items.push(['Eligible from', formatTimelineDate(details.eligibilityDate)]);
+  }
+  if (typeof details.medicine === 'string') items.push(['Medicine', details.medicine]);
+  if (typeof details.product === 'string') items.push(['Product', details.product]);
+  if (details.actualAmount != null && typeof details.amountUnit === 'string') {
+    items.push(['Actual amount', `${details.actualAmount} ${details.amountUnit}`]);
+  }
+  if (typeof details.route === 'string') items.push(['Route', details.route]);
+  if (details.administeredAt) {
+    items.push(['Administered at', formatTimelineDate(details.administeredAt)]);
+  }
+  if (typeof details.recordedBy === 'string') items.push(['Recorded by', details.recordedBy]);
+  if (typeof details.performedBy === 'string') items.push(['Performed by', details.performedBy]);
+  if (typeof details.notes === 'string' && details.notes) items.push(['Notes', details.notes]);
+  if (typeof details.deviationReason === 'string' && details.deviationReason) {
+    items.push(['Deviation reason', details.deviationReason]);
+  }
+
+  if (items.length === 0) return null;
+  return (
+    <dl className="timeline-details">
+      {items.map(([label, value]) => (
+        <div key={label}>
+          <dt>{label}</dt>
+          <dd>{value}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+export function HealthTimeline({ timeline, showAmuRisk = false, farmId, onClose }) {
+  const animal = timeline?.animal || {};
+  const events = Array.isArray(timeline?.events) ? timeline.events : [];
+  const animalLabel = animal.name || animal.tagNumber || 'Animal';
+
+  return (
+    <section className="card" aria-label={`${animalLabel} health timeline`}>
+      <div className="flex-between" style={{ marginBottom: '1.25rem' }}>
+        <h2 style={{ margin: 0 }}>{animalLabel} History</h2>
+        {onClose && (
+          <button
+            type="button"
+            className="modal-close-btn"
+            onClick={onClose}
+            aria-label="Close timeline"
+            title="Close timeline"
+          >
+            ✕
+          </button>
+        )}
+      </div>
+      {showAmuRisk && animal.id && (
+        <>
+          <h3>Animal AMU Pattern Risk</h3>
+          <AmuRiskCard farmId={farmId} animalId={animal.id} />
+        </>
+      )}
+      {timeline?.loading && <p>Loading health timeline…</p>}
+      {timeline?.error && <p className="error">{timeline.error}</p>}
+      {!timeline?.loading && !timeline?.error && events.length === 0 && (
+        <p>No health timeline events are available yet.</p>
+      )}
+      {events.map((event, index) => (
+        <article
+          className="timeline-event"
+          key={event?.id || `${event?.eventType || 'event'}-${index}`}
+        >
+          <strong>{timelineEventLabel(event?.eventType)}</strong>
+          <p>{event?.summary || 'No additional summary was recorded.'}</p>
+          <TimelineDetails details={event?.details} />
+          <small>{formatTimelineDate(event?.createdAt)}</small>
+        </article>
+      ))}
+    </section>
+  );
+}
+
+function AnimalTagModal({ animal, farm, onClose }) {
+  const [tagData, setTagData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [downloading, setDownloading] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let active = true;
+    api(`/farms/${farm.id}/animals/${animal.id}/qr-tag`)
+      .then((d) => {
+        if (active) setTagData(d);
+      })
+      .catch((err) => {
+        if (active) setError(err.message || 'Failed to load QR tag data');
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [farm.id, animal.id]);
+
+  async function handleDownloadPdf() {
+    setDownloading(true);
+    try {
+      await download(
+        `/farms/${farm.id}/animals/${animal.id}/tag-pdf`,
+        `Animal-Tag-${animal.tagNumber}.pdf`,
+      );
+    } catch (err) {
+      setError(err.message || 'Failed to download tag PDF');
+    } finally {
+      setDownloading(false);
+    }
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={onClose} role="dialog" aria-modal="true">
+      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '440px' }}>
+        <div className="flex-between" style={{ marginBottom: '1rem' }}>
+          <h3 style={{ margin: 0, fontSize: '1.2rem' }}>🏷️ Animal Identification Tag</h3>
+          <button
+            type="button"
+            className="modal-close-btn"
+            onClick={onClose}
+            aria-label="Close tag modal"
+          >
+            ×
+          </button>
+        </div>
+
+        {loading && <p>Loading animal identification QR tag…</p>}
+        {error && <p className="error">{error}</p>}
+
+        {tagData && (
+          <div style={{ textAlign: 'center' }}>
+            <div
+              style={{
+                border: '2px solid #064e3b',
+                borderRadius: '0.75rem',
+                padding: '1.25rem',
+                backgroundColor: '#ffffff',
+                boxShadow: '0 4px 12px rgba(6, 78, 59, 0.08)',
+                marginBottom: '1rem',
+              }}
+            >
+              <div
+                style={{
+                  backgroundColor: '#064e3b',
+                  color: '#fff',
+                  borderRadius: '0.4rem',
+                  padding: '0.35rem',
+                  fontSize: '0.76rem',
+                  fontWeight: 700,
+                  letterSpacing: '0.05em',
+                  textTransform: 'uppercase',
+                  marginBottom: '0.75rem',
+                }}
+              >
+                Official Livestock QR Tag
+              </div>
+              <h2 style={{ fontSize: '1.6rem', margin: '0.2rem 0', color: '#0f172a' }}>
+                {tagData.tagNumber}
+              </h2>
+              <p
+                style={{
+                  margin: '0.2rem 0 0.8rem',
+                  color: 'var(--ag-text-muted)',
+                  fontSize: '0.9rem',
+                }}
+              >
+                {tagData.name ? `${tagData.name} · ` : ''}
+                {tagData.species} · {tagData.farmName}
+              </p>
+
+              {tagData.qrDataUrl && (
+                <div style={{ margin: '0.5rem auto 1rem', width: '180px', height: '180px' }}>
+                  <img
+                    src={tagData.qrDataUrl}
+                    alt={`QR tag for animal ${tagData.tagNumber}`}
+                    style={{ width: '100%', height: '100%', display: 'block', borderRadius: '8px' }}
+                  />
+                </div>
+              )}
+
+              <small
+                style={{
+                  display: 'block',
+                  color: '#64748b',
+                  fontSize: '0.75rem',
+                  wordBreak: 'break-all',
+                  marginBottom: '0.5rem',
+                }}
+              >
+                <a
+                  href={tagData.verificationUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: '#059669', textDecoration: 'underline' }}
+                >
+                  {tagData.verificationUrl}
+                </a>
+              </small>
+
+              <p
+                style={{
+                  fontSize: '0.75rem',
+                  color: '#475569',
+                  backgroundColor: '#ecfdf5',
+                  padding: '0.5rem',
+                  borderRadius: '0.4rem',
+                  margin: '0.5rem 0 0',
+                }}
+              >
+                Scan or click to verify live milk clearance. Does not expose private health records.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleDownloadPdf}
+              disabled={downloading}
+              style={{ width: '100%', padding: '0.65rem' }}
+            >
+              {downloading ? 'Generating PDF…' : '⬇️ Download Printable PDF Tag'}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function Workspace({ user, setUser, logout }) {
   const workspaces = buildWorkspaces(user);
   const [workspaceId, setWorkspaceId] = useState(workspaces[0]?.id || 'account');
@@ -858,14 +1161,29 @@ function Workspace({ user, setUser, logout }) {
   const [farm, setFarm] = useState(null);
   const [animals, setAnimals] = useState([]);
   const [animalTimeline, setAnimalTimeline] = useState(null);
+  const [selectedTagAnimal, setSelectedTagAnimal] = useState(null);
   const [species, setSpecies] = useState([]);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
-    api('/farms').then((d) => setFarms(d.farms));
-    api('/species').then((d) => setSpecies(d.species));
-  }, []);
+    let active = true;
+    api('/farms').then((d) => {
+      if (!active) return;
+      const list = d.farms || [];
+      setFarms(list);
+      if (workspace?.kind === 'FARM') {
+        const found = list.find((item) => item.id === workspace.farmId);
+        if (found) open(found);
+      }
+    });
+    api('/species').then((d) => {
+      if (active) setSpecies(d.species || []);
+    });
+    return () => {
+      active = false;
+    };
+  }, [workspaceId]);
 
   async function refreshContext() {
     const next = (await api('/auth/me')).user;
@@ -880,8 +1198,23 @@ function Workspace({ user, setUser, logout }) {
   }
 
   async function openTimeline(animal) {
-    const result = await api(`/farms/${farm.id}/animals/${animal.id}/timeline`);
-    setAnimalTimeline({ animal, events: result.timeline });
+    setAnimalTimeline({ animal, events: [], loading: true, error: '' });
+    try {
+      const result = await api(`/farms/${farm.id}/animals/${animal.id}/timeline`);
+      setAnimalTimeline({
+        animal,
+        events: timelineEventsFromResponse(result),
+        loading: false,
+        error: '',
+      });
+    } catch (error) {
+      setAnimalTimeline({
+        animal,
+        events: [],
+        loading: false,
+        error: error.message || 'Unable to load the health timeline.',
+      });
+    }
   }
 
   async function deleteAnimal(animal) {
@@ -936,6 +1269,7 @@ function Workspace({ user, setUser, logout }) {
     dashboard: '📊',
     'core-engine': '🥛',
     certificates: '📜',
+    'daily-clearance': '🥛',
     ai: '🤖',
     members: '👥',
     admin: '🛡️',
@@ -991,12 +1325,7 @@ function Workspace({ user, setUser, logout }) {
         </nav>
 
         <div className="sidebar-footer">
-          <button
-            type="button"
-            className="sidebar-logout-btn"
-            onClick={logout}
-            title="Logout"
-          >
+          <button type="button" className="sidebar-logout-btn" onClick={logout} title="Logout">
             🚪 Logout
           </button>
         </div>
@@ -1058,169 +1387,193 @@ function Workspace({ user, setUser, logout }) {
         )}
 
         <main className="dashboard-content-area">
-        <p className="eyebrow">{user.fullName}</p>
-        {page === 'home' && workspace?.kind === 'ACCOUNT' && (
-          <section>
-            <h1>Account & Onboarding</h1>
-            <p>
-              Create a farm to become its owner and manager, or submit veterinarian credentials.
-            </p>
-          </section>
-        )}
-        {page === 'create' && (
-          <FarmForm
-            done={async (f) => {
-              setFarms((a) => [f, ...a]);
-              await refreshContext();
-              setWorkspaceId(`farm:${f.id}`);
-              await open(f);
-            }}
-          />
-        )}
-        {page === 'farm' && farm && (
-          <section>
-            <h1>{farm.name}</h1>
-            <p>
-              {farm.district}, {farm.state}
-            </p>
-            {capabilities.canViewManagementAnalytics && (
-              <section className="card">
-                <h2>Farm AMU Pattern Risk</h2>
-                <AmuRiskCard farmId={farm.id} />
-              </section>
-            )}
-            <h2>Animal List ({animals.length})</h2>
-            <div className="grid">
-              {animals.length === 0 && (
-                <p style={{ color: 'var(--ag-text-muted)' }}>No animals registered in this farm yet.</p>
+          <p className="eyebrow">{user.fullName}</p>
+          {page === 'home' && workspace?.kind === 'ACCOUNT' && (
+            <section>
+              <h1>Account & Onboarding</h1>
+              <p>
+                Create a farm to become its owner and manager, or submit veterinarian credentials.
+              </p>
+            </section>
+          )}
+          {page === 'create' && (
+            <FarmForm
+              done={async (f) => {
+                setFarms((a) => [f, ...a]);
+                await refreshContext();
+                setWorkspaceId(`farm:${f.id}`);
+                await open(f);
+              }}
+            />
+          )}
+          {page === 'farm' && !farm && (
+            <section className="card">
+              <h2>Loading Farm &amp; Livestock…</h2>
+              <p style={{ color: 'var(--ag-text-muted)' }}>
+                Retrieving registered farm records and animals for {workspace?.label || 'selected farm'}…
+              </p>
+            </section>
+          )}
+          {page === 'farm' && farm && (
+            <section>
+              <h1>{farm.name}</h1>
+              <p>
+                {farm.district}, {farm.state}
+              </p>
+              {capabilities.canViewManagementAnalytics && (
+                <section className="card">
+                  <h2>Farm AMU Pattern Risk</h2>
+                  <AmuRiskCard farmId={farm.id} />
+                </section>
               )}
-              {animals.map((a) => (
-                <article className="card animal-card" key={a.id}>
-                  <div
-                    className="flex-between"
-                    style={{ alignItems: 'flex-start', gap: '0.5rem', marginBottom: '0.4rem' }}
-                  >
-                    <h3 style={{ margin: 0, fontSize: '1.15rem' }}>{a.name || a.tagNumber}</h3>
-                    {capabilities.canEditAnimals && (
+              <h2>Animal List ({animals.length})</h2>
+              <div className="grid">
+                {animals.length === 0 && (
+                  <p style={{ color: 'var(--ag-text-muted)' }}>
+                    No animals registered in this farm yet.
+                  </p>
+                )}
+                {animals.map((a) => (
+                  <article className="card animal-card" key={a.id}>
+                    <div
+                      className="flex-between"
+                      style={{ alignItems: 'flex-start', gap: '0.5rem', marginBottom: '0.4rem' }}
+                    >
+                      <h3 style={{ margin: 0, fontSize: '1.15rem' }}>{a.name || a.tagNumber}</h3>
+                      {capabilities.canEditAnimals && (
+                        <button
+                          type="button"
+                          className="icon-delete-btn"
+                          onClick={() => deleteAnimal(a)}
+                          title={`Delete ${a.name || a.tagNumber}`}
+                          aria-label={`Delete ${a.name || a.tagNumber}`}
+                        >
+                          🗑️
+                        </button>
+                      )}
+                    </div>
+                    <p
+                      style={{
+                        margin: '0.15rem 0',
+                        fontSize: '0.88rem',
+                        color: 'var(--ag-text-muted)',
+                      }}
+                    >
+                      <strong>Tag:</strong> {a.tagNumber}
+                    </p>
+                    <p style={{ margin: '0.3rem 0 0.85rem', fontSize: '0.86rem' }}>
+                      <strong style={{ color: 'var(--ag-forest-dark)' }}>
+                        {a.species?.canonicalName || 'Livestock'}
+                      </strong>{' '}
+                      · {a.sex ? a.sex.replaceAll('_', ' ') : 'FEMALE'} · {a.status}
+                    </p>
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: '1fr 1fr',
+                        gap: '0.4rem',
+                        marginTop: '0.5rem',
+                      }}
+                    >
                       <button
                         type="button"
-                        className="icon-delete-btn"
-                        onClick={() => deleteAnimal(a)}
-                        title={`Delete ${a.name || a.tagNumber}`}
-                        aria-label={`Delete ${a.name || a.tagNumber}`}
+                        className="secondary"
+                        style={{ fontSize: '0.82rem', padding: '0.45rem' }}
+                        onClick={() => openTimeline(a)}
                       >
-                        🗑️
+                        📜 Timeline
                       </button>
-                    )}
-                  </div>
-                  <p style={{ margin: '0.15rem 0', fontSize: '0.88rem', color: 'var(--ag-text-muted)' }}>
-                    <strong>Tag:</strong> {a.tagNumber}
-                  </p>
-                  <p style={{ margin: '0.3rem 0 0.85rem', fontSize: '0.86rem' }}>
-                    <strong style={{ color: 'var(--ag-forest-dark)' }}>
-                      {a.species?.canonicalName || 'Livestock'}
-                    </strong>{' '}
-                    · {a.sex ? a.sex.replaceAll('_', ' ') : 'FEMALE'} · {a.status}
-                  </p>
-                  <button
-                    type="button"
-                    className="secondary"
-                    style={{ width: '100%', fontSize: '0.84rem', padding: '0.45rem' }}
-                    onClick={() => openTimeline(a)}
-                  >
-                    📜 View health timeline
-                  </button>
-                </article>
-              ))}
-            </div>
-            {animalTimeline && (
-              <section className="card">
-                <div className="flex-between" style={{ marginBottom: '1.25rem' }}>
-                  <h2 style={{ margin: 0 }}>
-                    {animalTimeline.animal.name || animalTimeline.animal.tagNumber} History
-                  </h2>
-                  <button
-                    type="button"
-                    className="modal-close-btn"
-                    onClick={() => setAnimalTimeline(null)}
-                    aria-label="Close timeline"
-                    title="Close timeline"
-                  >
-                    ✕
-                  </button>
-                </div>
-                {capabilities.canViewManagementAnalytics && (
-                  <>
-                    <h3>Animal AMU Pattern Risk</h3>
-                    <AmuRiskCard farmId={farm.id} animalId={animalTimeline.animal.id} />
-                  </>
-                )}
-                {animalTimeline.events.length === 0 && <p>No recorded health events.</p>}
-                {animalTimeline.events.map((event) => (
-                  <article key={event.id}>
-                    <strong>{event.title}</strong>
-                    <p>{event.description}</p>
-                    <small>{new Date(event.occurredAt).toLocaleString()}</small>
+                      <button
+                        type="button"
+                        className="secondary"
+                        style={{ fontSize: '0.82rem', padding: '0.45rem' }}
+                        onClick={() => setSelectedTagAnimal(a)}
+                      >
+                        🏷️ QR Tag
+                      </button>
+                    </div>
                   </article>
                 ))}
-              </section>
-            )}
-            {capabilities.canEditAnimals && (
-              <AnimalForm
-                farmId={farm.id}
-                species={species}
-                done={(a) => setAnimals((all) => [{ ...a, species: a.species || species.find((s) => s.id === a.speciesId) }, ...all])}
-              />
-            )}
-          </section>
-        )}
-        {page === 'vet' && <VetStatus user={user} refreshContext={refreshContext} />}
-        {page === 'members' && workspace?.kind === 'FARM' && (
-          <FarmMembers
-            farmId={workspace.farmId}
-            canAssign={capabilities.owns}
-            onAuthorizationChanged={refreshContext}
-          />
-        )}
-        {page === 'veterinary-care' && (
-          <VeterinaryWorkflow
-            farms={workspace?.kind === 'FARM' && activeFarm ? [activeFarm] : []}
-            context={workspace}
-            user={user}
-            capabilities={capabilities}
-          />
-        )}
-        {page === 'core-engine' && (
-          <CoreEngine
-            farms={workspace?.kind === 'FARM' && activeFarm ? [activeFarm] : []}
-            isAdmin={workspace?.kind === 'ADMIN'}
-            canIssue={workspace?.kind === 'ADMIN' || capabilities.canIssueCertificate}
-          />
-        )}
-        {page === 'certificates' && (
-          <Certificates
-            farms={workspace?.kind === 'FARM' && activeFarm ? [activeFarm] : []}
-            isAdmin={workspace?.kind === 'ADMIN'}
-            canAnchor={workspace?.kind === 'ADMIN' || capabilities.canAnchorCertificate}
-            canRevoke={workspace?.kind === 'ADMIN'}
-          />
-        )}
-        {page === 'dashboard' && (
-          <DashboardReports
-            farms={activeFarm ? [activeFarm] : []}
-            user={user}
-            workspace={workspace}
-          />
-        )}
-        {page === 'ai' && (
-          <AiLayer farms={activeFarm ? [activeFarm] : []} user={user} workspace={workspace} />
-        )}
-        {page === 'admin' && workspace?.kind === 'ADMIN' && (
-          <>
-            <AdminVets />
-            <AdminRulesManager />
-          </>
-        )}
+              </div>
+              {animalTimeline && (
+                <HealthTimeline
+                  timeline={animalTimeline}
+                  showAmuRisk={capabilities.canViewManagementAnalytics}
+                  farmId={farm.id}
+                  onClose={() => setAnimalTimeline(null)}
+                />
+              )}
+              {selectedTagAnimal && (
+                <AnimalTagModal
+                  animal={selectedTagAnimal}
+                  farm={farm}
+                  onClose={() => setSelectedTagAnimal(null)}
+                />
+              )}
+              {capabilities.canEditAnimals && (
+                <AnimalForm
+                  farmId={farm.id}
+                  species={species}
+                  done={(a) =>
+                    setAnimals((all) => [
+                      { ...a, species: a.species || species.find((s) => s.id === a.speciesId) },
+                      ...all,
+                    ])
+                  }
+                />
+              )}
+            </section>
+          )}
+          {page === 'vet' && <VetStatus user={user} refreshContext={refreshContext} />}
+          {page === 'members' && workspace?.kind === 'FARM' && (
+            <FarmMembers
+              farmId={workspace.farmId}
+              canAssign={capabilities.owns}
+              onAuthorizationChanged={refreshContext}
+            />
+          )}
+          {page === 'veterinary-care' && (
+            <VeterinaryWorkflow
+              farms={workspace?.kind === 'FARM' && activeFarm ? [activeFarm] : []}
+              context={workspace}
+              user={user}
+              capabilities={capabilities}
+            />
+          )}
+          {page === 'core-engine' && (
+            <CoreEngine
+              farms={workspace?.kind === 'FARM' && activeFarm ? [activeFarm] : []}
+              isAdmin={workspace?.kind === 'ADMIN'}
+              canIssue={workspace?.kind === 'ADMIN' || capabilities.canIssueCertificate}
+            />
+          )}
+          {page === 'certificates' && (
+            <Certificates
+              farms={workspace?.kind === 'FARM' && activeFarm ? [activeFarm] : []}
+              isAdmin={workspace?.kind === 'ADMIN'}
+              canAnchor={workspace?.kind === 'ADMIN' || capabilities.canAnchorCertificate}
+              canRevoke={workspace?.kind === 'ADMIN'}
+            />
+          )}
+          {page === 'daily-clearance' && workspace?.kind === 'FARM' && activeFarm && (
+            <DailyClearance farm={activeFarm} canRun={Boolean(capabilities.manages)} />
+          )}
+          {page === 'dashboard' && (
+            <DashboardReports
+              farms={activeFarm ? [activeFarm] : []}
+              user={user}
+              workspace={workspace}
+            />
+          )}
+          {page === 'ai' && (
+            <AiLayer farms={activeFarm ? [activeFarm] : []} user={user} workspace={workspace} />
+          )}
+          {page === 'admin' && workspace?.kind === 'ADMIN' && (
+            <>
+              <AdminVets />
+              <AdminRulesManager />
+            </>
+          )}
         </main>
       </div>
     </div>
@@ -1228,6 +1581,12 @@ function Workspace({ user, setUser, logout }) {
 }
 export function App() {
   const verificationId = window.location.pathname.match(/^\/verify\/certificate\/([^/]+)$/)?.[1];
+  const dailyVerificationId = window.location.pathname.match(
+    /^\/verify\/daily-clearance\/([^/]+)$/,
+  )?.[1];
+  const animalVerificationId = window.location.pathname.match(
+    /^\/verify\/animal\/([^/]+)$/,
+  )?.[1];
   const [mode, setMode] = useState('login');
   const [user, setUser] = useState(null);
   useEffect(() => {
@@ -1242,6 +1601,8 @@ export function App() {
     setUser(null);
   }
   if (verificationId) return <PublicVerification verificationId={verificationId} />;
+  if (dailyVerificationId) return <PublicDailyClearance verificationId={dailyVerificationId} />;
+  if (animalVerificationId) return <PublicAnimalVerification verificationId={animalVerificationId} />;
   return user ? (
     <Workspace user={user} setUser={setUser} logout={logout} />
   ) : (

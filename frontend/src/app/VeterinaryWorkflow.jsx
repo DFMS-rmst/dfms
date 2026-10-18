@@ -1,6 +1,7 @@
 /* eslint-disable react-hooks/exhaustive-deps -- effects deliberately synchronize selected server resources */
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api, download } from './api.js';
+import { canCompleteTreatment, treatmentRequestIdFromResponse } from './workflowContracts.js';
 
 const Field = ({ label, name, type = 'text', required = true }) => (
   <label>
@@ -8,10 +9,253 @@ const Field = ({ label, name, type = 'text', required = true }) => (
     <input name={name} type={type} required={required} />
   </label>
 );
+
+function AnimalQrScannerModal({ farmId, onClose, onResolved }) {
+  const videoRef = useRef(null);
+  const streamRef = useRef(null);
+  const [manualInput, setManualInput] = useState('');
+  const [resolving, setResolving] = useState(false);
+  const [cameraError, setCameraError] = useState('');
+  const [scanStatus, setScanStatus] = useState('Initializing camera…');
+
+  useEffect(() => {
+    let active = true;
+    let detector = null;
+    let scanInterval = null;
+
+    async function initCamera() {
+      if (!navigator?.mediaDevices?.getUserMedia) {
+        setCameraError(
+          'Live camera access is not supported by this browser or requires an HTTPS connection. You can enter or paste the tag number or verification URL below.',
+        );
+        return;
+      }
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: 'environment' } },
+        });
+        if (!active) {
+          stream.getTracks().forEach((t) => t.stop());
+          return;
+        }
+        streamRef.current = stream;
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          videoRef.current.play().catch(() => {});
+        }
+        setScanStatus('Camera active. Point at animal QR tag…');
+
+        if ('BarcodeDetector' in window) {
+          try {
+            detector = new window.BarcodeDetector({ formats: ['qr_code'] });
+            scanInterval = setInterval(async () => {
+              if (!videoRef.current || videoRef.current.readyState < 2) return;
+              try {
+                const barcodes = await detector.detect(videoRef.current);
+                if (barcodes.length > 0 && barcodes[0].rawValue) {
+                  const raw = barcodes[0].rawValue;
+                  clearInterval(scanInterval);
+                  setScanStatus(`Found code: ${raw}. Resolving with server…`);
+                  resolveTag(raw);
+                }
+              } catch {
+                // Ignore detection interval hiccups
+              }
+            }, 500);
+          } catch {
+            setScanStatus('BarcodeDetector unavailable. Enter tag manually below.');
+          }
+        } else {
+          setScanStatus(
+            'Native QR auto-detection not supported in this browser. Point camera or enter tag manually below.',
+          );
+        }
+      } catch (err) {
+        setCameraError(
+          `Camera access denied or unavailable (${err.name || 'Error'}). Please paste or type the animal tag number or QR code text below.`,
+        );
+      }
+    }
+
+    initCamera();
+
+    return () => {
+      active = false;
+      if (scanInterval) clearInterval(scanInterval);
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((t) => t.stop());
+      }
+    };
+  }, [farmId]);
+
+  async function resolveTag(input) {
+    const val = (input || manualInput).trim();
+    if (!val) {
+      setCameraError('Please enter a tag number or scan a QR code.');
+      return;
+    }
+    setResolving(true);
+    setCameraError('');
+    try {
+      const res = await api(`/farms/${farmId}/animals/resolve-tag`, {
+        method: 'POST',
+        body: JSON.stringify({ tagInput: val }),
+      });
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((t) => t.stop());
+      }
+      onResolved(res.animal);
+      onClose();
+    } catch (err) {
+      setCameraError(
+        err.message || 'No active animal matching this tag was found on this farm. Cross-farm access is prevented.',
+      );
+    } finally {
+      setResolving(false);
+    }
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={onClose} role="dialog" aria-modal="true">
+      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '520px' }}>
+        <div className="flex-between" style={{ marginBottom: '1rem' }}>
+          <h3 style={{ margin: 0, fontSize: '1.25rem' }}>📷 Scan / Identify Animal</h3>
+          <button
+            type="button"
+            className="modal-close-btn"
+            onClick={onClose}
+            aria-label="Close scanner"
+          >
+            ×
+          </button>
+        </div>
+
+        {cameraError && (
+          <div
+            style={{
+              padding: '0.75rem 1rem',
+              backgroundColor: '#fef2f2',
+              borderRadius: '0.6rem',
+              border: '1px solid #fca5a5',
+              color: '#991b1b',
+              fontSize: '0.86rem',
+              marginBottom: '1rem',
+              lineHeight: 1.4,
+            }}
+          >
+            {cameraError}
+          </div>
+        )}
+
+        <div
+          style={{
+            position: 'relative',
+            width: '100%',
+            height: '220px',
+            backgroundColor: '#0f172a',
+            borderRadius: '0.75rem',
+            overflow: 'hidden',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: '0.75rem',
+          }}
+        >
+          <video
+            ref={videoRef}
+            muted
+            playsInline
+            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+          />
+          <div
+            style={{
+              position: 'absolute',
+              width: '140px',
+              height: '140px',
+              border: '2px dashed #10b981',
+              borderRadius: '12px',
+              boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.4)',
+              pointerEvents: 'none',
+            }}
+          />
+        </div>
+
+        <p
+          style={{
+            fontSize: '0.82rem',
+            color: 'var(--ag-text-muted)',
+            textAlign: 'center',
+            margin: '0.2rem 0 1rem',
+          }}
+        >
+          {scanStatus}
+        </p>
+
+        <div
+          style={{
+            padding: '1rem',
+            backgroundColor: '#f8fafc',
+            borderRadius: '0.75rem',
+            border: '1px solid var(--ag-border)',
+          }}
+        >
+          <label
+            style={{
+              display: 'block',
+              fontSize: '0.85rem',
+              fontWeight: 600,
+              marginBottom: '0.4rem',
+            }}
+          >
+            Manual Tag Number or Verification URL Input
+          </label>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <input
+              type="text"
+              placeholder="e.g. UK-04-COW-101 or paste /verify/animal/..."
+              value={manualInput}
+              onChange={(e) => setManualInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  resolveTag();
+                }
+              }}
+              style={{ flex: 1, padding: '0.5rem 0.75rem', fontSize: '0.88rem' }}
+            />
+            <button
+              type="button"
+              disabled={resolving || !manualInput.trim()}
+              onClick={() => resolveTag()}
+              style={{ padding: '0.5rem 1rem', fontSize: '0.88rem', whiteSpace: 'nowrap' }}
+            >
+              {resolving ? 'Resolving…' : '🔍 Resolve'}
+            </button>
+          </div>
+          <small
+            style={{
+              color: 'var(--ag-text-muted)',
+              display: 'block',
+              marginTop: '0.35rem',
+              fontSize: '0.78rem',
+            }}
+          >
+            Verified strictly against authorized farm livestock records. Cross-farm access is blocked.
+          </small>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function RequestForm({ farms, veterinarians, refresh }) {
   const [farmId, setFarmId] = useState(farms[0]?.id || '');
   const [animals, setAnimals] = useState([]);
   const [animalId, setAnimalId] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showScanner, setShowScanner] = useState(false);
+  const [resolvedAnimal, setResolvedAnimal] = useState(null);
   const [requestedVetId, setRequestedVetId] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -31,8 +275,11 @@ function RequestForm({ farms, veterinarians, refresh }) {
           if (active) {
             const list = d.animals || [];
             setAnimals(list);
-            if (list.length > 0) setAnimalId(list[0].id);
-            else setAnimalId('');
+            if (list.length > 0) {
+              setAnimalId((current) => (list.some((a) => a.id === current) ? current : list[0].id));
+            } else {
+              setAnimalId('');
+            }
           }
         })
         .catch(() => {
@@ -60,6 +307,28 @@ function RequestForm({ farms, veterinarians, refresh }) {
     }
   }, [veterinarians, requestedVetId]);
 
+  const filteredAnimals = animals.filter((a) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase().trim();
+    return (
+      a.tagNumber?.toLowerCase().includes(q) ||
+      a.name?.toLowerCase().includes(q) ||
+      a.id?.toLowerCase().includes(q) ||
+      a.species?.canonicalName?.toLowerCase().includes(q)
+    );
+  });
+
+  const currentAnimal =
+    animals.find((a) => a.id === animalId) ||
+    (resolvedAnimal?.id === animalId ? resolvedAnimal : null);
+
+  function handleAnimalResolved(matched) {
+    setAnimals((prev) => (prev.some((a) => a.id === matched.id) ? prev : [matched, ...prev]));
+    setAnimalId(matched.id);
+    setResolvedAnimal(matched);
+    setSuccess(`✅ Animal tag verified on farm: ${matched.tagNumber} (${matched.name || matched.species || 'Livestock'}).`);
+  }
+
   async function submit(event) {
     event.preventDefault();
     setSubmitting(true);
@@ -81,14 +350,15 @@ function RequestForm({ farms, veterinarians, refresh }) {
         method: 'POST',
         body: JSON.stringify(value),
       });
-      if (attachment && created.treatmentRequest?.id) {
+      const treatmentRequestId = treatmentRequestIdFromResponse(created);
+      if (attachment && treatmentRequestId) {
         try {
           const upload = await api('/files/presign-upload', {
             method: 'POST',
             body: JSON.stringify({
               category: 'TREATMENT_REQUEST',
               entityType: 'TREATMENT_REQUEST',
-              entityId: created.treatmentRequest.id,
+              entityId: treatmentRequestId,
               originalName: attachment.name,
               mimeType: attachment.type,
               sizeBytes: attachment.size,
@@ -116,7 +386,7 @@ function RequestForm({ farms, veterinarians, refresh }) {
     }
   }
 
-  const isBtnDisabled = submitting || !farmId || !animalId || !requestedVetId;
+  const isBtnDisabled = Boolean(submitting || !farmId || !animalId || !requestedVetId);
 
   return (
     <form className="card form" onSubmit={submit} style={{ marginTop: '2rem' }}>
@@ -136,21 +406,112 @@ function RequestForm({ farms, veterinarians, refresh }) {
         </select>
       </label>
 
-      <label>
-        Animal
-        <select name="animalId" value={animalId} onChange={(e) => setAnimalId(e.target.value)} required>
-          {animals.length === 0 && <option value="">No animals found for selected farm</option>}
-          {animals.map((a) => (
-            <option key={a.id} value={a.id}>
-              {a.tagNumber} — {a.name || a.species?.canonicalName || 'Livestock'}
-            </option>
-          ))}
-        </select>
-      </label>
-      {animals.length === 0 && (
-        <p className="notice" style={{ marginTop: '-0.3rem', fontSize: '0.85rem' }}>
-          ⚠️ No animals found on this farm. Please add an animal to this farm before requesting treatment.
-        </p>
+      {/* Animal Selection & QR Scanner Section */}
+      <div style={{ marginTop: '0.5rem', marginBottom: '1rem' }}>
+        <div className="flex-between" style={{ alignItems: 'center', marginBottom: '0.4rem' }}>
+          <label style={{ margin: 0, fontWeight: 600 }}>Animal Identification</label>
+          <button
+            type="button"
+            className="secondary"
+            onClick={() => setShowScanner(true)}
+            style={{ fontSize: '0.82rem', padding: '0.35rem 0.75rem' }}
+          >
+            📷 Scan Animal Tag QR
+          </button>
+        </div>
+
+        {/* Search filter for animals */}
+        <input
+          type="text"
+          placeholder="🔍 Search animal by tag, nickname, or species…"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          style={{ marginBottom: '0.5rem', fontSize: '0.86rem' }}
+        />
+
+        {/* Selected Animal Identity Confirmation Card */}
+        {currentAnimal && (
+          <div
+            style={{
+              padding: '0.65rem 0.9rem',
+              backgroundColor: '#ecfdf5',
+              borderRadius: '0.6rem',
+              border: '1px solid #a7f3d0',
+              marginBottom: '0.65rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '0.5rem',
+            }}
+          >
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <span style={{ fontSize: '1rem' }}>🏷️</span>
+                <strong style={{ color: '#064e3b', fontSize: '0.92rem' }}>
+                  {currentAnimal.tagNumber}
+                  {currentAnimal.name ? ` — ${currentAnimal.name}` : ''}
+                </strong>
+              </div>
+              <small style={{ color: '#047857', display: 'block', marginTop: '0.15rem' }}>
+                Species: {currentAnimal.species?.canonicalName || currentAnimal.species || 'Livestock'} · Sex:{' '}
+                {(currentAnimal.sex || 'FEMALE').replaceAll('_', ' ')} ·{' '}
+                {currentAnimal.lactating ? 'Lactating' : 'Dry'}
+              </small>
+            </div>
+            <span
+              className="badge"
+              style={{
+                backgroundColor: '#059669',
+                color: '#fff',
+                fontSize: '0.72rem',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              VERIFIED ON FARM
+            </span>
+          </div>
+        )}
+
+        <label style={{ display: 'block' }}>
+          <span style={{ fontSize: '0.82rem', color: 'var(--ag-text-muted)' }}>
+            Select animal from registered livestock (manual fallback)
+          </span>
+          <select
+            name="animalId"
+            value={animalId}
+            onChange={(e) => {
+              setAnimalId(e.target.value);
+              const found = animals.find((a) => a.id === e.target.value);
+              if (found) setResolvedAnimal(found);
+            }}
+            required
+          >
+            {animals.length === 0 && (
+              <option value="">No animals found for selected farm</option>
+            )}
+            {animals.length > 0 && filteredAnimals.length === 0 && (
+              <option value="">No animals match &quot;{searchQuery}&quot;</option>
+            )}
+            {filteredAnimals.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.tagNumber} — {a.name || a.species?.canonicalName || 'Livestock'}
+              </option>
+            ))}
+          </select>
+        </label>
+        {animals.length === 0 && (
+          <p className="notice" style={{ marginTop: '0.3rem', fontSize: '0.85rem' }}>
+            ⚠️ No animals found on this farm. Please add an animal to this farm before requesting treatment.
+          </p>
+        )}
+      </div>
+
+      {showScanner && (
+        <AnimalQrScannerModal
+          farmId={farmId}
+          onClose={() => setShowScanner(false)}
+          onResolved={handleAnimalResolved}
+        />
       )}
 
       <label>
@@ -209,6 +570,9 @@ function CaseWorkspace({ caseId, context, user, capabilities, close }) {
   const [messages, setMessages] = useState([]);
   const [diseases, setDiseases] = useState([]);
   const [drugs, setDrugs] = useState([]);
+  const [workflowError, setWorkflowError] = useState('');
+  const [prescriptionDrugId, setPrescriptionDrugId] = useState('');
+  const [prescriptionProductId, setPrescriptionProductId] = useState('');
   async function load() {
     setItem((await api(`/veterinary-cases/${caseId}`)).case);
     setMessages((await api(`/veterinary-cases/${caseId}/messages`)).messages);
@@ -217,7 +581,10 @@ function CaseWorkspace({ caseId, context, user, capabilities, close }) {
   useEffect(() => {
     load();
     api('/reference-data/diseases').then((d) => setDiseases(d.diseases));
-    api('/reference-data/drugs').then((d) => setDrugs(d.drugs));
+    api('/reference-data/drugs').then((d) => {
+      setDrugs(d.drugs);
+      setPrescriptionDrugId((current) => current || d.drugs[0]?.id || '');
+    });
     const timer = setInterval(load, 15000);
     return () => clearInterval(timer);
   }, [caseId]);
@@ -257,6 +624,7 @@ function CaseWorkspace({ caseId, context, user, capabilities, close }) {
       items: [
         {
           drugId: v.drugId,
+          drugProductId: v.drugProductId || null,
           doseValue: Number(v.doseValue),
           doseUnit: v.doseUnit,
           route: v.route,
@@ -277,42 +645,56 @@ function CaseWorkspace({ caseId, context, user, capabilities, close }) {
     load();
   }
   async function startTreatment(prescriptionId) {
-    const treatment = (
-      await api('/treatments', { method: 'POST', body: JSON.stringify({ caseId, prescriptionId }) })
-    ).treatment;
-    await api(`/treatments/${treatment.id}/status`, {
-      method: 'PATCH',
-      body: JSON.stringify({ status: 'ACTIVE' }),
-    });
-    load();
-  }
-  async function administer(e, treatment) {
-    e.preventDefault();
-    const v = Object.fromEntries(new FormData(e.currentTarget));
-    v.amount = Number(v.amount);
-    if (v.activeIngredientMg) v.activeIngredientMg = Number(v.activeIngredientMg);
-    else {
-      delete v.activeIngredientMg;
-      delete v.conversionProvenance;
+    setWorkflowError('');
+    try {
+      await api('/treatments', {
+        method: 'POST',
+        body: JSON.stringify({ caseId, prescriptionId, startImmediately: true }),
+      });
+      await load();
+    } catch (error) {
+      setWorkflowError(error.message || 'Unable to start treatment');
     }
-    v.administeredAt = new Date().toISOString();
-    const selected = item.prescriptions
-      .find((p) => p.id === treatment.prescriptionId)
-      ?.items.find((x) => x.id === v.prescriptionItemId);
-    v.drugId = selected?.drugId;
-    await api(`/treatments/${treatment.id}/administrations`, {
-      method: 'POST',
-      body: JSON.stringify(v),
-    });
-    e.currentTarget.reset();
-    load();
   }
   async function complete(id) {
-    await api(`/treatments/${id}/status`, {
-      method: 'PATCH',
-      body: JSON.stringify({ status: 'COMPLETED', notes: 'Completed by veterinarian' }),
-    });
-    load();
+    if (!window.confirm('Complete this treatment course using the recorded administration history?'))
+      return;
+    setWorkflowError('');
+    try {
+      await api(`/treatments/${id}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: 'COMPLETED', notes: 'Completed by veterinarian' }),
+      });
+      await load();
+    } catch (error) {
+      setWorkflowError(error.message || 'Unable to complete treatment');
+    }
+  }
+  async function activateTreatment(id) {
+    setWorkflowError('');
+    try {
+      await api(`/treatments/${id}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: 'ACTIVE' }),
+      });
+      await load();
+    } catch (error) {
+      setWorkflowError(error.message || 'Unable to start planned treatment');
+    }
+  }
+  async function cancel(id) {
+    const reason = window.prompt('Why was this treatment cancelled or not administered?');
+    if (!reason?.trim()) return;
+    setWorkflowError('');
+    try {
+      await api(`/treatments/${id}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: 'CANCELLED', notes: reason.trim() }),
+      });
+      await load();
+    } catch (error) {
+      setWorkflowError(error.message || 'Unable to cancel treatment');
+    }
   }
   return (
     <section>
@@ -337,6 +719,7 @@ function CaseWorkspace({ caseId, context, user, capabilities, close }) {
           <strong>Farmer observations:</strong> {item.request.observations}
         </p>
       </div>
+      {workflowError && <p className="error">{workflowError}</p>}
       <div className="workflow-columns">
         <section>
           <h2>Case Chat</h2>
@@ -407,6 +790,8 @@ function CaseWorkspace({ caseId, context, user, capabilities, close }) {
             <p key={x.id}>
               {x.drug.canonicalName}: {x.doseValue} {x.doseUnit}, {x.route}, {x.frequency},{' '}
               {x.durationValue} {x.durationUnit}
+              <br />
+              <small>Product: {x.drugProduct?.productName || 'Not specified'}</small>
             </p>
           ))}
           {assignedVerifiedVeterinarian &&
@@ -431,12 +816,36 @@ function CaseWorkspace({ caseId, context, user, capabilities, close }) {
           </label>
           <label>
             Drug / active ingredient
-            <select name="drugId">
+            <select
+              name="drugId"
+              value={prescriptionDrugId}
+              onChange={(event) => {
+                setPrescriptionDrugId(event.target.value);
+                setPrescriptionProductId('');
+              }}
+            >
               {drugs.map((d) => (
                 <option key={d.id} value={d.id}>
                   {d.canonicalName}
                 </option>
               ))}
+            </select>
+          </label>
+          <label>
+            Approved product (optional)
+            <select
+              name="drugProductId"
+              value={prescriptionProductId}
+              onChange={(event) => setPrescriptionProductId(event.target.value)}
+            >
+              <option value="">Product not specified / no approved product available</option>
+              {(drugs.find((drug) => drug.id === prescriptionDrugId)?.products || []).map(
+                (product) => (
+                  <option key={product.id} value={product.id}>
+                    {product.productName} — {product.formulation} ({product.route})
+                  </option>
+                ),
+              )}
             </select>
           </label>
           <Field label="Dose value (veterinarian entered)" name="doseValue" type="number" />
@@ -498,23 +907,43 @@ function CaseWorkspace({ caseId, context, user, capabilities, close }) {
         <article className="card" key={t.id}>
           <h3>Treatment · {t.status}</h3>
           <p>{t.administrations.length} actual administration(s) recorded</p>
-          {t.administrations.map((a) => (
-            <p key={a.id}>
-              {a.drug.canonicalName}: {a.amount} {a.amountUnit} at{' '}
-              {new Date(a.administeredAt).toLocaleString()}
+          {t.administrations.length > 0 && (
+            <p>
+              Last administration:{' '}
+              {new Date(t.administrations[0].administeredAt).toLocaleString()}
             </p>
+          )}
+          {t.administrations.map((a, index) => (
+            <article className="card compact" key={a.id}>
+              <strong>Administration #{t.administrations.length - index}</strong>
+              <p>Medicine: {a.drug.canonicalName}</p>
+              <p>Product: {a.drugProduct?.productName || 'Not specified'}</p>
+              <p>Actual amount: {a.amount} {a.amountUnit}</p>
+              <p>Route: {a.route}</p>
+              <p>Administered at: {new Date(a.administeredAt).toLocaleString()}</p>
+              <p>Recorded by: {a.administeredBy?.fullName || 'Recorded user unavailable'}</p>
+              <p>
+                Performed by:{' '}
+                {a.performedBy?.fullName || a.performedByName || a.administeredBy?.fullName || 'Not recorded'}
+              </p>
+              <p>Notes: {a.notes || 'None'}</p>
+              <p>Deviation: {a.deviationReason || 'None recorded'}</p>
+            </article>
           ))}
+          {t.status === 'PLANNED' && assignedVerifiedVeterinarian && (
+            <div className="inline-form" style={{ marginTop: '0.75rem' }}>
+              <button onClick={() => activateTreatment(t.id)}>Start Planned Treatment</button>
+              <button className="danger" onClick={() => cancel(t.id)}>
+                Cancel / Not Administered
+              </button>
+            </div>
+          )}
           {t.status === 'ACTIVE' && canRecordAdministration && (
             <>
               <AdministrationForm
                 treatment={t}
                 caseItem={item}
                 onAdminister={async (v) => {
-                  v.administeredAt = new Date().toISOString();
-                  const selected = item.prescriptions
-                    .find((p) => p.id === t.prescriptionId)
-                    ?.items.find((x) => x.id === v.prescriptionItemId);
-                  v.drugId = selected?.drugId;
                   await api(`/treatments/${t.id}/administrations`, {
                     method: 'POST',
                     body: JSON.stringify(v),
@@ -523,9 +952,29 @@ function CaseWorkspace({ caseId, context, user, capabilities, close }) {
                 }}
               />
               {assignedVerifiedVeterinarian && (
-                <button className="secondary" style={{ marginTop: '0.75rem' }} onClick={() => complete(t.id)}>
-                  ✅ Complete Treatment Course
-                </button>
+                <div className="inline-form" style={{ marginTop: '0.75rem' }}>
+                  <button
+                    className="secondary"
+                    disabled={!canCompleteTreatment(t)}
+                    title={
+                      t.administrations.length === 0
+                        ? 'Record at least one actual administration before completion'
+                        : 'Complete treatment course'
+                    }
+                    onClick={() => complete(t.id)}
+                  >
+                    ✅ Complete Treatment Course
+                  </button>
+                  <button className="danger" onClick={() => cancel(t.id)}>
+                    Cancel / Not Administered
+                  </button>
+                </div>
+              )}
+              {assignedVerifiedVeterinarian && t.administrations.length === 0 && (
+                <p className="notice">
+                  Completion is unavailable until an actual medicine administration is recorded.
+                  If no medicine was given, cancel the treatment with a reason.
+                </p>
               )}
             </>
           )}
@@ -535,15 +984,24 @@ function CaseWorkspace({ caseId, context, user, capabilities, close }) {
   );
 }
 
-function AdministrationForm({ treatment, caseItem, onAdminister }) {
+export function AdministrationForm({ treatment, caseItem, onAdminister }) {
   const prescription = caseItem.prescriptions.find((p) => p.id === treatment.prescriptionId);
   const items = prescription?.items || [];
   const [selectedItemId, setSelectedItemId] = useState(items[0]?.id || '');
   const [amount, setAmount] = useState(items[0]?.doseValue || '');
   const [amountUnit, setAmountUnit] = useState(items[0]?.doseUnit || 'ml');
   const [route, setRoute] = useState(items[0]?.route || 'INTRAMUSCULAR');
+  const [drugProductId, setDrugProductId] = useState(items[0]?.drugProductId || '');
+  const [administeredAt, setAdministeredAt] = useState(() => {
+    const now = new Date(Date.now() - new Date().getTimezoneOffset() * 60000);
+    return now.toISOString().slice(0, 16);
+  });
+  const [samePerformer, setSamePerformer] = useState(true);
+  const [performedByName, setPerformedByName] = useState('');
+  const [deviationReason, setDeviationReason] = useState('');
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     const selected = items.find((x) => x.id === selectedItemId);
@@ -551,6 +1009,8 @@ function AdministrationForm({ treatment, caseItem, onAdminister }) {
       setAmount(selected.doseValue || '');
       setAmountUnit(selected.doseUnit || 'ml');
       setRoute(selected.route || 'INTRAMUSCULAR');
+      setDrugProductId(selected.drugProductId || '');
+      setDeviationReason('');
     }
   }, [selectedItemId, items]);
 
@@ -558,21 +1018,36 @@ function AdministrationForm({ treatment, caseItem, onAdminister }) {
     e.preventDefault();
     if (submitting) return;
     setSubmitting(true);
+    setError('');
     try {
       await onAdminister({
         prescriptionItemId: selectedItemId,
         amount: Number(amount),
         amountUnit,
         route,
+        drugProductId: drugProductId || null,
+        administeredAt: new Date(administeredAt).toISOString(),
+        performedByName: samePerformer ? null : performedByName,
+        deviationReason: hasDeviation ? deviationReason : null,
         notes,
       });
       setNotes('');
+    } catch (submissionError) {
+      setError(submissionError.message || 'Unable to record administration');
     } finally {
       setSubmitting(false);
     }
   }
 
   const nextNumber = (treatment.administrations?.length || 0) + 1;
+  const selectedItem = items.find((item) => item.id === selectedItemId);
+  const products = selectedItem?.drug?.products || [];
+  const hasDeviation =
+    selectedItem &&
+    (Number(selectedItem.doseValue) !== Number(amount) ||
+      selectedItem.doseUnit !== amountUnit ||
+      selectedItem.route !== route ||
+      (selectedItem.drugProductId || '') !== drugProductId);
 
   return (
     <form className="card form" style={{ background: '#f8fafc', marginTop: '1rem', border: '1px solid #cbd5e1' }} onSubmit={submit}>
@@ -583,6 +1058,9 @@ function AdministrationForm({ treatment, caseItem, onAdminister }) {
       <p style={{ fontSize: '0.84rem', color: '#64748b', margin: '0.35rem 0 0.85rem' }}>
         Select a prescribed item to auto-populate the recommended dose amount, unit, and route. Recording an administration registers an actual dosage event for AMU tracking.
       </p>
+      {error && <p className="error">{error}</p>}
+      <p><strong>Animal:</strong> {caseItem.animal.name || caseItem.animal.tagNumber}</p>
+      <p><strong>Treatment:</strong> {treatment.status}</p>
       <label>
         Prescribed Medicine Item
         <select value={selectedItemId} onChange={(e) => setSelectedItemId(e.target.value)}>
@@ -593,6 +1071,14 @@ function AdministrationForm({ treatment, caseItem, onAdminister }) {
           ))}
         </select>
       </label>
+      {selectedItem && (
+        <div className="notice">
+          <strong>Prescription:</strong> {selectedItem.drug.canonicalName}
+          {' · '}{selectedItem.drugProduct?.productName || 'Product not specified'}
+          {' · '}{selectedItem.doseValue} {selectedItem.doseUnit}
+          {' · '}{selectedItem.route}
+        </div>
+      )}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.75rem' }}>
         <label>
           Amount Given
@@ -625,7 +1111,61 @@ function AdministrationForm({ treatment, caseItem, onAdminister }) {
             <option value="INTRAMAMMARY">INTRAMAMMARY</option>
           </select>
         </label>
+        <label>
+          Actual Product
+          <select value={drugProductId} onChange={(e) => setDrugProductId(e.target.value)}>
+            <option value="">Product unknown / not specified</option>
+            {products.map((product) => (
+              <option key={product.id} value={product.id}>
+                {product.productName} — {product.formulation}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
+      <label>
+        Actual administration date and time
+        <input
+          type="datetime-local"
+          required
+          max={new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
+            .toISOString()
+            .slice(0, 16)}
+          value={administeredAt}
+          onChange={(event) => setAdministeredAt(event.target.value)}
+        />
+      </label>
+      <label className="checkbox-line">
+        <input
+          type="checkbox"
+          checked={samePerformer}
+          onChange={(event) => setSamePerformer(event.target.checked)}
+        />
+        Medicine was performed by the same person recording this entry
+      </label>
+      {!samePerformer && (
+        <label>
+          Performed by (name)
+          <input
+            required
+            value={performedByName}
+            onChange={(event) => setPerformedByName(event.target.value)}
+            placeholder="Name of the person who administered the medicine"
+          />
+        </label>
+      )}
+      {hasDeviation && (
+        <label className="notice">
+          ⚠ Deviation from prescription — reason required
+          <textarea
+            required
+            minLength={3}
+            value={deviationReason}
+            onChange={(event) => setDeviationReason(event.target.value)}
+            placeholder="Explain why the actual amount, unit, route, or product differed"
+          />
+        </label>
+      )}
       <label>
         Administration Notes (Optional)
         <input

@@ -67,11 +67,15 @@ export function navigationFor(workspace) {
         ? [
             ['dashboard', 'Farm Dashboard'],
             ['core-engine', 'AMU & Milk Eligibility'],
+            ['daily-clearance', "Today's Milk Eligibility"],
             ['certificates', 'Certificates'],
             ['ai', 'AI Advisor'],
           ]
         : []),
       ...(capabilities.owns ? [['members', 'Farm Members']] : []),
+      ...(!capabilities.canViewManagementAnalytics
+        ? [['daily-clearance', "Today's Milk Eligibility"]]
+        : []),
     ];
   }
   return [

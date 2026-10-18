@@ -1,13 +1,15 @@
 import argon2 from 'argon2';
 import request from 'supertest';
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createApp } from '../../app.js';
 import { signAccessToken } from '../../common/auth.js';
+import { env } from '../../config/env.js';
 import { prisma } from '../../infrastructure/prisma/client.js';
 
 const stamp = Date.now();
 let owner, outsider, admin, farm, animal;
 const app = createApp();
+const originalLlmApiKey = env.LLM_API_KEY;
 
 describe.sequential('AI authorization and graceful provider behavior', () => {
   beforeAll(async () => {
@@ -47,7 +49,12 @@ describe.sequential('AI authorization and graceful provider behavior', () => {
       data: { farmId: farm.id, speciesId: species.id, tagNumber: `AI-${stamp}`, sex: 'FEMALE' },
     });
   });
+  afterEach(() => {
+    env.LLM_API_KEY = originalLlmApiKey;
+    vi.unstubAllGlobals();
+  });
   afterAll(async () => {
+    env.LLM_API_KEY = originalLlmApiKey;
     await prisma.advisorMessage.deleteMany({
       where: { conversation: { userId: { in: [owner.id, outsider.id, admin.id] } } },
     });
@@ -118,6 +125,9 @@ describe.sequential('AI authorization and graceful provider behavior', () => {
       });
     expect(isolated.status).toBe(404);
     expect(providerCall).not.toHaveBeenCalled();
+
+    // Deterministically test unconfigured LLM key branch regardless of developer's .env
+    env.LLM_API_KEY = undefined;
     vi.stubGlobal(
       'fetch',
       vi.fn(async (_url) => ({ ok: true, json: async () => ({ chunks: [] }) })),
@@ -128,5 +138,42 @@ describe.sequential('AI authorization and graceful provider behavior', () => {
       .send({ question: 'Can I collect milk?', animalId: animal.id });
     expect(result.status).toBe(503);
     expect(result.body.error.code).toBe('LLM_NOT_CONFIGURED');
+  });
+  it('handles provider failure gracefully without crashing the backend', async () => {
+    // Explicitly configure dummy test key and mock external failure
+    env.LLM_API_KEY = 'mock-test-key';
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url) => {
+        const urlStr = String(url);
+        if (urlStr.includes('/v1/retrieve')) {
+          return { ok: true, json: async () => ({ chunks: [] }) };
+        }
+        if (urlStr.includes('/v1/amu-risk')) {
+          return {
+            ok: true,
+            json: async () => ({
+              category: 'LOW',
+              displayRiskScore: 10,
+              contributingIndicators: [],
+              disclaimer: 'Decision support only',
+            }),
+          };
+        }
+        // Simulated upstream LLM provider rejection / unavailable status
+        return {
+          ok: false,
+          status: 502,
+          json: async () => ({ error: 'Upstream model service unavailable' }),
+        };
+      }),
+    );
+    const result = await request(app)
+      .post('/api/v1/advisor/ask')
+      .set('Authorization', `Bearer ${signAccessToken(owner.id)}`)
+      .send({ question: 'Can I collect milk?', animalId: animal.id });
+    expect(result.status).toBe(503);
+    expect(result.body.error.code).toBe('LLM_UNAVAILABLE');
+    expect(result.body.error.message).toBe('Unexpected server error');
   });
 });

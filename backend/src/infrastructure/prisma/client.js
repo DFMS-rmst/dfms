@@ -1,3 +1,4 @@
+import '../../config/env.js';
 import { PrismaClient } from '@prisma/client';
 import { env } from '../../config/env.js';
 

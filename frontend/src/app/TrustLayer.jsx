@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { api, download, publicApi } from './api.js';
 
 const label = (x) => x?.replaceAll('_', ' ');
-export function Certificates({ farms, isAdmin, canAnchor = false, canRevoke = false }) {
+export function Certificates({ farms, isAdmin, _canAnchor = false, canRevoke = false }) {
   const [farmId, setFarmId] = useState(farms[0]?.id || '');
   const [items, setItems] = useState([]);
   const [selected, setSelected] = useState(null);
@@ -16,10 +16,6 @@ export function Certificates({ farms, isAdmin, canAnchor = false, canRevoke = fa
   }, [farmId, isAdmin]); // eslint-disable-line react-hooks/exhaustive-deps
   async function open(id) {
     setSelected(await api(`/certificates/${id}`));
-  }
-  async function anchor(id) {
-    await api(`/certificates/${id}/blockchain/anchor`, { method: 'POST' });
-    await open(id);
   }
   async function revoke(id) {
     const reason = window.prompt('Administrative revocation reason');
@@ -69,7 +65,8 @@ export function Certificates({ farms, isAdmin, canAnchor = false, canRevoke = fa
             <strong>Certificate status:</strong> {label(selected.certificate.status)}
           </p>
           <p>
-            <strong>Blockchain integrity:</strong> {label(selected.blockchainIntegrity)}
+            <strong>Document integrity:</strong> {label(selected.documentIntegrity || 'VERIFIED')}{' '}
+            (Canonical SHA-256)
           </p>
           <img className="qr" src={selected.qrDataUrl} alt="Certificate verification QR code" />
           <p>{selected.certificate.disclaimer}</p>
@@ -84,9 +81,6 @@ export function Certificates({ farms, isAdmin, canAnchor = false, canRevoke = fa
             >
               Download PDF
             </button>
-            {canAnchor && (
-              <button onClick={() => anchor(selected.certificate.id)}>Anchor / retry proof</button>
-            )}
             {canRevoke && selected.certificate.status === 'ACTIVE' && (
               <button className="danger" onClick={() => revoke(selected.certificate.id)}>
                 Revoke certificate
@@ -124,7 +118,8 @@ export function PublicVerification({ verificationId }) {
               {new Date(data.eligibleFrom).toLocaleString()}
             </p>
             <p>
-              <strong>Blockchain Integrity:</strong> {label(data.blockchainIntegrity)}
+              <strong>Document Integrity:</strong> {label(data.documentIntegrity || 'VERIFIED')}{' '}
+              (Canonical SHA-256)
             </p>
             <p>
               Animal {data.animalTag} · {data.species} · {data.farmName}
@@ -151,14 +146,7 @@ export function DashboardReports({ farms, workspace }) {
     if (admin || vet || farmId) api(endpoint).then(setData);
   }, [endpoint, farmId, admin, vet]);
   const reports = admin
-    ? [
-        'organization-amu',
-        'withdrawal-eligibility',
-        'certificates',
-        'veterinary-activity',
-        'audit',
-        'blockchain',
-      ]
+    ? ['organization-amu', 'withdrawal-eligibility', 'certificates', 'veterinary-activity', 'audit']
     : [
         'farm-amu',
         'animal-treatment-history',

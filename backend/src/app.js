@@ -8,7 +8,7 @@ import { env } from './config/env.js';
 import { healthRouter } from './modules/health/routes.js';
 import { authRouter } from './modules/auth/index.js';
 import { farmsRouter } from './modules/farms/index.js';
-import { animalsRouter, speciesRouter } from './modules/animals/index.js';
+import { animalsRouter, publicAnimalsRouter, speciesRouter } from './modules/animals/index.js';
 import { filesRouter } from './modules/files/index.js';
 import { adminVeterinariansRouter, veterinariansRouter } from './modules/veterinarians/index.js';
 import {
@@ -26,6 +26,10 @@ import { reportsRouter } from './modules/reports/index.js';
 import { rateLimit } from './common/rate-limit.js';
 import { mlRouter } from './modules/ml/index.js';
 import { advisorRouter } from './modules/advisor/index.js';
+import {
+  dailyClearanceRouter,
+  publicDailyClearanceRouter,
+} from './modules/daily-clearance/index.js';
 
 export function createApp() {
   const app = express();
@@ -59,10 +63,21 @@ export function createApp() {
   app.use('/api/v1/eligibility', eligibilityRouter);
   app.use('/api/v1/reference-data/mrl', mrlRouter);
   app.use('/api/v1/certificates', certificatesRouter);
+  app.use('/api/v1/daily-clearances', dailyClearanceRouter);
+  app.use(
+    '/api/v1/public/daily-clearances',
+    rateLimit({ windowMs: 60_000, max: 120 }),
+    publicDailyClearanceRouter,
+  );
   app.use(
     '/api/v1/public/certificates',
     rateLimit({ windowMs: 60_000, max: 120 }),
     publicCertificatesRouter,
+  );
+  app.use(
+    '/api/v1/public/animals',
+    rateLimit({ windowMs: 60_000, max: 120 }),
+    publicAnimalsRouter,
   );
   app.use('/api/v1/dashboards', dashboardsRouter);
   app.use('/api/v1/reports', reportsRouter);
@@ -74,6 +89,16 @@ export function createApp() {
       .json({ error: { code: 'NOT_FOUND', message: 'Route not found', requestId: request.id } }),
   );
   app.use((error, request, response, _next) => {
+    if (error.name === 'ZodError' || error.issues) {
+      return response.status(400).json({
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: error.issues?.[0]?.message || 'Invalid request data',
+          details: { fieldErrors: error.flatten ? error.flatten().fieldErrors : {} },
+          requestId: request.id,
+        },
+      });
+    }
     if (error.code === 'P2002')
       error = Object.assign(error, {
         status: 409,

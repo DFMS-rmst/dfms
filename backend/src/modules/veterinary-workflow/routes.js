@@ -8,6 +8,7 @@ import { createAlerts } from '../alerts/service.js';
 import { appendAudit } from '../audit/index.js';
 import { renderPrescriptionPdf } from '../prescriptions/pdf.js';
 import { evaluateAndPersist } from '../withdrawal/service.js';
+import { validateAdministrationEvidence } from './administration.js';
 import {
   assertAssignedVerifiedVet,
   assertTransition,
@@ -55,8 +56,8 @@ const prescriptionSchema = z.object({
   items: z.array(itemSchema).min(1).max(20),
 });
 const administrationSchema = z.object({
-  prescriptionItemId: z.string().optional().nullable(),
-  drugId: z.string(),
+  prescriptionItemId: z.string(),
+  drugId: z.string().optional(),
   drugProductId: z.string().optional().nullable(),
   amount: z.number().positive(),
   amountUnit: z.string().trim().min(1).max(60),
@@ -68,6 +69,8 @@ const administrationSchema = z.object({
   weightMeasuredAt: z.coerce.date().optional().nullable(),
   batchNumber: z.string().trim().max(120).optional().nullable(),
   notes: z.string().max(3000).optional().nullable(),
+  performedByName: z.string().trim().min(2).max(160).optional().nullable(),
+  deviationReason: z.string().trim().min(3).max(3000).optional().nullable(),
 });
 const requestInclude = {
   animal: { include: { species: true } },
@@ -82,11 +85,22 @@ const caseInclude = {
   veterinarian: { include: { user: { select: { id: true, fullName: true } } } },
   diagnoses: { include: { disease: true }, orderBy: { diagnosedAt: 'desc' } },
   prescriptions: {
-    include: { items: { include: { drug: true } } },
+    include: { items: { include: { drug: { include: { products: true } }, drugProduct: true } } },
     orderBy: { prescribedAt: 'desc' },
   },
   treatments: {
-    include: { administrations: { include: { drug: true } } },
+    include: {
+      administrations: {
+        orderBy: { administeredAt: 'desc' },
+        include: {
+          drug: true,
+          drugProduct: true,
+          administeredBy: { select: { id: true, fullName: true } },
+          performedBy: { select: { id: true, fullName: true } },
+          prescriptionItem: true,
+        },
+      },
+    },
     orderBy: { createdAt: 'desc' },
   },
 };
@@ -502,6 +516,28 @@ casesRouter.post(
     });
     if (drugs !== new Set(req.body.items.map((x) => x.drugId)).size)
       throw new AppError(400, 'DRUG_NOT_FOUND', 'Drug reference not found');
+    const productIds = req.body.items.map((x) => x.drugProductId).filter(Boolean);
+    if (productIds.length) {
+      const products = await prisma.drugProduct.findMany({
+        where: { id: { in: productIds } },
+        select: { id: true, drugId: true },
+      });
+      if (
+        products.length !== new Set(productIds).size ||
+        req.body.items.some(
+          (entry) =>
+            entry.drugProductId &&
+            !products.some(
+              (product) => product.id === entry.drugProductId && product.drugId === entry.drugId,
+            ),
+        )
+      )
+        throw new AppError(
+          400,
+          'DRUG_PRODUCT_MISMATCH',
+          'Selected product does not belong to the prescribed drug',
+        );
+    }
     const { items, ...data } = req.body;
     const prescription = await prisma.$transaction(async (tx) => {
       const saved = await tx.prescription.create({
@@ -512,7 +548,7 @@ casesRouter.post(
           veterinarianId: item.veterinarianId,
           items: { create: items },
         },
-        include: { items: { include: { drug: true } } },
+        include: { items: { include: { drug: true, drugProduct: true } } },
       });
       await tx.animalProfileEvent.create({
         data: {
@@ -589,6 +625,7 @@ treatmentsRouter.post(
       caseId: z.string(),
       prescriptionId: z.string(),
       notes: z.string().max(3000).optional().nullable(),
+      startImmediately: z.boolean().optional().default(false),
     }),
   ),
   asyncHandler(async (req, res) => {
@@ -603,24 +640,71 @@ treatmentsRouter.post(
     });
     if (!prescription)
       throw new AppError(400, 'PRESCRIPTION_CASE_MISMATCH', 'Prescription does not belong to case');
-    const treatment = await prisma.treatment.create({
-      data: {
-        ...req.body,
-        animalId: item.animalId,
-        farmId: item.farmId,
-        veterinarianId: item.veterinarianId,
-      },
+    const { startImmediately, ...treatmentData } = req.body;
+    const treatment = await prisma.$transaction(async (tx) => {
+      const saved = await tx.treatment.create({
+        data: {
+          ...treatmentData,
+          animalId: item.animalId,
+          farmId: item.farmId,
+          veterinarianId: item.veterinarianId,
+          status: startImmediately ? 'ACTIVE' : 'PLANNED',
+          startedAt: startImmediately ? new Date() : null,
+        },
+      });
+      if (startImmediately) {
+        await tx.veterinaryCase.update({
+          where: { id: item.id },
+          data: { status: 'TREATMENT_STARTED' },
+        });
+        await tx.treatmentRequest.update({
+          where: { id: item.requestId },
+          data: { status: 'IN_PROGRESS' },
+        });
+        await tx.animalProfileEvent.create({
+          data: {
+            animalId: item.animalId,
+            actorUserId: req.principal.user.id,
+            eventType: 'TREATMENT_ACTIVE',
+            summary: 'Veterinarian started treatment course',
+            details: { treatmentId: saved.id },
+          },
+        });
+        await appendAudit(
+          {
+            actorUserId: req.principal.user.id,
+            action: 'TREATMENT_ACTIVE',
+            entityType: 'Treatment',
+            entityId: saved.id,
+            farmId: item.farmId,
+            requestId: req.id,
+          },
+          tx,
+        );
+      }
+      return saved;
     });
+    if (startImmediately)
+      await evaluateAndPersist(item.animalId, 'TREATMENT_ACTIVE', req.principal.user.id);
     res.status(201).json({ data: { treatment } });
   }),
 );
 treatmentsRouter.patch(
   '/:id/status',
   validate(
-    z.object({
+    z
+      .object({
       status: z.enum(['ACTIVE', 'COMPLETED', 'CANCELLED']),
-      notes: z.string().max(3000).optional().nullable(),
-    }),
+      notes: z.string().trim().max(3000).optional().nullable(),
+      })
+      .superRefine((value, context) => {
+        if (value.status === 'CANCELLED' && !value.notes?.trim())
+          context.addIssue({
+            code: 'custom',
+            path: ['notes'],
+            message: 'Cancellation reason is required',
+          });
+      }),
   ),
   asyncHandler(async (req, res) => {
     const treatment = await prisma.treatment.findUnique({
@@ -638,6 +722,15 @@ treatmentsRouter.patch(
         'Assigned verified veterinarian required',
       );
     assertTransition(treatmentTransitions, treatment.status, req.body.status);
+    if (
+      req.body.status === 'COMPLETED' &&
+      (await prisma.treatmentAdministration.count({ where: { treatmentId: treatment.id } })) === 0
+    )
+      throw new AppError(
+        409,
+        'ADMINISTRATION_REQUIRED_FOR_COMPLETION',
+        'Treatment cannot be completed because no medicine administration has been recorded.',
+      );
     const updated = await prisma.$transaction(async (tx) => {
       const saved = await tx.treatment.update({
         where: { id: treatment.id },
@@ -646,14 +739,22 @@ treatmentsRouter.patch(
           startedAt: req.body.status === 'ACTIVE' ? new Date() : treatment.startedAt,
           completedAt: req.body.status === 'COMPLETED' ? new Date() : null,
           completionNotes:
-            req.body.status === 'COMPLETED' ? req.body.notes : treatment.completionNotes,
+            ['COMPLETED', 'CANCELLED'].includes(req.body.status)
+              ? req.body.notes
+              : treatment.completionNotes,
         },
       });
       if (req.body.status === 'ACTIVE')
-        await tx.veterinaryCase.update({
-          where: { id: treatment.caseId },
-          data: { status: 'TREATMENT_STARTED' },
-        });
+        await Promise.all([
+          tx.veterinaryCase.update({
+            where: { id: treatment.caseId },
+            data: { status: 'TREATMENT_STARTED' },
+          }),
+          tx.treatmentRequest.update({
+            where: { id: treatment.case.requestId },
+            data: { status: 'IN_PROGRESS' },
+          }),
+        ]);
       await tx.animalProfileEvent.create({
         data: {
           animalId: treatment.animalId,
@@ -691,6 +792,30 @@ treatmentsRouter.patch(
             entityId: treatment.id,
           },
         );
+      }
+      if (['COMPLETED', 'CANCELLED'].includes(req.body.status)) {
+        const allTreatments = await tx.treatment.findMany({
+          where: { caseId: treatment.caseId },
+          select: { status: true },
+        });
+        if (allTreatments.every((entry) => ['COMPLETED', 'CANCELLED'].includes(entry.status))) {
+          const terminalStatus = allTreatments.some((entry) => entry.status === 'COMPLETED')
+            ? 'COMPLETED'
+            : 'CANCELLED';
+          await Promise.all([
+            tx.veterinaryCase.update({
+              where: { id: treatment.caseId },
+              data: {
+                status: terminalStatus,
+                completedAt: terminalStatus === 'COMPLETED' ? new Date() : null,
+              },
+            }),
+            tx.treatmentRequest.update({
+              where: { id: treatment.case.requestId },
+              data: { status: terminalStatus },
+            }),
+          ]);
+        }
       }
       return saved;
     });
@@ -730,22 +855,41 @@ treatmentsRouter.post(
         'FARM_MANAGER',
         'FARM_WORKER',
       ]);
-    if (req.body.prescriptionItemId) {
-      const pi = treatment.prescription?.items.find((x) => x.id === req.body.prescriptionItemId);
-      if (!pi || pi.drugId !== req.body.drugId)
+    const prescriptionItem = treatment.prescription?.items.find(
+      (entry) => entry.id === req.body.prescriptionItemId,
+    );
+    validateAdministrationEvidence(prescriptionItem, req.body);
+    if (req.body.drugProductId) {
+      const product = await prisma.drugProduct.findFirst({
+        where: { id: req.body.drugProductId, drugId: prescriptionItem.drugId },
+      });
+      if (!product)
         throw new AppError(
           400,
-          'PRESCRIPTION_ITEM_MISMATCH',
-          'Prescription item does not match treatment and drug',
+          'DRUG_PRODUCT_MISMATCH',
+          'Actual product does not belong to the prescribed drug',
         );
     }
+    const administrationData = { ...req.body };
+    const performedByName = administrationData.performedByName;
+    delete administrationData.drugId;
+    delete administrationData.performedByName;
     const administration = await prisma.$transaction(async (tx) => {
       const saved = await tx.treatmentAdministration.create({
         data: {
-          ...req.body,
+          ...administrationData,
           treatmentId: treatment.id,
           animalId: treatment.animalId,
+          drugId: prescriptionItem.drugId,
           administeredById: req.principal.user.id,
+          performedByUserId: performedByName ? null : req.principal.user.id,
+          performedByName: performedByName || null,
+        },
+        include: {
+          drug: true,
+          drugProduct: true,
+          administeredBy: { select: { id: true, fullName: true } },
+          performedBy: { select: { id: true, fullName: true } },
         },
       });
       await tx.animalProfileEvent.create({
@@ -753,8 +897,22 @@ treatmentsRouter.post(
           animalId: treatment.animalId,
           actorUserId: req.principal.user.id,
           eventType: 'TREATMENT_ADMINISTERED',
-          summary: 'Treatment administration recorded',
-          details: { administrationId: saved.id, treatmentId: treatment.id },
+          summary: `Actual administration recorded for ${saved.drug.canonicalName}`,
+          details: {
+            administrationId: saved.id,
+            treatmentId: treatment.id,
+            medicine: saved.drug.canonicalName,
+            product: saved.drugProduct?.productName || null,
+            actualAmount: String(saved.amount),
+            amountUnit: saved.amountUnit,
+            route: saved.route,
+            administeredAt: saved.administeredAt.toISOString(),
+            recordedBy: saved.administeredBy.fullName,
+            performedBy:
+              saved.performedBy?.fullName || saved.performedByName || saved.administeredBy.fullName,
+            notes: saved.notes,
+            deviationReason: saved.deviationReason,
+          },
         },
       });
       await appendAudit(
@@ -795,7 +953,7 @@ referenceClinicalRouter.get(
     res.json({
       data: {
         drugs: await prisma.drug.findMany({
-          include: { antimicrobialClass: true },
+          include: { antimicrobialClass: true, products: { orderBy: { productName: 'asc' } } },
           orderBy: { canonicalName: 'asc' },
         }),
       },

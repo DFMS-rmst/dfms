@@ -13,6 +13,8 @@ export default [
       '**/artifacts/**',
       '**/cache/**',
       '.venv-ml/**',
+      '.pytest_cache/**',
+      '**/.pytest_cache/**',
     ],
   },
   js.configs.recommended,
