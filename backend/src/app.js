@@ -84,6 +84,16 @@ export function createApp() {
       .json({ error: { code: 'NOT_FOUND', message: 'Route not found', requestId: request.id } }),
   );
   app.use((error, request, response, _next) => {
+    if (error.name === 'ZodError' || error.issues) {
+      return response.status(400).json({
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: error.issues?.[0]?.message || 'Invalid request data',
+          details: { fieldErrors: error.flatten ? error.flatten().fieldErrors : {} },
+          requestId: request.id,
+        },
+      });
+    }
     if (error.code === 'P2002')
       error = Object.assign(error, {
         status: 409,

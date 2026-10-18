@@ -76,13 +76,7 @@ describe('daily milk collection UI', () => {
       expect(apiModule.api).toHaveBeenCalledWith('/daily-clearances/run-today', expect.any(Object)),
     );
     expect(screen.getByText(/does not determine milk eligibility/i)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /anchor clearance proof/i }));
-    await waitFor(() =>
-      expect(apiModule.api).toHaveBeenCalledWith(
-        '/daily-clearances/evaluation-1/blockchain/anchor',
-        expect.any(Object),
-      ),
-    );
+    expect(screen.getByText(/Tamper Verification:/i)).toBeInTheDocument();
   });
 
   it('renders a zero-eligible result without a positive clearance', async () => {

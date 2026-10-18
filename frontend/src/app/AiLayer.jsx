@@ -75,7 +75,7 @@ export function AiLayer({ farms, user, workspace }) {
         method: 'POST',
         body: JSON.stringify({
           question,
-          conversationId,
+          conversationId: conversationId || undefined,
           farmId: farmId || undefined,
           animalId: animalId || undefined,
         }),
@@ -185,6 +185,7 @@ export function AmuRiskCard({ farmId, animalId = '' }) {
       <button onClick={loadRisk} disabled={!animalId && !farmId}>
         Evaluate recorded AMU pattern
       </button>
+      {error && <p className="error" style={{ marginTop: '0.75rem' }}>⚠️ {error}</p>}
       {risk && (
         <div style={{ marginTop: '1rem' }} className="risk-display-card">
           <div className="flex-between">

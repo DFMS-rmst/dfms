@@ -6,10 +6,10 @@ import { prisma } from '../../infrastructure/prisma/client.js';
 import { answerAdvisor } from './service.js';
 
 const askSchema = z.object({
-  conversationId: z.string().optional(),
+  conversationId: z.string().nullish(),
   question: z.string().min(2).max(1000),
-  farmId: z.string().optional(),
-  animalId: z.string().optional(),
+  farmId: z.string().nullish(),
+  animalId: z.string().nullish(),
 });
 async function authorizeScope(request, farmId) {
   if (request.principal.platformRoles.includes('PLATFORM_ADMIN')) return;
@@ -25,10 +25,12 @@ advisorRouter.post(
   '/ask',
   asyncHandler(async (request, response) => {
     const input = askSchema.parse(request.body);
-    let farmId = input.farmId;
-    if (input.animalId) {
+    const conversationId = input.conversationId || undefined;
+    let farmId = input.farmId || undefined;
+    const animalId = input.animalId || undefined;
+    if (animalId) {
       const animal = await prisma.animal.findUnique({
-        where: { id: input.animalId },
+        where: { id: animalId },
         select: { farmId: true },
       });
       if (!animal) throw new AppError(404, 'ANIMAL_NOT_FOUND', 'Animal not found');
@@ -38,7 +40,13 @@ advisorRouter.post(
     }
     if (farmId) await authorizeScope(request, farmId);
     response.json({
-      data: await answerAdvisor({ ...input, farmId, userId: request.principal.user.id }),
+      data: await answerAdvisor({
+        ...input,
+        conversationId,
+        farmId,
+        animalId,
+        userId: request.principal.user.id,
+      }),
     });
   }),
 );

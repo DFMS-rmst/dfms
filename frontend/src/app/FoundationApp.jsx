@@ -65,7 +65,7 @@ function AuthPage({ mode, done, go }) {
             <span className="hero-pill">🐄 Livestock Tracking</span>
             <span className="hero-pill">🩺 Verified Vets</span>
             <span className="hero-pill">🥛 Milk Certificates</span>
-            <span className="hero-pill">🛡️ Blockchain Proof</span>
+            <span className="hero-pill">🛡️ Cryptographic Integrity</span>
           </div>
         </div>
 

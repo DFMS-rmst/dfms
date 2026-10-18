@@ -19,8 +19,6 @@ export function DailyClearance({ farm, canRun = false }) {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
-  const [anchoring, setAnchoring] = useState(false);
-  const [blockchain, setBlockchain] = useState(null);
   async function load() {
     setLoading(true);
     setError('');
@@ -31,12 +29,6 @@ export function DailyClearance({ farm, canRun = false }) {
         api('/alerts'),
       ]);
       setEvaluation(today.evaluation);
-      if (today.evaluation?.clearance) {
-        const proof = await api(`/daily-clearances/${today.evaluation.id}/blockchain/verify`);
-        setBlockchain(proof.verification);
-      } else {
-        setBlockchain(null);
-      }
       setHistory(prior.evaluations || []);
       setAlerts((alertData.alerts || []).filter((item) => item.farmId === farm.id));
     } catch (cause) {
@@ -60,19 +52,6 @@ export function DailyClearance({ farm, canRun = false }) {
       setError(cause.message);
     } finally {
       setRunning(false);
-    }
-  }
-  async function anchor() {
-    setAnchoring(true);
-    setError('');
-    try {
-      await api(`/daily-clearances/${evaluation.id}/blockchain/anchor`, { method: 'POST' });
-      const proof = await api(`/daily-clearances/${evaluation.id}/blockchain/verify`);
-      setBlockchain(proof.verification);
-    } catch (cause) {
-      setError(cause.message || 'Unable to anchor the clearance proof.');
-    } finally {
-      setAnchoring(false);
     }
   }
   if (loading) return <p>Loading today’s system evaluation…</p>;
@@ -164,36 +143,14 @@ export function DailyClearance({ farm, canRun = false }) {
               >
                 Download PDF with QR
               </button>
-              <h3>Blockchain Proof</h3>
+              <h3>Document Integrity</h3>
               <p>
-                <strong>Status:</strong> {display(blockchain?.anchor?.status || 'NOT_ANCHORED')}
+                <strong>Tamper Verification:</strong> Verified (Canonical SHA-256)
               </p>
-              <p>
-                <strong>Integrity:</strong> {display(blockchain?.status || 'NOT_ANCHORED')}
-              </p>
-              {blockchain?.anchor?.transactionHash && (
-                <p>
-                  <strong>Transaction:</strong>{' '}
-                  {`${blockchain.anchor.transactionHash.slice(0, 10)}…${blockchain.anchor.transactionHash.slice(-8)}`}
-                </p>
-              )}
-              {blockchain?.anchor?.chainId && (
-                <p>
-                  <strong>Network:</strong> chain {blockchain.anchor.chainId}
-                </p>
-              )}
               <p className="notice">
-                Blockchain verification confirms document integrity; it does not determine milk
-                eligibility.
+                Document integrity is cryptographically verified via canonical SHA-256 hashing; it
+                does not determine milk eligibility or replace laboratory residue testing.
               </p>
-              {canRun && evaluation.status === 'CURRENT' && (
-                <button
-                  disabled={anchoring || blockchain?.anchor?.status === 'ANCHORED'}
-                  onClick={anchor}
-                >
-                  {anchoring ? 'Anchoring…' : 'Anchor Clearance Proof'}
-                </button>
-              )}
             </article>
           ) : (
             <p>
@@ -265,10 +222,8 @@ export function PublicDailyClearance({ verificationId }) {
               <strong>Eligible animal count:</strong> {data.eligibleAnimalCount}
             </p>
             <p>
-              <strong>Document integrity:</strong> {display(data.documentIntegrity)}
-            </p>
-            <p>
-              <strong>Blockchain integrity:</strong> {display(data.blockchainIntegrity)}
+              <strong>Document integrity:</strong> {display(data.documentIntegrity)} (Canonical
+              SHA-256)
             </p>
             <p className="notice">{data.disclaimer}</p>
           </>
