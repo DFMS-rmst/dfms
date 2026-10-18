@@ -1,5 +1,5 @@
 /* eslint-disable react-hooks/exhaustive-deps -- effects deliberately synchronize selected server resources */
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api, download } from './api.js';
 import { canCompleteTreatment, treatmentRequestIdFromResponse } from './workflowContracts.js';
 
@@ -9,10 +9,253 @@ const Field = ({ label, name, type = 'text', required = true }) => (
     <input name={name} type={type} required={required} />
   </label>
 );
+
+function AnimalQrScannerModal({ farmId, onClose, onResolved }) {
+  const videoRef = useRef(null);
+  const streamRef = useRef(null);
+  const [manualInput, setManualInput] = useState('');
+  const [resolving, setResolving] = useState(false);
+  const [cameraError, setCameraError] = useState('');
+  const [scanStatus, setScanStatus] = useState('Initializing camera…');
+
+  useEffect(() => {
+    let active = true;
+    let detector = null;
+    let scanInterval = null;
+
+    async function initCamera() {
+      if (!navigator?.mediaDevices?.getUserMedia) {
+        setCameraError(
+          'Live camera access is not supported by this browser or requires an HTTPS connection. You can enter or paste the tag number or verification URL below.',
+        );
+        return;
+      }
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: 'environment' } },
+        });
+        if (!active) {
+          stream.getTracks().forEach((t) => t.stop());
+          return;
+        }
+        streamRef.current = stream;
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          videoRef.current.play().catch(() => {});
+        }
+        setScanStatus('Camera active. Point at animal QR tag…');
+
+        if ('BarcodeDetector' in window) {
+          try {
+            detector = new window.BarcodeDetector({ formats: ['qr_code'] });
+            scanInterval = setInterval(async () => {
+              if (!videoRef.current || videoRef.current.readyState < 2) return;
+              try {
+                const barcodes = await detector.detect(videoRef.current);
+                if (barcodes.length > 0 && barcodes[0].rawValue) {
+                  const raw = barcodes[0].rawValue;
+                  clearInterval(scanInterval);
+                  setScanStatus(`Found code: ${raw}. Resolving with server…`);
+                  resolveTag(raw);
+                }
+              } catch {
+                // Ignore detection interval hiccups
+              }
+            }, 500);
+          } catch {
+            setScanStatus('BarcodeDetector unavailable. Enter tag manually below.');
+          }
+        } else {
+          setScanStatus(
+            'Native QR auto-detection not supported in this browser. Point camera or enter tag manually below.',
+          );
+        }
+      } catch (err) {
+        setCameraError(
+          `Camera access denied or unavailable (${err.name || 'Error'}). Please paste or type the animal tag number or QR code text below.`,
+        );
+      }
+    }
+
+    initCamera();
+
+    return () => {
+      active = false;
+      if (scanInterval) clearInterval(scanInterval);
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((t) => t.stop());
+      }
+    };
+  }, [farmId]);
+
+  async function resolveTag(input) {
+    const val = (input || manualInput).trim();
+    if (!val) {
+      setCameraError('Please enter a tag number or scan a QR code.');
+      return;
+    }
+    setResolving(true);
+    setCameraError('');
+    try {
+      const res = await api(`/farms/${farmId}/animals/resolve-tag`, {
+        method: 'POST',
+        body: JSON.stringify({ tagInput: val }),
+      });
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((t) => t.stop());
+      }
+      onResolved(res.animal);
+      onClose();
+    } catch (err) {
+      setCameraError(
+        err.message || 'No active animal matching this tag was found on this farm. Cross-farm access is prevented.',
+      );
+    } finally {
+      setResolving(false);
+    }
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={onClose} role="dialog" aria-modal="true">
+      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '520px' }}>
+        <div className="flex-between" style={{ marginBottom: '1rem' }}>
+          <h3 style={{ margin: 0, fontSize: '1.25rem' }}>📷 Scan / Identify Animal</h3>
+          <button
+            type="button"
+            className="modal-close-btn"
+            onClick={onClose}
+            aria-label="Close scanner"
+          >
+            ×
+          </button>
+        </div>
+
+        {cameraError && (
+          <div
+            style={{
+              padding: '0.75rem 1rem',
+              backgroundColor: '#fef2f2',
+              borderRadius: '0.6rem',
+              border: '1px solid #fca5a5',
+              color: '#991b1b',
+              fontSize: '0.86rem',
+              marginBottom: '1rem',
+              lineHeight: 1.4,
+            }}
+          >
+            {cameraError}
+          </div>
+        )}
+
+        <div
+          style={{
+            position: 'relative',
+            width: '100%',
+            height: '220px',
+            backgroundColor: '#0f172a',
+            borderRadius: '0.75rem',
+            overflow: 'hidden',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: '0.75rem',
+          }}
+        >
+          <video
+            ref={videoRef}
+            muted
+            playsInline
+            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+          />
+          <div
+            style={{
+              position: 'absolute',
+              width: '140px',
+              height: '140px',
+              border: '2px dashed #10b981',
+              borderRadius: '12px',
+              boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.4)',
+              pointerEvents: 'none',
+            }}
+          />
+        </div>
+
+        <p
+          style={{
+            fontSize: '0.82rem',
+            color: 'var(--ag-text-muted)',
+            textAlign: 'center',
+            margin: '0.2rem 0 1rem',
+          }}
+        >
+          {scanStatus}
+        </p>
+
+        <div
+          style={{
+            padding: '1rem',
+            backgroundColor: '#f8fafc',
+            borderRadius: '0.75rem',
+            border: '1px solid var(--ag-border)',
+          }}
+        >
+          <label
+            style={{
+              display: 'block',
+              fontSize: '0.85rem',
+              fontWeight: 600,
+              marginBottom: '0.4rem',
+            }}
+          >
+            Manual Tag Number or Verification URL Input
+          </label>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <input
+              type="text"
+              placeholder="e.g. UK-04-COW-101 or paste /verify/animal/..."
+              value={manualInput}
+              onChange={(e) => setManualInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  resolveTag();
+                }
+              }}
+              style={{ flex: 1, padding: '0.5rem 0.75rem', fontSize: '0.88rem' }}
+            />
+            <button
+              type="button"
+              disabled={resolving || !manualInput.trim()}
+              onClick={() => resolveTag()}
+              style={{ padding: '0.5rem 1rem', fontSize: '0.88rem', whiteSpace: 'nowrap' }}
+            >
+              {resolving ? 'Resolving…' : '🔍 Resolve'}
+            </button>
+          </div>
+          <small
+            style={{
+              color: 'var(--ag-text-muted)',
+              display: 'block',
+              marginTop: '0.35rem',
+              fontSize: '0.78rem',
+            }}
+          >
+            Verified strictly against authorized farm livestock records. Cross-farm access is blocked.
+          </small>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function RequestForm({ farms, veterinarians, refresh }) {
   const [farmId, setFarmId] = useState(farms[0]?.id || '');
   const [animals, setAnimals] = useState([]);
   const [animalId, setAnimalId] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showScanner, setShowScanner] = useState(false);
+  const [resolvedAnimal, setResolvedAnimal] = useState(null);
   const [requestedVetId, setRequestedVetId] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -32,8 +275,11 @@ function RequestForm({ farms, veterinarians, refresh }) {
           if (active) {
             const list = d.animals || [];
             setAnimals(list);
-            if (list.length > 0) setAnimalId(list[0].id);
-            else setAnimalId('');
+            if (list.length > 0) {
+              setAnimalId((current) => (list.some((a) => a.id === current) ? current : list[0].id));
+            } else {
+              setAnimalId('');
+            }
           }
         })
         .catch(() => {
@@ -60,6 +306,28 @@ function RequestForm({ farms, veterinarians, refresh }) {
       setRequestedVetId('');
     }
   }, [veterinarians, requestedVetId]);
+
+  const filteredAnimals = animals.filter((a) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase().trim();
+    return (
+      a.tagNumber?.toLowerCase().includes(q) ||
+      a.name?.toLowerCase().includes(q) ||
+      a.id?.toLowerCase().includes(q) ||
+      a.species?.canonicalName?.toLowerCase().includes(q)
+    );
+  });
+
+  const currentAnimal =
+    animals.find((a) => a.id === animalId) ||
+    (resolvedAnimal?.id === animalId ? resolvedAnimal : null);
+
+  function handleAnimalResolved(matched) {
+    setAnimals((prev) => (prev.some((a) => a.id === matched.id) ? prev : [matched, ...prev]));
+    setAnimalId(matched.id);
+    setResolvedAnimal(matched);
+    setSuccess(`✅ Animal tag verified on farm: ${matched.tagNumber} (${matched.name || matched.species || 'Livestock'}).`);
+  }
 
   async function submit(event) {
     event.preventDefault();
@@ -118,7 +386,7 @@ function RequestForm({ farms, veterinarians, refresh }) {
     }
   }
 
-  const isBtnDisabled = submitting || !farmId || !animalId || !requestedVetId;
+  const isBtnDisabled = Boolean(submitting || !farmId || !animalId || !requestedVetId);
 
   return (
     <form className="card form" onSubmit={submit} style={{ marginTop: '2rem' }}>
@@ -138,21 +406,112 @@ function RequestForm({ farms, veterinarians, refresh }) {
         </select>
       </label>
 
-      <label>
-        Animal
-        <select name="animalId" value={animalId} onChange={(e) => setAnimalId(e.target.value)} required>
-          {animals.length === 0 && <option value="">No animals found for selected farm</option>}
-          {animals.map((a) => (
-            <option key={a.id} value={a.id}>
-              {a.tagNumber} — {a.name || a.species?.canonicalName || 'Livestock'}
-            </option>
-          ))}
-        </select>
-      </label>
-      {animals.length === 0 && (
-        <p className="notice" style={{ marginTop: '-0.3rem', fontSize: '0.85rem' }}>
-          ⚠️ No animals found on this farm. Please add an animal to this farm before requesting treatment.
-        </p>
+      {/* Animal Selection & QR Scanner Section */}
+      <div style={{ marginTop: '0.5rem', marginBottom: '1rem' }}>
+        <div className="flex-between" style={{ alignItems: 'center', marginBottom: '0.4rem' }}>
+          <label style={{ margin: 0, fontWeight: 600 }}>Animal Identification</label>
+          <button
+            type="button"
+            className="secondary"
+            onClick={() => setShowScanner(true)}
+            style={{ fontSize: '0.82rem', padding: '0.35rem 0.75rem' }}
+          >
+            📷 Scan Animal Tag QR
+          </button>
+        </div>
+
+        {/* Search filter for animals */}
+        <input
+          type="text"
+          placeholder="🔍 Search animal by tag, nickname, or species…"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          style={{ marginBottom: '0.5rem', fontSize: '0.86rem' }}
+        />
+
+        {/* Selected Animal Identity Confirmation Card */}
+        {currentAnimal && (
+          <div
+            style={{
+              padding: '0.65rem 0.9rem',
+              backgroundColor: '#ecfdf5',
+              borderRadius: '0.6rem',
+              border: '1px solid #a7f3d0',
+              marginBottom: '0.65rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '0.5rem',
+            }}
+          >
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <span style={{ fontSize: '1rem' }}>🏷️</span>
+                <strong style={{ color: '#064e3b', fontSize: '0.92rem' }}>
+                  {currentAnimal.tagNumber}
+                  {currentAnimal.name ? ` — ${currentAnimal.name}` : ''}
+                </strong>
+              </div>
+              <small style={{ color: '#047857', display: 'block', marginTop: '0.15rem' }}>
+                Species: {currentAnimal.species?.canonicalName || currentAnimal.species || 'Livestock'} · Sex:{' '}
+                {(currentAnimal.sex || 'FEMALE').replaceAll('_', ' ')} ·{' '}
+                {currentAnimal.lactating ? 'Lactating' : 'Dry'}
+              </small>
+            </div>
+            <span
+              className="badge"
+              style={{
+                backgroundColor: '#059669',
+                color: '#fff',
+                fontSize: '0.72rem',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              VERIFIED ON FARM
+            </span>
+          </div>
+        )}
+
+        <label style={{ display: 'block' }}>
+          <span style={{ fontSize: '0.82rem', color: 'var(--ag-text-muted)' }}>
+            Select animal from registered livestock (manual fallback)
+          </span>
+          <select
+            name="animalId"
+            value={animalId}
+            onChange={(e) => {
+              setAnimalId(e.target.value);
+              const found = animals.find((a) => a.id === e.target.value);
+              if (found) setResolvedAnimal(found);
+            }}
+            required
+          >
+            {animals.length === 0 && (
+              <option value="">No animals found for selected farm</option>
+            )}
+            {animals.length > 0 && filteredAnimals.length === 0 && (
+              <option value="">No animals match &quot;{searchQuery}&quot;</option>
+            )}
+            {filteredAnimals.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.tagNumber} — {a.name || a.species?.canonicalName || 'Livestock'}
+              </option>
+            ))}
+          </select>
+        </label>
+        {animals.length === 0 && (
+          <p className="notice" style={{ marginTop: '0.3rem', fontSize: '0.85rem' }}>
+            ⚠️ No animals found on this farm. Please add an animal to this farm before requesting treatment.
+          </p>
+        )}
+      </div>
+
+      {showScanner && (
+        <AnimalQrScannerModal
+          farmId={farmId}
+          onClose={() => setShowScanner(false)}
+          onResolved={handleAnimalResolved}
+        />
       )}
 
       <label>

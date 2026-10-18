@@ -197,35 +197,148 @@ export function PublicDailyClearance({ verificationId }) {
       .then(setData)
       .catch((cause) => setError(cause.message));
   }, [verificationId]);
+
+  const isCurrent = data?.status === 'CURRENT';
+  const isSuperseded = data?.status === 'SUPERSEDED';
+
   return (
-    <main className="auth-page">
-      <article className="card verification">
-        <p className="eyebrow">Public verification</p>
-        <h1>Daily Milk Collection Clearance</h1>
+    <main className="auth-page" style={{ padding: '2rem 1rem' }}>
+      <article className="card verification" style={{ maxWidth: '640px', margin: '0 auto' }}>
+        <p className="eyebrow" style={{ letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+          Public Verification
+        </p>
+        <h1 style={{ fontSize: '1.75rem', marginBottom: '0.5rem' }}>
+          Daily Milk Collection Clearance
+        </h1>
+        <p style={{ color: 'var(--ag-text-muted)', fontSize: '0.88rem', marginBottom: '1.5rem' }}>
+          Server-backed document verification for milk collection organizations &amp; dairy unions
+        </p>
         {error && <p className="error">{error}</p>}
         {data && (
           <>
+            {/* Prominent Verification Status Banner */}
+            {isCurrent && (
+              <div
+                style={{
+                  padding: '1rem 1.25rem',
+                  borderRadius: '0.75rem',
+                  border: '2px solid #10b981',
+                  backgroundColor: '#ecfdf5',
+                  color: '#064e3b',
+                  marginBottom: '1.5rem',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span style={{ fontSize: '1.4rem' }}>✅</span>
+                  <strong style={{ fontSize: '1.1rem' }}>CURRENT VALID CLEARANCE</strong>
+                </div>
+                <p style={{ margin: '0.4rem 0 0', fontSize: '0.9rem' }}>
+                  This document is currently active and valid for milk collection on business date{' '}
+                  <strong>{String(data.businessDate).slice(0, 10)}</strong>.
+                </p>
+              </div>
+            )}
+
+            {isSuperseded && (
+              <div
+                style={{
+                  padding: '1rem 1.25rem',
+                  borderRadius: '0.75rem',
+                  border: '2px solid #ea580c',
+                  backgroundColor: '#fff7ed',
+                  color: '#9a3412',
+                  marginBottom: '1.5rem',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span style={{ fontSize: '1.4rem' }}>⚠️</span>
+                  <strong style={{ fontSize: '1.1rem' }}>SUPERSEDED CLEARANCE — DO NOT COLLECT</strong>
+                </div>
+                <p style={{ margin: '0.4rem 0 0', fontSize: '0.9rem', lineHeight: 1.45 }}>
+                  This clearance document (Version {data.version}) has been <strong>superseded</strong> by a
+                  newer evaluation. Do not accept milk collection based on this outdated document.
+                </p>
+                {data.invalidationReason && (
+                  <p style={{ margin: '0.35rem 0 0', fontSize: '0.84rem' }}>
+                    <strong>Invalidation Reason:</strong> {display(data.invalidationReason)}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {!isCurrent && !isSuperseded && (
+              <div
+                style={{
+                  padding: '1rem 1.25rem',
+                  borderRadius: '0.75rem',
+                  border: '2px solid #dc2626',
+                  backgroundColor: '#fef2f2',
+                  color: '#991b1b',
+                  marginBottom: '1.5rem',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span style={{ fontSize: '1.4rem' }}>🚫</span>
+                  <strong style={{ fontSize: '1.1rem' }}>INVALID / REVOKED CLEARANCE</strong>
+                </div>
+                <p style={{ margin: '0.4rem 0 0', fontSize: '0.9rem' }}>
+                  This clearance status is {display(data.status)}. Milk collection is strictly blocked.
+                </p>
+              </div>
+            )}
+
             <h2>{data.clearanceNumber}</h2>
-            <p>
-              <strong>Status:</strong> {display(data.status)}
-            </p>
-            <p>
-              <strong>Farm:</strong> {data.farmName}
-            </p>
-            <p>
-              <strong>Business date:</strong> {String(data.businessDate).slice(0, 10)}
-            </p>
-            <p>
-              <strong>Version:</strong> {data.version}
-            </p>
-            <p>
-              <strong>Eligible animal count:</strong> {data.eligibleAnimalCount}
-            </p>
-            <p>
-              <strong>Document integrity:</strong> {display(data.documentIntegrity)} (Canonical
-              SHA-256)
-            </p>
-            <p className="notice">{data.disclaimer}</p>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                gap: '0.75rem',
+                margin: '1rem 0 1.5rem',
+              }}
+            >
+              <div style={{ padding: '0.6rem 0.8rem', background: '#f8fafc', borderRadius: '0.5rem', border: '1px solid var(--ag-border)' }}>
+                <small style={{ color: 'var(--ag-text-muted)' }}>Status</small>
+                <p style={{ margin: '0.15rem 0 0', fontWeight: 600 }}>{display(data.status)}</p>
+              </div>
+              <div style={{ padding: '0.6rem 0.8rem', background: '#f8fafc', borderRadius: '0.5rem', border: '1px solid var(--ag-border)' }}>
+                <small style={{ color: 'var(--ag-text-muted)' }}>Farm Name</small>
+                <p style={{ margin: '0.15rem 0 0', fontWeight: 600 }}>{data.farmName}</p>
+              </div>
+              <div style={{ padding: '0.6rem 0.8rem', background: '#f8fafc', borderRadius: '0.5rem', border: '1px solid var(--ag-border)' }}>
+                <small style={{ color: 'var(--ag-text-muted)' }}>Business Date</small>
+                <p style={{ margin: '0.15rem 0 0', fontWeight: 600 }}>{String(data.businessDate).slice(0, 10)}</p>
+              </div>
+              <div style={{ padding: '0.6rem 0.8rem', background: '#f8fafc', borderRadius: '0.5rem', border: '1px solid var(--ag-border)' }}>
+                <small style={{ color: 'var(--ag-text-muted)' }}>Document Version</small>
+                <p style={{ margin: '0.15rem 0 0', fontWeight: 600 }}>Version {data.version}</p>
+              </div>
+              <div style={{ padding: '0.6rem 0.8rem', background: '#f8fafc', borderRadius: '0.5rem', border: '1px solid var(--ag-border)' }}>
+                <small style={{ color: 'var(--ag-text-muted)' }}>Eligible Animals</small>
+                <p style={{ margin: '0.15rem 0 0', fontWeight: 600 }}>{data.eligibleAnimalCount}</p>
+              </div>
+              <div style={{ padding: '0.6rem 0.8rem', background: '#f8fafc', borderRadius: '0.5rem', border: '1px solid var(--ag-border)' }}>
+                <small style={{ color: 'var(--ag-text-muted)' }}>Document Integrity</small>
+                <p style={{ margin: '0.15rem 0 0', fontWeight: 600 }}>{display(data.documentIntegrity)} (Canonical SHA-256)</p>
+              </div>
+            </div>
+
+            <div
+              style={{
+                padding: '0.75rem 1rem',
+                backgroundColor: '#f1f5f9',
+                borderRadius: '0.6rem',
+                border: '1px solid #cbd5e1',
+                fontSize: '0.82rem',
+                color: '#334155',
+                marginBottom: '1rem',
+              }}
+            >
+              <strong>Daily Farm Clearance Scope:</strong> This verification is specific to bulk milk
+              intake for the farm and business date. For individual animal identity or treatment checking,
+              scan the animal’s ear-tag QR code directly.
+            </div>
+
+            <p className="notice" style={{ fontSize: '0.82rem' }}>{data.disclaimer}</p>
           </>
         )}
       </article>

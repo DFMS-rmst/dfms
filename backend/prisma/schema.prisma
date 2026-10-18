@@ -295,6 +295,7 @@ model Animal {
   dateOfBirth              DateTime?
   lactating                Boolean                      @default(false)
   status                   AnimalStatus                 @default(ACTIVE)
+  verificationId           String?                      @unique @db.VarChar(191)
   notes                    String?                      @db.Text
   createdAt                DateTime                     @default(now())
   updatedAt                DateTime                     @updatedAt

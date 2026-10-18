@@ -1,2 +1,3 @@
-// Boundary placeholder for the animals module. Feature behavior is implemented in later milestones.
 export { animalsRouter, speciesRouter } from './routes.js';
+export { publicAnimalsRouter } from './public-routes.js';
+export { animalVerificationUrl, animalQrDataUrl, renderAnimalTagPdf } from './pdf.js';

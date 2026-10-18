@@ -8,7 +8,7 @@ import { env } from './config/env.js';
 import { healthRouter } from './modules/health/routes.js';
 import { authRouter } from './modules/auth/index.js';
 import { farmsRouter } from './modules/farms/index.js';
-import { animalsRouter, speciesRouter } from './modules/animals/index.js';
+import { animalsRouter, publicAnimalsRouter, speciesRouter } from './modules/animals/index.js';
 import { filesRouter } from './modules/files/index.js';
 import { adminVeterinariansRouter, veterinariansRouter } from './modules/veterinarians/index.js';
 import {
@@ -73,6 +73,11 @@ export function createApp() {
     '/api/v1/public/certificates',
     rateLimit({ windowMs: 60_000, max: 120 }),
     publicCertificatesRouter,
+  );
+  app.use(
+    '/api/v1/public/animals',
+    rateLimit({ windowMs: 60_000, max: 120 }),
+    publicAnimalsRouter,
   );
   app.use('/api/v1/dashboards', dashboardsRouter);
   app.use('/api/v1/reports', reportsRouter);

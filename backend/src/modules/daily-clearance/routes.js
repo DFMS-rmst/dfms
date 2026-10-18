@@ -134,6 +134,8 @@ publicDailyClearanceRouter.get(
         generatedAt: clearance.generatedAt,
         version: clearance.evaluation.version,
         status: clearance.evaluation.status,
+        invalidationReason: clearance.evaluation.invalidationReason || null,
+        invalidatedAt: clearance.evaluation.invalidatedAt || null,
         eligibleAnimalCount: clearance.evaluation.eligibleCount,
         documentIntegrity,
         blockchainIntegrity: blockchain.status,

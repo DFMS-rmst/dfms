@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { api, hasAccessToken, setAccessToken } from './api.js';
+import { api, download, hasAccessToken, setAccessToken } from './api.js';
 import { VeterinaryWorkflow } from './VeterinaryWorkflow.jsx';
 import { CoreEngine } from './CoreEngine.jsx';
 import { Certificates, DashboardReports, PublicVerification } from './TrustLayer.jsx';
 import { AiLayer, AmuRiskCard } from './AiLayer.jsx';
 import { DailyClearance, PublicDailyClearance } from './DailyClearance.jsx';
+import { PublicAnimalVerification } from './PublicAnimalVerification.jsx';
 import { formatTimelineDate, timelineEventLabel, timelineEventsFromResponse } from './timeline.js';
 import {
   buildWorkspaces,
@@ -997,6 +998,160 @@ export function HealthTimeline({ timeline, showAmuRisk = false, farmId, onClose 
   );
 }
 
+function AnimalTagModal({ animal, farm, onClose }) {
+  const [tagData, setTagData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [downloading, setDownloading] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let active = true;
+    api(`/farms/${farm.id}/animals/${animal.id}/qr-tag`)
+      .then((d) => {
+        if (active) setTagData(d);
+      })
+      .catch((err) => {
+        if (active) setError(err.message || 'Failed to load QR tag data');
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [farm.id, animal.id]);
+
+  async function handleDownloadPdf() {
+    setDownloading(true);
+    try {
+      await download(
+        `/farms/${farm.id}/animals/${animal.id}/tag-pdf`,
+        `Animal-Tag-${animal.tagNumber}.pdf`,
+      );
+    } catch (err) {
+      setError(err.message || 'Failed to download tag PDF');
+    } finally {
+      setDownloading(false);
+    }
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={onClose} role="dialog" aria-modal="true">
+      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '440px' }}>
+        <div className="flex-between" style={{ marginBottom: '1rem' }}>
+          <h3 style={{ margin: 0, fontSize: '1.2rem' }}>🏷️ Animal Identification Tag</h3>
+          <button
+            type="button"
+            className="modal-close-btn"
+            onClick={onClose}
+            aria-label="Close tag modal"
+          >
+            ×
+          </button>
+        </div>
+
+        {loading && <p>Loading animal identification QR tag…</p>}
+        {error && <p className="error">{error}</p>}
+
+        {tagData && (
+          <div style={{ textAlign: 'center' }}>
+            <div
+              style={{
+                border: '2px solid #064e3b',
+                borderRadius: '0.75rem',
+                padding: '1.25rem',
+                backgroundColor: '#ffffff',
+                boxShadow: '0 4px 12px rgba(6, 78, 59, 0.08)',
+                marginBottom: '1rem',
+              }}
+            >
+              <div
+                style={{
+                  backgroundColor: '#064e3b',
+                  color: '#fff',
+                  borderRadius: '0.4rem',
+                  padding: '0.35rem',
+                  fontSize: '0.76rem',
+                  fontWeight: 700,
+                  letterSpacing: '0.05em',
+                  textTransform: 'uppercase',
+                  marginBottom: '0.75rem',
+                }}
+              >
+                Official Livestock QR Tag
+              </div>
+              <h2 style={{ fontSize: '1.6rem', margin: '0.2rem 0', color: '#0f172a' }}>
+                {tagData.tagNumber}
+              </h2>
+              <p
+                style={{
+                  margin: '0.2rem 0 0.8rem',
+                  color: 'var(--ag-text-muted)',
+                  fontSize: '0.9rem',
+                }}
+              >
+                {tagData.name ? `${tagData.name} · ` : ''}
+                {tagData.species} · {tagData.farmName}
+              </p>
+
+              {tagData.qrDataUrl && (
+                <div style={{ margin: '0.5rem auto 1rem', width: '180px', height: '180px' }}>
+                  <img
+                    src={tagData.qrDataUrl}
+                    alt={`QR tag for animal ${tagData.tagNumber}`}
+                    style={{ width: '100%', height: '100%', display: 'block', borderRadius: '8px' }}
+                  />
+                </div>
+              )}
+
+              <small
+                style={{
+                  display: 'block',
+                  color: '#64748b',
+                  fontSize: '0.75rem',
+                  wordBreak: 'break-all',
+                  marginBottom: '0.5rem',
+                }}
+              >
+                <a
+                  href={tagData.verificationUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: '#059669', textDecoration: 'underline' }}
+                >
+                  {tagData.verificationUrl}
+                </a>
+              </small>
+
+              <p
+                style={{
+                  fontSize: '0.75rem',
+                  color: '#475569',
+                  backgroundColor: '#ecfdf5',
+                  padding: '0.5rem',
+                  borderRadius: '0.4rem',
+                  margin: '0.5rem 0 0',
+                }}
+              >
+                Scan or click to verify live milk clearance. Does not expose private health records.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleDownloadPdf}
+              disabled={downloading}
+              style={{ width: '100%', padding: '0.65rem' }}
+            >
+              {downloading ? 'Generating PDF…' : '⬇️ Download Printable PDF Tag'}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function Workspace({ user, setUser, logout }) {
   const workspaces = buildWorkspaces(user);
   const [workspaceId, setWorkspaceId] = useState(workspaces[0]?.id || 'account');
@@ -1006,14 +1161,29 @@ function Workspace({ user, setUser, logout }) {
   const [farm, setFarm] = useState(null);
   const [animals, setAnimals] = useState([]);
   const [animalTimeline, setAnimalTimeline] = useState(null);
+  const [selectedTagAnimal, setSelectedTagAnimal] = useState(null);
   const [species, setSpecies] = useState([]);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
-    api('/farms').then((d) => setFarms(d.farms));
-    api('/species').then((d) => setSpecies(d.species));
-  }, []);
+    let active = true;
+    api('/farms').then((d) => {
+      if (!active) return;
+      const list = d.farms || [];
+      setFarms(list);
+      if (workspace?.kind === 'FARM') {
+        const found = list.find((item) => item.id === workspace.farmId);
+        if (found) open(found);
+      }
+    });
+    api('/species').then((d) => {
+      if (active) setSpecies(d.species || []);
+    });
+    return () => {
+      active = false;
+    };
+  }, [workspaceId]);
 
   async function refreshContext() {
     const next = (await api('/auth/me')).user;
@@ -1236,6 +1406,14 @@ function Workspace({ user, setUser, logout }) {
               }}
             />
           )}
+          {page === 'farm' && !farm && (
+            <section className="card">
+              <h2>Loading Farm &amp; Livestock…</h2>
+              <p style={{ color: 'var(--ag-text-muted)' }}>
+                Retrieving registered farm records and animals for {workspace?.label || 'selected farm'}…
+              </p>
+            </section>
+          )}
           {page === 'farm' && farm && (
             <section>
               <h1>{farm.name}</h1>
@@ -1289,14 +1467,31 @@ function Workspace({ user, setUser, logout }) {
                       </strong>{' '}
                       · {a.sex ? a.sex.replaceAll('_', ' ') : 'FEMALE'} · {a.status}
                     </p>
-                    <button
-                      type="button"
-                      className="secondary"
-                      style={{ width: '100%', fontSize: '0.84rem', padding: '0.45rem' }}
-                      onClick={() => openTimeline(a)}
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: '1fr 1fr',
+                        gap: '0.4rem',
+                        marginTop: '0.5rem',
+                      }}
                     >
-                      📜 View health timeline
-                    </button>
+                      <button
+                        type="button"
+                        className="secondary"
+                        style={{ fontSize: '0.82rem', padding: '0.45rem' }}
+                        onClick={() => openTimeline(a)}
+                      >
+                        📜 Timeline
+                      </button>
+                      <button
+                        type="button"
+                        className="secondary"
+                        style={{ fontSize: '0.82rem', padding: '0.45rem' }}
+                        onClick={() => setSelectedTagAnimal(a)}
+                      >
+                        🏷️ QR Tag
+                      </button>
+                    </div>
                   </article>
                 ))}
               </div>
@@ -1306,6 +1501,13 @@ function Workspace({ user, setUser, logout }) {
                   showAmuRisk={capabilities.canViewManagementAnalytics}
                   farmId={farm.id}
                   onClose={() => setAnimalTimeline(null)}
+                />
+              )}
+              {selectedTagAnimal && (
+                <AnimalTagModal
+                  animal={selectedTagAnimal}
+                  farm={farm}
+                  onClose={() => setSelectedTagAnimal(null)}
                 />
               )}
               {capabilities.canEditAnimals && (
@@ -1382,6 +1584,9 @@ export function App() {
   const dailyVerificationId = window.location.pathname.match(
     /^\/verify\/daily-clearance\/([^/]+)$/,
   )?.[1];
+  const animalVerificationId = window.location.pathname.match(
+    /^\/verify\/animal\/([^/]+)$/,
+  )?.[1];
   const [mode, setMode] = useState('login');
   const [user, setUser] = useState(null);
   useEffect(() => {
@@ -1397,6 +1602,7 @@ export function App() {
   }
   if (verificationId) return <PublicVerification verificationId={verificationId} />;
   if (dailyVerificationId) return <PublicDailyClearance verificationId={dailyVerificationId} />;
+  if (animalVerificationId) return <PublicAnimalVerification verificationId={animalVerificationId} />;
   return user ? (
     <Workspace user={user} setUser={setUser} logout={logout} />
   ) : (
