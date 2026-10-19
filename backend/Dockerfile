@@ -5,6 +5,7 @@ COPY backend/package.json backend/package.json
 COPY frontend/package.json frontend/package.json
 COPY blockchain/package.json blockchain/package.json
 COPY backend/prisma backend/prisma
+COPY backend/scripts backend/scripts
 RUN npm ci --workspace backend --include-workspace-root
 RUN npm run prisma:generate --workspace backend
 FROM node:22-alpine

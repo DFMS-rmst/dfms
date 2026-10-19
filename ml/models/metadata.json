@@ -23,7 +23,7 @@
   "consistencyValidation": true,
   "trainingMatrixSha256": "e613b4c026a8c3f24c409b0076bce34c46d3b3d433f0c3331f0aaa8fa6f8f91a",
   "contamination": 0.05,
-  "trainedAt": "2026-08-29T11:29:05.881368+00:00",
+  "trainedAt": "2026-10-18T14:21:06.572904+00:00",
   "featureMeans": {
     "treatments_30d": 0.5162,
     "treatments_90d": 1.525,
