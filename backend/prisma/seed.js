@@ -17,17 +17,66 @@ if (process.env.SEED_DEMO_DATA === 'true') {
       passwordHash,
       platformRoles: { create: { role: 'PLATFORM_ADMIN' } },
     },
-    update: {},
+    update: { passwordHash },
+  });
+
+  // --- Additional platform admins ---
+  const manthanHash = await argon2.hash('mk12341234', { type: argon2.argon2id });
+  await prisma.user.upsert({
+    where: { email: 'manthan@gmail.com' },
+    create: {
+      email: 'manthan@gmail.com',
+      fullName: 'Manthan',
+      passwordHash: manthanHash,
+      platformRoles: { create: { role: 'PLATFORM_ADMIN' } },
+    },
+    update: { passwordHash: manthanHash },
+  });
+
+  const shivamHash = await argon2.hash('sk12341234', { type: argon2.argon2id });
+  await prisma.user.upsert({
+    where: { email: 'shivam@gmail.com' },
+    create: {
+      email: 'shivam@gmail.com',
+      fullName: 'Shivam',
+      passwordHash: shivamHash,
+      platformRoles: { create: { role: 'PLATFORM_ADMIN' } },
+    },
+    update: { passwordHash: shivamHash },
+  });
+
+  const rushiHash = await argon2.hash('rk12341234', { type: argon2.argon2id });
+  await prisma.user.upsert({
+    where: { email: 'rushi@gmail.com' },
+    create: {
+      email: 'rushi@gmail.com',
+      fullName: 'Rushi',
+      passwordHash: rushiHash,
+      platformRoles: { create: { role: 'PLATFORM_ADMIN' } },
+    },
+    update: { passwordHash: rushiHash },
+  });
+
+  const tejasHash = await argon2.hash('tk12341234', { type: argon2.argon2id });
+  await prisma.user.upsert({
+    where: { email: 'tejas@gmail.com' },
+    create: {
+      email: 'tejas@gmail.com',
+      fullName: 'Tejas',
+      passwordHash: tejasHash,
+      platformRoles: { create: { role: 'PLATFORM_ADMIN' } },
+    },
+    update: { passwordHash: tejasHash },
   });
   const owner = await prisma.user.upsert({
     where: { email: 'farmer@example.local' },
     create: { email: 'farmer@example.local', fullName: 'Demo Farm Owner', passwordHash },
-    update: {},
+    update: { passwordHash },
   });
   const vet = await prisma.user.upsert({
     where: { email: 'vet@example.local' },
     create: { email: 'vet@example.local', fullName: 'Dr Demo Veterinarian', passwordHash },
-    update: {},
+    update: { passwordHash },
   });
   const existingFarm = await prisma.farm.findFirst({
     where: { name: 'SIH Demonstration Dairy', createdById: owner.id },

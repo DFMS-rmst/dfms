@@ -118,54 +118,32 @@ export function VerificationPage({
           <div className="mesh-blob blob-1"></div>
           <div className="mesh-blob blob-2"></div>
         </div>
-        <div className="modern-auth-container" style={{ maxWidth: '680px', margin: '2rem auto' }}>
-          <div className="modern-auth-card" style={{ textAlign: 'center', padding: '3rem 2rem' }}>
-            <div style={{ fontSize: '3.5rem', marginBottom: '1rem' }}>🎉</div>
-            <h2 style={{ fontSize: '1.8rem', color: '#0f172a', marginBottom: '0.75rem' }}>
+        <div className="verification-page-container">
+          <div className="verification-card verification-success-card">
+            <div className="verification-success-icon">🎉</div>
+            <h2 style={{ fontSize: '1.85rem', color: '#0f172a', margin: '0 0 0.75rem 0', fontWeight: 800 }}>
               Verification Submitted Successfully!
             </h2>
-            <div
-              style={{
-                display: 'inline-block',
-                padding: '0.35rem 1rem',
-                borderRadius: '9999px',
-                background: '#fef3c7',
-                color: '#92400e',
-                fontWeight: 700,
-                fontSize: '0.85rem',
-                marginBottom: '1.5rem',
-              }}
-            >
-              ⏳ Status: Pending Administrator Approval
+            <div className="verification-status-pill">
+              <span>⏳</span> Status: Pending Administrator Approval
             </div>
-            <p style={{ color: '#475569', fontSize: '0.98rem', lineHeight: '1.6', marginBottom: '1.5rem' }}>
-              Thank you, <strong>{pendingUser?.fullName}</strong>. Your verification details and supporting
+            <p style={{ color: '#475569', fontSize: '0.98rem', lineHeight: '1.6', margin: '0 0 1.5rem 0' }}>
+              Thank you, <strong>{user?.fullName || pendingUser?.fullName}</strong>. Your verification details and supporting
               documents for <strong>{roleMeta.badge}</strong> have been received.
             </p>
-            <div
-              style={{
-                background: '#f8fafc',
-                border: '1px solid #e2e8f0',
-                borderRadius: '1rem',
-                padding: '1.25rem',
-                textAlign: 'left',
-                marginBottom: '2rem',
-                fontSize: '0.9rem',
-                color: '#334155',
-              }}
-            >
-              <h4 style={{ margin: '0 0 0.5rem 0', color: '#0f172a' }}>What happens next?</h4>
-              <ul style={{ margin: 0, paddingLeft: '1.25rem', lineHeight: '1.7' }}>
+            <div className="verification-next-steps">
+              <h4>What happens next?</h4>
+              <ul>
                 <li>The Platform Administrator will inspect your submitted credentials and documents.</li>
                 <li>Once validated and approved, your account will be activated.</li>
-                <li>Then only you can sign in with your email and password.</li>
+                <li>You can then sign in directly with your email and password.</li>
               </ul>
             </div>
             <button
               type="button"
               className="modern-submit-btn"
               onClick={handleBack}
-              style={{ maxWidth: '300px', margin: '0 auto' }}
+              style={{ maxWidth: '280px', margin: '0 auto' }}
             >
               Return to Sign In
             </button>
@@ -183,38 +161,48 @@ export function VerificationPage({
         <div className="mesh-blob blob-3"></div>
       </div>
 
-      <div className="modern-auth-container" style={{ maxWidth: '820px', margin: '2rem auto' }}>
-        <div className="modern-auth-card" style={{ padding: '2.5rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
-            <span
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.4rem',
-                padding: '0.35rem 0.85rem',
-                background: 'rgba(5, 150, 105, 0.1)',
-                color: 'var(--ag-green-primary)',
-                fontWeight: 700,
-                fontSize: '0.85rem',
-                borderRadius: '9999px',
-              }}
-            >
-              Step 2 of 2: Profile Verification
+      <div className="verification-page-container">
+        <div className="verification-card">
+          {/* Header Row */}
+          <div className="verification-header-row">
+            <span className="verification-step-badge">
+              <span>🌾</span> Commercial Ag-Tech Onboarding
             </span>
             <button
               type="button"
+              className="verification-back-btn"
               onClick={handleBack}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: '#64748b',
-                cursor: 'pointer',
-                fontSize: '0.88rem',
-                fontWeight: 600,
-              }}
             >
-              ← Back to Sign In
+              <span>←</span> Return to Sign In
             </button>
+          </div>
+
+          {/* Stepper Progress */}
+          <div className="verification-stepper">
+            <div className="step-item completed">
+              <div className="step-circle">✓</div>
+              <span>1. Account Created</span>
+            </div>
+            <div className="step-divider completed"></div>
+            <div className="step-item active">
+              <div className="step-circle">2</div>
+              <span>2. Profile & Verification</span>
+            </div>
+            <div className="step-divider"></div>
+            <div className="step-item">
+              <div className="step-circle">3</div>
+              <span>3. Admin Approval</span>
+            </div>
+          </div>
+
+          {/* Role Banner */}
+          <div className="verification-role-banner">
+            <div className="verification-role-icon">{roleMeta.icon}</div>
+            <div className="verification-role-info">
+              <div className="verification-role-badge">{roleMeta.badge}</div>
+              <h3 className="verification-role-title">{roleMeta.title}</h3>
+              <p className="verification-role-desc">{roleMeta.subtitle}</p>
+            </div>
           </div>
 
           {!token && (
@@ -241,23 +229,15 @@ export function VerificationPage({
             </div>
           )}
 
-          <div className="form-title-group" style={{ marginBottom: '1.75rem' }}>
-            <h2 style={{ fontSize: '1.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <span>{roleMeta.icon}</span> {roleMeta.title}
-            </h2>
-            <p className="form-sub-text">
-              {roleMeta.subtitle}
-            </p>
-          </div>
-
           <form className="modern-form" onSubmit={handleSubmit}>
             {/* VETERINARIAN FORM FIELDS */}
             {role === 'VETERINARIAN' && (
               <>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div className="form-row-2">
                   <div className="input-group">
                     <label htmlFor="qualification">Qualification *</label>
                     <div className="input-field-wrapper">
+                      <span className="field-icon">🎓</span>
                       <input
                         id="qualification"
                         name="qualification"
@@ -270,6 +250,7 @@ export function VerificationPage({
                   <div className="input-group">
                     <label htmlFor="registrationCouncil">State Veterinary Council *</label>
                     <div className="input-field-wrapper">
+                      <span className="field-icon">🏛️</span>
                       <input
                         id="registrationCouncil"
                         name="registrationCouncil"
@@ -281,10 +262,11 @@ export function VerificationPage({
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div className="form-row-2">
                   <div className="input-group">
                     <label htmlFor="registrationNumber">Veterinary Council Registration No. *</label>
                     <div className="input-field-wrapper">
+                      <span className="field-icon">🔢</span>
                       <input
                         id="registrationNumber"
                         name="registrationNumber"
@@ -297,6 +279,7 @@ export function VerificationPage({
                   <div className="input-group">
                     <label htmlFor="specialization">Specialization / Clinical Focus</label>
                     <div className="input-field-wrapper">
+                      <span className="field-icon">🩺</span>
                       <input
                         id="specialization"
                         name="specialization"
@@ -307,10 +290,11 @@ export function VerificationPage({
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
+                <div className="form-row-3">
                   <div className="input-group">
                     <label htmlFor="experienceYears">Experience (Years)</label>
                     <div className="input-field-wrapper">
+                      <span className="field-icon">⏳</span>
                       <input
                         id="experienceYears"
                         name="experienceYears"
@@ -324,27 +308,31 @@ export function VerificationPage({
                   <div className="input-group">
                     <label htmlFor="state">Service State *</label>
                     <div className="input-field-wrapper">
+                      <span className="field-icon">📍</span>
                       <input id="state" name="state" type="text" required placeholder="e.g. Gujarat" />
                     </div>
                   </div>
                   <div className="input-group">
                     <label htmlFor="district">Service District</label>
                     <div className="input-field-wrapper">
+                      <span className="field-icon">🏙️</span>
                       <input id="district" name="district" type="text" placeholder="e.g. Anand" />
                     </div>
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div className="form-row-2">
                   <div className="input-group">
                     <label htmlFor="taluka">Taluka / Sub-district</label>
                     <div className="input-field-wrapper">
+                      <span className="field-icon">🏘️</span>
                       <input id="taluka" name="taluka" type="text" placeholder="e.g. Anand Rural" />
                     </div>
                   </div>
                   <div className="input-group">
                     <label htmlFor="pincode">Pincode</label>
                     <div className="input-field-wrapper">
+                      <span className="field-icon">📮</span>
                       <input id="pincode" name="pincode" type="text" placeholder="e.g. 388001" />
                     </div>
                   </div>
@@ -355,10 +343,11 @@ export function VerificationPage({
             {/* FARMER FORM FIELDS */}
             {role === 'FARMER' && (
               <>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div className="form-row-2">
                   <div className="input-group">
                     <label htmlFor="farmName">Farm / Dairy Farm Name *</label>
                     <div className="input-field-wrapper">
+                      <span className="field-icon">🚜</span>
                       <input
                         id="farmName"
                         name="farmName"
@@ -371,6 +360,7 @@ export function VerificationPage({
                   <div className="input-group">
                     <label htmlFor="farmerIdNumber">Farmer ID / KCC / Land Record No. *</label>
                     <div className="input-field-wrapper">
+                      <span className="field-icon">🪪</span>
                       <input
                         id="farmerIdNumber"
                         name="farmerIdNumber"
@@ -382,22 +372,25 @@ export function VerificationPage({
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
+                <div className="form-row-3">
                   <div className="input-group">
                     <label htmlFor="state">State *</label>
                     <div className="input-field-wrapper">
+                      <span className="field-icon">📍</span>
                       <input id="state" name="state" type="text" required placeholder="e.g. Gujarat" />
                     </div>
                   </div>
                   <div className="input-group">
                     <label htmlFor="district">District *</label>
                     <div className="input-field-wrapper">
+                      <span className="field-icon">🏙️</span>
                       <input id="district" name="district" type="text" required placeholder="e.g. Anand" />
                     </div>
                   </div>
                   <div className="input-group">
                     <label htmlFor="totalCattle">Estimated Herd Size (Cattle)</label>
                     <div className="input-field-wrapper">
+                      <span className="field-icon">🐄</span>
                       <input
                         id="totalCattle"
                         name="totalCattle"
@@ -409,16 +402,18 @@ export function VerificationPage({
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div className="form-row-2">
                   <div className="input-group">
                     <label htmlFor="taluka">Taluka / Village</label>
                     <div className="input-field-wrapper">
+                      <span className="field-icon">🏘️</span>
                       <input id="taluka" name="taluka" type="text" placeholder="e.g. Anand" />
                     </div>
                   </div>
                   <div className="input-group">
                     <label htmlFor="pincode">Pincode</label>
                     <div className="input-field-wrapper">
+                      <span className="field-icon">📮</span>
                       <input id="pincode" name="pincode" type="text" placeholder="e.g. 388001" />
                     </div>
                   </div>
@@ -429,10 +424,11 @@ export function VerificationPage({
             {/* DAIRY OWNER FORM FIELDS */}
             {role === 'DAIRY_OWNER' && (
               <>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div className="form-row-2">
                   <div className="input-group">
                     <label htmlFor="dairyName">Dairy Cooperative / Plant Name *</label>
                     <div className="input-field-wrapper">
+                      <span className="field-icon">🥛</span>
                       <input
                         id="dairyName"
                         name="dairyName"
@@ -445,6 +441,7 @@ export function VerificationPage({
                   <div className="input-group">
                     <label htmlFor="fssaiLicenseNumber">FSSAI License / Registration No. *</label>
                     <div className="input-field-wrapper">
+                      <span className="field-icon">📜</span>
                       <input
                         id="fssaiLicenseNumber"
                         name="fssaiLicenseNumber"
@@ -456,25 +453,28 @@ export function VerificationPage({
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div className="form-row-2">
                   <div className="input-group">
                     <label htmlFor="state">Operational State *</label>
                     <div className="input-field-wrapper">
+                      <span className="field-icon">📍</span>
                       <input id="state" name="state" type="text" required placeholder="e.g. Gujarat" />
                     </div>
                   </div>
                   <div className="input-group">
                     <label htmlFor="district">Primary District *</label>
                     <div className="input-field-wrapper">
+                      <span className="field-icon">🏙️</span>
                       <input id="district" name="district" type="text" required placeholder="e.g. Rajkot" />
                     </div>
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div className="form-row-2">
                   <div className="input-group">
                     <label htmlFor="operationalArea">Procurement Area / Route</label>
                     <div className="input-field-wrapper">
+                      <span className="field-icon">🚚</span>
                       <input
                         id="operationalArea"
                         name="operationalArea"
@@ -486,6 +486,7 @@ export function VerificationPage({
                   <div className="input-group">
                     <label htmlFor="dailyCapacityLiters">Daily Processing Capacity (Liters)</label>
                     <div className="input-field-wrapper">
+                      <span className="field-icon">📊</span>
                       <input
                         id="dailyCapacityLiters"
                         name="dailyCapacityLiters"
@@ -500,52 +501,43 @@ export function VerificationPage({
             )}
 
             {/* DOCUMENT UPLOAD (ALL 3 USER TYPES) */}
-            <div
-              style={{
-                background: '#f8fafc',
-                border: '1.5px dashed #cbd5e1',
-                borderRadius: '0.85rem',
-                padding: '1.25rem',
-                marginTop: '0.5rem',
-              }}
-            >
-              <label
-                htmlFor="documentFile"
-                style={{
-                  display: 'block',
-                  fontWeight: 700,
-                  fontSize: '0.92rem',
-                  color: '#0f172a',
-                  marginBottom: '0.35rem',
-                }}
-              >
-                📎 Official Verification Document / Certificate (PDF or Image)
-              </label>
-              <p style={{ margin: '0 0 0.85rem 0', fontSize: '0.82rem', color: '#64748b' }}>
-                {role === 'VETERINARIAN' && 'Upload your State Veterinary Council Registration Certificate or Degree.'}
-                {role === 'FARMER' && 'Upload your Farmer ID card, Kisan Credit Card, or Land Record certificate.'}
-                {role === 'DAIRY_OWNER' && 'Upload your FSSAI Dairy License or Business Registration Certificate.'}
-              </p>
+            <div className="verification-upload-box">
               <input
                 id="documentFile"
                 name="documentFile"
                 type="file"
+                className="verification-file-input"
                 accept=".pdf,image/png,image/jpeg,image/jpg"
                 onChange={handleFileChange}
-                style={{
-                  display: 'block',
-                  width: '100%',
-                  padding: '0.5rem',
-                  fontSize: '0.88rem',
-                  background: '#ffffff',
-                  borderRadius: '0.5rem',
-                  border: '1px solid #cbd5e1',
-                }}
               />
-              {docName && (
-                <div style={{ marginTop: '0.5rem', color: 'var(--ag-green-primary)', fontSize: '0.85rem', fontWeight: 600 }}>
-                  ✓ Selected: {docName}
+              <div className="verification-upload-icon">📄</div>
+              <div className="verification-upload-title">
+                Upload Official Verification Document / Certificate
+              </div>
+              <div className="verification-upload-hint">
+                {role === 'VETERINARIAN' && 'Upload your State Veterinary Council Registration Certificate or Degree.'}
+                {role === 'FARMER' && 'Upload your Farmer ID card, Kisan Credit Card, or Land Record certificate.'}
+                {role === 'DAIRY_OWNER' && 'Upload your FSSAI Dairy License or Business Registration Certificate.'}
+                <br />
+                <span style={{ fontSize: '0.78rem', color: '#94a3b8' }}>PDF, PNG, JPG (Max 5MB) • Drag & drop or click to browse</span>
+              </div>
+              {docName ? (
+                <div className="verification-file-selected">
+                  <span>✓</span> Document Selected: {docName}
                 </div>
+              ) : (
+                <span style={{
+                  display: 'inline-block',
+                  padding: '0.4rem 0.9rem',
+                  background: '#ffffff',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '0.5rem',
+                  fontSize: '0.84rem',
+                  fontWeight: 600,
+                  color: '#475569'
+                }}>
+                  Browse File
+                </span>
               )}
             </div>
 
@@ -560,13 +552,13 @@ export function VerificationPage({
               type="submit"
               className="modern-submit-btn"
               disabled={submitting}
-              style={{ marginTop: '1rem' }}
+              style={{ marginTop: '0.75rem' }}
             >
               {submitting ? 'Submitting Verification…' : 'Submit Verification for Admin Approval'}
             </button>
           </form>
 
-          <p style={{ marginTop: '1.25rem', textAlign: 'center', fontSize: '0.85rem', color: '#64748b' }}>
+          <p style={{ marginTop: '1.25rem', textAlign: 'center', fontSize: '0.82rem', color: '#64748b' }}>
             🔒 All documents and credentials are encrypted and accessible only to authorized platform administrators.
           </p>
         </div>

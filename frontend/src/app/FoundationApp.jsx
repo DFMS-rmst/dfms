@@ -173,7 +173,14 @@ function AuthPage({ mode, done, go, onRequireVerification }) {
               </div>
 
               <div className="input-group">
-                <label htmlFor="password">Password</label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label htmlFor="password">Password</label>
+                  {mode === 'register' && (
+                    <span style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 500 }}>
+                      Min. 10 characters
+                    </span>
+                  )}
+                </div>
                 <div className="input-field-wrapper has-toggle">
                   <span className="field-icon">🔒</span>
                   <input
@@ -181,6 +188,7 @@ function AuthPage({ mode, done, go, onRequireVerification }) {
                     name="password"
                     type={showPassword ? 'text' : 'password'}
                     required
+                    minLength={mode === 'register' ? 10 : undefined}
                     placeholder="••••••••"
                   />
                   <button
@@ -234,6 +242,28 @@ function AuthPage({ mode, done, go, onRequireVerification }) {
                   {mode === 'login' ? 'Register instead' : 'Login instead'}
                 </button>
               </p>
+
+              {mode === 'login' && (
+                <div className="demo-credentials-bar">
+                  <details>
+                    <summary>🔑 Need quick demo credentials?</summary>
+                    <ul>
+                      <li>
+                        <strong>Platform Admin:</strong> <code>admin@example.local</code>
+                      </li>
+                      <li>
+                        <strong>Farm Owner:</strong> <code>farmer@example.local</code>
+                      </li>
+                      <li>
+                        <strong>Veterinarian:</strong> <code>vet@example.local</code>
+                      </li>
+                      <li>
+                        <strong>Password:</strong> <code>DemoOnly!234</code>
+                      </li>
+                    </ul>
+                  </details>
+                </div>
+              )}
             </div>
           </div>
         </div>
