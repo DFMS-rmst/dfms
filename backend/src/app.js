@@ -25,7 +25,6 @@ import { dashboardsRouter } from './modules/dashboards/index.js';
 import { reportsRouter } from './modules/reports/index.js';
 import { rateLimit } from './common/rate-limit.js';
 import { mlRouter } from './modules/ml/index.js';
-import { advisorRouter } from './modules/advisor/index.js';
 import {
   dailyClearanceRouter,
   publicDailyClearanceRouter,
@@ -78,15 +77,10 @@ export function createApp() {
     rateLimit({ windowMs: 60_000, max: 120 }),
     publicCertificatesRouter,
   );
-  app.use(
-    '/api/v1/public/animals',
-    rateLimit({ windowMs: 60_000, max: 120 }),
-    publicAnimalsRouter,
-  );
+  app.use('/api/v1/public/animals', rateLimit({ windowMs: 60_000, max: 120 }), publicAnimalsRouter);
   app.use('/api/v1/dashboards', dashboardsRouter);
   app.use('/api/v1/reports', reportsRouter);
   app.use('/api/v1/ml', mlRouter);
-  app.use('/api/v1/advisor', advisorRouter);
   app.use((request, response) =>
     response
       .status(404)

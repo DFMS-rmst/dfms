@@ -3,7 +3,7 @@ import { api, download, hasAccessToken, setAccessToken } from './api.js';
 import { VeterinaryWorkflow } from './VeterinaryWorkflow.jsx';
 import { CoreEngine } from './CoreEngine.jsx';
 import { Certificates, DashboardReports, PublicVerification } from './TrustLayer.jsx';
-import { AiLayer, AmuRiskCard } from './AiLayer.jsx';
+import { AmuRiskCard } from './AiLayer.jsx';
 import { DailyClearance, PublicDailyClearance } from './DailyClearance.jsx';
 import { PublicAnimalVerification } from './PublicAnimalVerification.jsx';
 import { formatTimelineDate, timelineEventLabel, timelineEventsFromResponse } from './timeline.js';
@@ -16,6 +16,8 @@ import {
 import { VerificationPage } from './VerificationPage.jsx';
 import { AdminVerifications } from './AdminVerifications.jsx';
 import { DairyHub } from './DairyHub.jsx';
+import { AnimalRiskReportModal } from './AnimalRiskPrediction.jsx';
+import { FarmerChatbot, FarmerChatbotModal } from './FarmerChatbot.jsx';
 const Field = ({ label, name, type = 'text', required = true, defaultValue }) => (
   <label>
     {label}
@@ -173,7 +175,9 @@ function AuthPage({ mode, done, go, onRequireVerification }) {
               </div>
 
               <div className="input-group">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div
+                  style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                >
                   <label htmlFor="password">Password</label>
                   {mode === 'register' && (
                     <span style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 500 }}>
@@ -986,6 +990,15 @@ function TimelineDetails({ details }) {
   if (typeof details.previousStatus === 'string') {
     items.push(['Previous status', details.previousStatus.replaceAll('_', ' ')]);
   }
+  if (typeof details.predictedRisk === 'string') {
+    items.push(['Predicted Risk', `${details.predictedRisk} Risk`]);
+  }
+  if (details.confidencePercent != null) {
+    items.push(['Risk Probability', `${details.confidencePercent}%`]);
+  }
+  if (typeof details.recommendations === 'string' && details.recommendations) {
+    items.push(['Vet Recommendations', details.recommendations]);
+  }
   if (typeof details.lactating === 'boolean') {
     items.push(['Lactating', details.lactating ? 'Yes' : 'No']);
   }
@@ -1232,8 +1245,10 @@ function Workspace({ user, setUser, logout }) {
   const [animals, setAnimals] = useState([]);
   const [animalTimeline, setAnimalTimeline] = useState(null);
   const [selectedTagAnimal, setSelectedTagAnimal] = useState(null);
+  const [selectedRiskAnimal, setSelectedRiskAnimal] = useState(null);
   const [species, setSpecies] = useState([]);
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showChatbotModal, setShowChatbotModal] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
@@ -1314,18 +1329,6 @@ function Workspace({ user, setUser, logout }) {
     if (page === 'farm' && activeFarm && farm?.id !== activeFarm.id) open(activeFarm);
   }, [activeFarm?.id, page]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  function selectWorkspace(id) {
-    const next = workspaces.find((item) => item.id === id);
-    setWorkspaceId(id);
-    setFarm(null);
-    setAnimalTimeline(null);
-    setPage(initialPageFor(next));
-    if (next?.kind === 'FARM') {
-      const selectedFarm = farms.find((item) => item.id === next.farmId);
-      if (selectedFarm) open(selectedFarm);
-    }
-  }
-
   async function openActiveFarm() {
     if (activeFarm) await open(activeFarm);
   }
@@ -1340,7 +1343,7 @@ function Workspace({ user, setUser, logout }) {
     'core-engine': '🥛',
     certificates: '📜',
     'daily-clearance': '🥛',
-    ai: '🤖',
+    'farmer-chatbot': '🌾',
     members: '👥',
     admin: '🛡️',
     'dairy-dashboard': '🥛',
@@ -1422,26 +1425,18 @@ function Workspace({ user, setUser, logout }) {
           </div>
 
           <div className="topbar-right">
-            <div className="workspace-selector-group">
-              <label htmlFor="workspaceSelect" className="workspace-label">
-                Workspace:
-              </label>
-              <select
-                id="workspaceSelect"
-                className="workspace-selector-select"
-                value={workspace?.id}
-                onChange={(event) => {
-                  selectWorkspace(event.target.value);
-                  setSidebarOpen(false);
-                }}
+            {workspace?.kind === 'FARM' && (
+              <button
+                type="button"
+                className="farmer-chatbot-topbar-btn"
+                onClick={() => setShowChatbotModal(true)}
+                title="Open Kisan Mitra AI Assistant"
               >
-                {workspaces.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+                <span className="farmer-chatbot-topbar-icon">🌾</span>
+                <span className="farmer-chatbot-topbar-text">Kisan Mitra AI</span>
+                <span className="farmer-chatbot-status-dot" title="Online" />
+              </button>
+            )}
             <button
               type="button"
               className="secondary"
@@ -1452,6 +1447,18 @@ function Workspace({ user, setUser, logout }) {
             </button>
           </div>
         </header>
+
+        {showChatbotModal && (
+          <FarmerChatbotModal
+            user={user}
+            farm={activeFarm}
+            onClose={() => setShowChatbotModal(false)}
+            onOpenFullPage={() => {
+              setShowChatbotModal(false);
+              setPage('farmer-chatbot');
+            }}
+          />
+        )}
 
         {showProfileModal && (
           <UserProfileModal
@@ -1485,7 +1492,8 @@ function Workspace({ user, setUser, logout }) {
             <section className="card">
               <h2>Loading Farm &amp; Livestock…</h2>
               <p style={{ color: 'var(--ag-text-muted)' }}>
-                Retrieving registered farm records and animals for {workspace?.label || 'selected farm'}…
+                Retrieving registered farm records and animals for{' '}
+                {workspace?.label || 'selected farm'}…
               </p>
             </section>
           )}
@@ -1545,15 +1553,15 @@ function Workspace({ user, setUser, logout }) {
                     <div
                       style={{
                         display: 'grid',
-                        gridTemplateColumns: '1fr 1fr',
-                        gap: '0.4rem',
+                        gridTemplateColumns: 'repeat(3, 1fr)',
+                        gap: '0.35rem',
                         marginTop: '0.5rem',
                       }}
                     >
                       <button
                         type="button"
                         className="secondary"
-                        style={{ fontSize: '0.82rem', padding: '0.45rem' }}
+                        style={{ fontSize: '0.8rem', padding: '0.45rem 0.2rem' }}
                         onClick={() => openTimeline(a)}
                       >
                         📜 Timeline
@@ -1561,10 +1569,18 @@ function Workspace({ user, setUser, logout }) {
                       <button
                         type="button"
                         className="secondary"
-                        style={{ fontSize: '0.82rem', padding: '0.45rem' }}
+                        style={{ fontSize: '0.8rem', padding: '0.45rem 0.2rem' }}
                         onClick={() => setSelectedTagAnimal(a)}
                       >
                         🏷️ QR Tag
+                      </button>
+                      <button
+                        type="button"
+                        className="secondary"
+                        style={{ fontSize: '0.8rem', padding: '0.45rem 0.2rem' }}
+                        onClick={() => setSelectedRiskAnimal(a)}
+                      >
+                        📊 Risk
                       </button>
                     </div>
                   </article>
@@ -1583,6 +1599,13 @@ function Workspace({ user, setUser, logout }) {
                   animal={selectedTagAnimal}
                   farm={farm}
                   onClose={() => setSelectedTagAnimal(null)}
+                />
+              )}
+              {selectedRiskAnimal && (
+                <AnimalRiskReportModal
+                  animal={selectedRiskAnimal}
+                  farmId={farm.id}
+                  onClose={() => setSelectedRiskAnimal(null)}
                 />
               )}
               {capabilities.canEditAnimals && (
@@ -1640,8 +1663,10 @@ function Workspace({ user, setUser, logout }) {
               workspace={workspace}
             />
           )}
-          {page === 'ai' && (
-            <AiLayer farms={activeFarm ? [activeFarm] : []} user={user} workspace={workspace} />
+          {page === 'farmer-chatbot' && (
+            <div className="farmer-chatbot-page-wrapper">
+              <FarmerChatbot user={user} farm={activeFarm} />
+            </div>
           )}
           {['dairy-dashboard', 'dairy-farmers', 'dairy-inventory'].includes(page) && (
             <DairyHub
@@ -1673,9 +1698,7 @@ export function App() {
   const dailyVerificationId = window.location.pathname.match(
     /^\/verify\/daily-clearance\/([^/]+)$/,
   )?.[1];
-  const animalVerificationId = window.location.pathname.match(
-    /^\/verify\/animal\/([^/]+)$/,
-  )?.[1];
+  const animalVerificationId = window.location.pathname.match(/^\/verify\/animal\/([^/]+)$/)?.[1];
   const [mode, setMode] = useState('login');
   const [user, setUser] = useState(null);
   const [pendingVerification, setPendingVerification] = useState(() => {
@@ -1702,7 +1725,8 @@ export function App() {
 
   if (verificationId) return <PublicVerification verificationId={verificationId} />;
   if (dailyVerificationId) return <PublicDailyClearance verificationId={dailyVerificationId} />;
-  if (animalVerificationId) return <PublicAnimalVerification verificationId={animalVerificationId} />;
+  if (animalVerificationId)
+    return <PublicAnimalVerification verificationId={animalVerificationId} />;
   if (pendingVerification) {
     return (
       <VerificationPage

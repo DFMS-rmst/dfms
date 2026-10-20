@@ -218,7 +218,14 @@ authRouter.post(
             documentName: documentName || null,
             documentData: documentData || null,
             serviceAreas: {
-              create: [{ state, district: district || null, taluka: taluka || null, pincode: pincode || null }],
+              create: [
+                {
+                  state,
+                  district: district || null,
+                  taluka: taluka || null,
+                  pincode: pincode || null,
+                },
+              ],
             },
           },
           update: {
@@ -232,7 +239,14 @@ authRouter.post(
             documentData: documentData || null,
             serviceAreas: {
               deleteMany: {},
-              create: [{ state, district: district || null, taluka: taluka || null, pincode: pincode || null }],
+              create: [
+                {
+                  state,
+                  district: district || null,
+                  taluka: taluka || null,
+                  pincode: pincode || null,
+                },
+              ],
             },
           },
         });
@@ -249,7 +263,11 @@ authRouter.post(
           documentData,
         } = request.body;
         if (!farmName || !state || !district) {
-          throw new AppError(400, 'MISSING_FIELDS', 'Required farmer fields missing (farmName, state, district)');
+          throw new AppError(
+            400,
+            'MISSING_FIELDS',
+            'Required farmer fields missing (farmName, state, district)',
+          );
         }
         let farm = await tx.farm.findFirst({ where: { createdById: user.id } });
         if (!farm) {
@@ -315,7 +333,11 @@ authRouter.post(
           documentData,
         } = request.body;
         if (!dairyName || !fssaiLicenseNumber || !state || !district) {
-          throw new AppError(400, 'MISSING_FIELDS', 'Required dairy fields missing (dairyName, fssaiLicenseNumber, state, district)');
+          throw new AppError(
+            400,
+            'MISSING_FIELDS',
+            'Required dairy fields missing (dairyName, fssaiLicenseNumber, state, district)',
+          );
         }
         await tx.dairyOwnerProfile.upsert({
           where: { userId: user.id },
@@ -409,7 +431,11 @@ authRouter.post(
     }
 
     if (user.status !== 'ACTIVE') {
-      throw new AppError(403, 'ACCOUNT_INACTIVE', 'Your account is currently disabled or suspended.');
+      throw new AppError(
+        403,
+        'ACCOUNT_INACTIVE',
+        'Your account is currently disabled or suspended.',
+      );
     }
 
     response.json({

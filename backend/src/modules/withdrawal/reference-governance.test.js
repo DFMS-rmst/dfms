@@ -22,8 +22,12 @@ const valid = {
 describe('manual withdrawal-reference governance', () => {
   it('does not provide a default duration and requires provenance and exact product context', () => {
     expect(() => manualWithdrawalRuleSchema.parse({})).toThrow();
-    expect(() => manualWithdrawalRuleSchema.parse({ ...valid, durationValue: undefined })).toThrow();
-    expect(() => manualWithdrawalRuleSchema.parse({ ...valid, drugProductId: undefined })).toThrow();
+    expect(() =>
+      manualWithdrawalRuleSchema.parse({ ...valid, durationValue: undefined }),
+    ).toThrow();
+    expect(() =>
+      manualWithdrawalRuleSchema.parse({ ...valid, drugProductId: undefined }),
+    ).toThrow();
     expect(() => manualWithdrawalRuleSchema.parse({ ...valid, sourceUrl: '' })).toThrow();
   });
 

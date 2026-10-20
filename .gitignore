@@ -9,6 +9,10 @@ dist/
 build/
 coverage/
 .venv-ml/
+.venv/
+venv/
+ml-service/.venv/
+ml-service/venv/
 __pycache__/
 *.py[cod]
 .pytest_cache/

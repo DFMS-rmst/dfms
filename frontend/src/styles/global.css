@@ -14,7 +14,12 @@
   --ag-shadow-md: 0 4px 14px -2px rgba(0, 0, 0, 0.06);
   --ag-radius: 0.75rem;
   --ag-transition: 0.22s cubic-bezier(0.4, 0, 0.2, 1);
-  font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  font-family:
+    'Inter',
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    sans-serif;
   color: var(--ag-text-dark);
   background: var(--ag-bg-page);
   font-synthesis: none;
@@ -253,13 +258,21 @@ dd {
 }
 
 @keyframes floatBlobA {
-  0% { transform: translate(0, 0) scale(1); }
-  100% { transform: translate(40px, 30px) scale(1.08); }
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+  100% {
+    transform: translate(40px, 30px) scale(1.08);
+  }
 }
 
 @keyframes floatBlobB {
-  0% { transform: translate(0, 0) scale(1); }
-  100% { transform: translate(-35px, -40px) scale(1.05); }
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+  100% {
+    transform: translate(-35px, -40px) scale(1.05);
+  }
 }
 
 .modern-auth-container {
@@ -1213,7 +1226,9 @@ td,
   color: #0f172a !important;
   border-radius: 1.25rem;
   padding: 1.75rem;
-  box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(0, 0, 0, 0.12) !important;
+  box-shadow:
+    0 25px 60px -15px rgba(0, 0, 0, 0.55),
+    0 0 0 1px rgba(0, 0, 0, 0.12) !important;
   border: 1.5px solid #cbd5e1 !important;
   z-index: 10000 !important;
   position: relative;
@@ -1765,9 +1780,17 @@ textarea:focus {
 }
 
 @keyframes bounceIn {
-  0% { transform: scale(0.3); opacity: 0; }
-  60% { transform: scale(1.1); }
-  100% { transform: scale(1); opacity: 1; }
+  0% {
+    transform: scale(0.3);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 .verification-status-pill {
@@ -1850,4 +1873,27 @@ textarea:focus {
   }
 }
 
+/* Animal Risk Assessment & Metrics */
+.metric-chip {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.65rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
 
+.metric-chip small {
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.metric-chip strong {
+  color: #0f172a;
+  font-size: 0.95rem;
+  font-weight: 700;
+}

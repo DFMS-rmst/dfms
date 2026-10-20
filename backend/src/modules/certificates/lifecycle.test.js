@@ -6,9 +6,11 @@ describe('certificate eligibility lifecycle hook', () => {
     const updateMany = vi.fn().mockResolvedValue({ count: 1 });
     const client = {
       milkEligibilityCertificate: {
-        findMany: vi.fn().mockResolvedValue([
-          { id: 'certificate-1', farmId: 'farm-1', certificateNumber: 'MEC-1' },
-        ]),
+        findMany: vi
+          .fn()
+          .mockResolvedValue([
+            { id: 'certificate-1', farmId: 'farm-1', certificateNumber: 'MEC-1' },
+          ]),
         updateMany,
       },
       farmMember: { findMany: vi.fn().mockResolvedValue([]) },
@@ -32,7 +34,9 @@ describe('certificate eligibility lifecycle hook', () => {
     const client = { milkEligibilityCertificate: { findMany: vi.fn() } };
     expect(
       await revokeActiveCertificates(client, {
-        animalId: 'animal-1', status: 'ELIGIBLE_FOR_MILK', checkId: 'check-1',
+        animalId: 'animal-1',
+        status: 'ELIGIBLE_FOR_MILK',
+        checkId: 'check-1',
       }),
     ).toEqual([]);
     expect(client.milkEligibilityCertificate.findMany).not.toHaveBeenCalled();

@@ -45,7 +45,12 @@ describe('administration form', () => {
     drug: { canonicalName: 'Referenced Medicine', products: [product] },
   };
   const props = {
-    treatment: { id: 'treatment-1', prescriptionId: 'prescription-1', status: 'ACTIVE', administrations: [] },
+    treatment: {
+      id: 'treatment-1',
+      prescriptionId: 'prescription-1',
+      status: 'ACTIVE',
+      administrations: [],
+    },
     caseItem: {
       animal: { name: 'Gauri', tagNumber: 'COW-1' },
       prescriptions: [{ id: 'prescription-1', items: [prescriptionItem] }],

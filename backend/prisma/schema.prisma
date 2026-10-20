@@ -181,6 +181,7 @@ model User {
   reviewedDairyOwners      DairyOwnerProfile[]            @relation("DairyOwnerReviewer")
   advisorConversations     AdvisorConversation[]
   generatedDailyClearances DailyMilkCollectionClearance[] @relation("DailyClearanceGenerator")
+  riskAssessments          AnimalRiskAssessment[]         @relation("RiskAssessmentCreator")
 
   @@index([status])
 }
@@ -320,6 +321,7 @@ model Animal {
   certificates             MilkEligibilityCertificate[]
   treatmentAdministrations TreatmentAdministration[]
   dailyEvaluationItems     DailyFarmEligibilityItem[]
+  riskAssessments          AnimalRiskAssessment[]
 
   @@unique([farmId, tagNumber])
   @@index([farmId, status])
@@ -363,6 +365,7 @@ model VeterinarianProfile {
   diagnoses           Diagnosis[]
   prescriptions       Prescription[]
   treatments          Treatment[]
+  riskAssessments     AnimalRiskAssessment[]
 
   @@unique([registrationCouncil, registrationNumber])
   @@index([status, specialization])
@@ -497,6 +500,7 @@ model VeterinaryCase {
   diagnoses      Diagnosis[]
   prescriptions  Prescription[]
   treatments     Treatment[]
+  riskAssessments AnimalRiskAssessment[]
 
   @@index([veterinarianId, status])
   @@index([farmId, status])
@@ -1059,4 +1063,40 @@ model AdvisorMessage {
   conversation   AdvisorConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
   @@index([conversationId, createdAt])
+}
+
+model AnimalRiskAssessment {
+  id                            String               @id @default(cuid())
+  animalId                      String
+  caseId                        String?
+  veterinarianId                String?
+  createdById                   String
+  species                       String               @db.VarChar(60)
+  ageYears                      Decimal              @db.Decimal(6, 2)
+  weightKg                      Decimal              @db.Decimal(8, 2)
+  treatmentsLast30d             Int
+  treatmentsLast90d             Int
+  daysSinceLastTreatment        Int
+  uniqueAntimicrobialClasses90d Int
+  maxRepeatedClassCount90d      Int
+  meanTreatmentIntervalDays     Decimal              @db.Decimal(8, 2)
+  totalAntimicrobialDays90d     Int
+  recurrentConditionEvents90d   Int
+  noResponseEvents90d           Int
+  partialResponseEvents90d      Int
+  predictedRisk                 String               @db.VarChar(40)
+  probabilities                 Json
+  notes                         String?              @db.Text
+  recommendations               String?              @db.Text
+  createdAt                     DateTime             @default(now())
+  updatedAt                     DateTime             @updatedAt
+
+  animal                        Animal               @relation(fields: [animalId], references: [id], onDelete: Cascade)
+  case                          VeterinaryCase?      @relation(fields: [caseId], references: [id], onDelete: SetNull)
+  veterinarian                  VeterinarianProfile? @relation(fields: [veterinarianId], references: [id], onDelete: SetNull)
+  createdBy                     User                 @relation("RiskAssessmentCreator", fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([animalId, createdAt])
+  @@index([caseId])
+  @@index([veterinarianId])
 }

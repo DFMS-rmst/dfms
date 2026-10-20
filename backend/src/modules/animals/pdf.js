@@ -50,12 +50,12 @@ export async function renderAnimalTagPdf({ animal, verificationId }) {
 
   // Tag section
   document.moveDown(2);
-  document.fillColor('#064e3b').fontSize(11).font('Helvetica-Bold').text('EAR TAG / IDENTIFIER', 35, 85);
   document
-    .fillColor('#0f172a')
-    .fontSize(22)
+    .fillColor('#064e3b')
+    .fontSize(11)
     .font('Helvetica-Bold')
-    .text(animal.tagNumber, 35, 100);
+    .text('EAR TAG / IDENTIFIER', 35, 85);
+  document.fillColor('#0f172a').fontSize(22).font('Helvetica-Bold').text(animal.tagNumber, 35, 100);
 
   // Animal info box
   document.roundedRect(35, 135, 350, 115, 6).fillAndStroke('#f8fafc', '#e2e8f0');
@@ -64,7 +64,10 @@ export async function renderAnimalTagPdf({ animal, verificationId }) {
     ['Animal Name', animal.name || 'Not specified'],
     ['Species', animal.species?.canonicalName || 'Livestock'],
     ['Breed', animal.breed?.name || 'Standard'],
-    ['Sex / Status', `${(animal.sex || 'FEMALE').replaceAll('_', ' ')} · ${animal.status || 'ACTIVE'}`],
+    [
+      'Sex / Status',
+      `${(animal.sex || 'FEMALE').replaceAll('_', ' ')} · ${animal.status || 'ACTIVE'}`,
+    ],
     ['Farm', animal.farm?.name || 'Authorized Farm'],
     ['Lactating', animal.lactating ? 'Yes' : 'No'],
   ];

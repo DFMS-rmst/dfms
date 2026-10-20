@@ -252,11 +252,14 @@ export function PublicDailyClearance({ verificationId }) {
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <span style={{ fontSize: '1.4rem' }}>⚠️</span>
-                  <strong style={{ fontSize: '1.1rem' }}>SUPERSEDED CLEARANCE — DO NOT COLLECT</strong>
+                  <strong style={{ fontSize: '1.1rem' }}>
+                    SUPERSEDED CLEARANCE — DO NOT COLLECT
+                  </strong>
                 </div>
                 <p style={{ margin: '0.4rem 0 0', fontSize: '0.9rem', lineHeight: 1.45 }}>
-                  This clearance document (Version {data.version}) has been <strong>superseded</strong> by a
-                  newer evaluation. Do not accept milk collection based on this outdated document.
+                  This clearance document (Version {data.version}) has been{' '}
+                  <strong>superseded</strong> by a newer evaluation. Do not accept milk collection
+                  based on this outdated document.
                 </p>
                 {data.invalidationReason && (
                   <p style={{ margin: '0.35rem 0 0', fontSize: '0.84rem' }}>
@@ -282,7 +285,8 @@ export function PublicDailyClearance({ verificationId }) {
                   <strong style={{ fontSize: '1.1rem' }}>INVALID / REVOKED CLEARANCE</strong>
                 </div>
                 <p style={{ margin: '0.4rem 0 0', fontSize: '0.9rem' }}>
-                  This clearance status is {display(data.status)}. Milk collection is strictly blocked.
+                  This clearance status is {display(data.status)}. Milk collection is strictly
+                  blocked.
                 </p>
               </div>
             )}
@@ -296,29 +300,75 @@ export function PublicDailyClearance({ verificationId }) {
                 margin: '1rem 0 1.5rem',
               }}
             >
-              <div style={{ padding: '0.6rem 0.8rem', background: '#f8fafc', borderRadius: '0.5rem', border: '1px solid var(--ag-border)' }}>
+              <div
+                style={{
+                  padding: '0.6rem 0.8rem',
+                  background: '#f8fafc',
+                  borderRadius: '0.5rem',
+                  border: '1px solid var(--ag-border)',
+                }}
+              >
                 <small style={{ color: 'var(--ag-text-muted)' }}>Status</small>
                 <p style={{ margin: '0.15rem 0 0', fontWeight: 600 }}>{display(data.status)}</p>
               </div>
-              <div style={{ padding: '0.6rem 0.8rem', background: '#f8fafc', borderRadius: '0.5rem', border: '1px solid var(--ag-border)' }}>
+              <div
+                style={{
+                  padding: '0.6rem 0.8rem',
+                  background: '#f8fafc',
+                  borderRadius: '0.5rem',
+                  border: '1px solid var(--ag-border)',
+                }}
+              >
                 <small style={{ color: 'var(--ag-text-muted)' }}>Farm Name</small>
                 <p style={{ margin: '0.15rem 0 0', fontWeight: 600 }}>{data.farmName}</p>
               </div>
-              <div style={{ padding: '0.6rem 0.8rem', background: '#f8fafc', borderRadius: '0.5rem', border: '1px solid var(--ag-border)' }}>
+              <div
+                style={{
+                  padding: '0.6rem 0.8rem',
+                  background: '#f8fafc',
+                  borderRadius: '0.5rem',
+                  border: '1px solid var(--ag-border)',
+                }}
+              >
                 <small style={{ color: 'var(--ag-text-muted)' }}>Business Date</small>
-                <p style={{ margin: '0.15rem 0 0', fontWeight: 600 }}>{String(data.businessDate).slice(0, 10)}</p>
+                <p style={{ margin: '0.15rem 0 0', fontWeight: 600 }}>
+                  {String(data.businessDate).slice(0, 10)}
+                </p>
               </div>
-              <div style={{ padding: '0.6rem 0.8rem', background: '#f8fafc', borderRadius: '0.5rem', border: '1px solid var(--ag-border)' }}>
+              <div
+                style={{
+                  padding: '0.6rem 0.8rem',
+                  background: '#f8fafc',
+                  borderRadius: '0.5rem',
+                  border: '1px solid var(--ag-border)',
+                }}
+              >
                 <small style={{ color: 'var(--ag-text-muted)' }}>Document Version</small>
                 <p style={{ margin: '0.15rem 0 0', fontWeight: 600 }}>Version {data.version}</p>
               </div>
-              <div style={{ padding: '0.6rem 0.8rem', background: '#f8fafc', borderRadius: '0.5rem', border: '1px solid var(--ag-border)' }}>
+              <div
+                style={{
+                  padding: '0.6rem 0.8rem',
+                  background: '#f8fafc',
+                  borderRadius: '0.5rem',
+                  border: '1px solid var(--ag-border)',
+                }}
+              >
                 <small style={{ color: 'var(--ag-text-muted)' }}>Eligible Animals</small>
                 <p style={{ margin: '0.15rem 0 0', fontWeight: 600 }}>{data.eligibleAnimalCount}</p>
               </div>
-              <div style={{ padding: '0.6rem 0.8rem', background: '#f8fafc', borderRadius: '0.5rem', border: '1px solid var(--ag-border)' }}>
+              <div
+                style={{
+                  padding: '0.6rem 0.8rem',
+                  background: '#f8fafc',
+                  borderRadius: '0.5rem',
+                  border: '1px solid var(--ag-border)',
+                }}
+              >
                 <small style={{ color: 'var(--ag-text-muted)' }}>Document Integrity</small>
-                <p style={{ margin: '0.15rem 0 0', fontWeight: 600 }}>{display(data.documentIntegrity)} (Canonical SHA-256)</p>
+                <p style={{ margin: '0.15rem 0 0', fontWeight: 600 }}>
+                  {display(data.documentIntegrity)} (Canonical SHA-256)
+                </p>
               </div>
             </div>
 
@@ -333,12 +383,14 @@ export function PublicDailyClearance({ verificationId }) {
                 marginBottom: '1rem',
               }}
             >
-              <strong>Daily Farm Clearance Scope:</strong> This verification is specific to bulk milk
-              intake for the farm and business date. For individual animal identity or treatment checking,
-              scan the animal’s ear-tag QR code directly.
+              <strong>Daily Farm Clearance Scope:</strong> This verification is specific to bulk
+              milk intake for the farm and business date. For individual animal identity or
+              treatment checking, scan the animal’s ear-tag QR code directly.
             </div>
 
-            <p className="notice" style={{ fontSize: '0.82rem' }}>{data.disclaimer}</p>
+            <p className="notice" style={{ fontSize: '0.82rem' }}>
+              {data.disclaimer}
+            </p>
           </>
         )}
       </article>

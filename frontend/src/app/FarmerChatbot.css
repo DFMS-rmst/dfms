@@ -1,0 +1,1456 @@
+/* ==========================================================================
+   Kisan Mitra — AI Farmer & Cattle Care Assistant Styles
+   ========================================================================== */
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes bounce {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+  }
+  30% {
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes pulseGlow {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+    box-shadow: 0 0 6px #10b981;
+  }
+  50% {
+    opacity: 0.65;
+    transform: scale(1.15);
+    box-shadow: 0 0 12px #34d399;
+  }
+}
+
+/* ==========================================================================
+   Topbar Trigger Button & Status Badge
+   ========================================================================== */
+
+.farmer-chatbot-topbar-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  background: linear-gradient(135deg, #064e3b 0%, #059669 100%);
+  color: #ffffff;
+  border: 1.5px solid #10b981;
+  padding: 0.45rem 1rem;
+  border-radius: 9999px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(5, 150, 105, 0.28);
+  transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  font-family: inherit;
+}
+
+.farmer-chatbot-topbar-btn:hover {
+  background: linear-gradient(135deg, #047857 0%, #10b981 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(5, 150, 105, 0.42);
+  border-color: #34d399;
+}
+
+.farmer-chatbot-topbar-icon {
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+.farmer-chatbot-topbar-text {
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+.farmer-chatbot-status-dot {
+  width: 7.5px;
+  height: 7.5px;
+  border-radius: 50%;
+  background-color: #34d399;
+  box-shadow: 0 0 6px #34d399;
+  animation: pulseGlow 2s infinite ease-in-out;
+}
+
+/* ==========================================================================
+   Chatbot Modal Overlay & Dialog Container
+   ========================================================================== */
+
+.farmer-chatbot-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1200;
+  padding: 1rem;
+  animation: fadeUp 0.2s ease-out;
+}
+
+.farmer-chatbot-modal-container {
+  background: #ffffff;
+  border-radius: 16px;
+  width: 95vw;
+  max-width: 1180px;
+  height: 88vh;
+  max-height: 900px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow:
+    0 25px 50px -12px rgba(0, 0, 0, 0.28),
+    0 0 0 1px rgba(6, 78, 59, 0.18);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.farmer-chatbot-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1.25rem;
+  background: linear-gradient(135deg, #064e3b 0%, #047857 100%);
+  color: #ffffff;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+  flex-shrink: 0;
+}
+
+.farmer-chatbot-modal-title-group {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.farmer-chatbot-modal-icon {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.farmer-chatbot-modal-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: #ffffff;
+}
+
+.farmer-chatbot-modal-sub {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #a7f3d0;
+  font-weight: 500;
+}
+
+.farmer-chatbot-modal-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.farmer-chatbot-modal-btn {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+  padding: 0.35rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+
+.farmer-chatbot-modal-btn:hover {
+  background: rgba(255, 255, 255, 0.28);
+  border-color: rgba(255, 255, 255, 0.45);
+}
+
+.farmer-chatbot-modal-close-btn {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  font-size: 1rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.farmer-chatbot-modal-close-btn:hover {
+  background: #dc2626;
+  border-color: #ef4444;
+}
+
+.farmer-chatbot-modal-body {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+/* ==========================================================================
+   Page View Wrapper
+   ========================================================================== */
+
+.farmer-chatbot-page-wrapper {
+  height: calc(100vh - 120px);
+  min-height: 600px;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.06);
+  border: 1px solid var(--ag-border, #e2e8f0);
+  background: #ffffff;
+}
+
+/* ==========================================================================
+   Kisan Mitra Chatbot Layout & Components
+   ========================================================================== */
+
+.kisan-mitra-chatbot-root {
+  height: 100%;
+  width: 100%;
+  display: flex;
+  overflow: hidden;
+  position: relative;
+  font-family:
+    'Inter',
+    system-ui,
+    -apple-system,
+    sans-serif;
+  color: var(--ag-text-dark, #0f172a);
+}
+
+.kisan-mitra-chatbot-root .app-shell {
+  height: 100%;
+  width: 100%;
+  background: var(--ag-bg-page, #f8fafc);
+  display: flex;
+  font-family: inherit;
+  overflow: hidden;
+  position: relative;
+}
+
+/* ── SIDEBAR ── */
+.kisan-mitra-chatbot-root .sidebar {
+  width: 275px;
+  min-width: 275px;
+  background: #064e3b;
+  color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition:
+    width 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+    min-width 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+    transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 4px 0 20px rgba(6, 78, 59, 0.18);
+  flex-shrink: 0;
+  z-index: 50;
+  position: relative;
+}
+
+.kisan-mitra-chatbot-root .sidebar--open {
+  width: 275px;
+  min-width: 275px;
+}
+
+.kisan-mitra-chatbot-root .sidebar--closed {
+  width: 0 !important;
+  min-width: 0 !important;
+}
+
+/* Sidebar Brand Area */
+.kisan-mitra-chatbot-root .sidebar__logo-area {
+  padding: 1.35rem 1.25rem 1.15rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  flex-shrink: 0;
+}
+
+.kisan-mitra-chatbot-root .sidebar__logo-row {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  margin-bottom: 1.15rem;
+}
+
+.kisan-mitra-chatbot-root .sidebar__logo-icon {
+  font-size: 1.65rem;
+  line-height: 1;
+}
+
+.kisan-mitra-chatbot-root .sidebar__logo-title {
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 1.15rem;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.kisan-mitra-chatbot-root .sidebar__logo-sub {
+  color: #a7f3d0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.kisan-mitra-chatbot-root .sidebar-brand-tag {
+  background: rgba(52, 211, 153, 0.2);
+  border: 1px solid rgba(52, 211, 153, 0.4);
+  color: #a7f3d0;
+  font-size: 0.65rem;
+  font-weight: 800;
+  padding: 0.2rem 0.5rem;
+  border-radius: 9999px;
+  letter-spacing: 0.05em;
+  margin-left: auto;
+}
+
+/* New Chat Button */
+.kisan-mitra-chatbot-root .new-chat-btn {
+  width: 100%;
+  padding: 0.75rem 1.15rem;
+  background: linear-gradient(
+    135deg,
+    var(--ag-green-primary, #059669) 0%,
+    var(--ag-green-hover, #047857) 100%
+  );
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 0.75rem;
+  color: #ffffff;
+  font-size: 0.92rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.35);
+  transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  font-family: inherit;
+}
+
+.kisan-mitra-chatbot-root .new-chat-btn:hover {
+  background: linear-gradient(135deg, var(--ag-green-hover, #047857) 0%, #034b35 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(5, 150, 105, 0.45);
+}
+
+.kisan-mitra-chatbot-root .new-chat-btn__icon {
+  font-size: 1rem;
+}
+
+/* History Label */
+.kisan-mitra-chatbot-root .sidebar__history-label {
+  padding: 1.15rem 1.25rem 0.45rem;
+  flex-shrink: 0;
+  color: #a7f3d0;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+
+/* Chat List */
+.kisan-mitra-chatbot-root .chat-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.4rem 0.75rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.kisan-mitra-chatbot-root .chat-item {
+  display: flex;
+  align-items: center;
+  border-radius: 0.65rem;
+  padding: 0.65rem 0.85rem;
+  cursor: pointer;
+  transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  gap: 0.75rem;
+  color: #d1fae5;
+  border-left: 3px solid transparent;
+}
+
+.kisan-mitra-chatbot-root .chat-item:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+.kisan-mitra-chatbot-root .chat-item--active {
+  background: rgba(255, 255, 255, 0.18);
+  border-left-color: #34d399;
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.kisan-mitra-chatbot-root .chat-item__icon {
+  font-size: 1.05rem;
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+
+.kisan-mitra-chatbot-root .chat-item__title {
+  font-size: 0.88rem;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kisan-mitra-chatbot-root .chat-item__title--active {
+  color: #ffffff;
+  font-weight: 700;
+}
+
+/* Chat Item Action Buttons & Rename Controls */
+.kisan-mitra-chatbot-root .chat-item__actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.15s ease-in-out;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.kisan-mitra-chatbot-root .chat-item:hover .chat-item__actions,
+.kisan-mitra-chatbot-root .chat-item--active .chat-item__actions {
+  opacity: 1;
+}
+
+.kisan-mitra-chatbot-root .icon-edit-btn {
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: #a7f3d0 !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  border-radius: 8px !important;
+  width: 30px !important;
+  height: 30px !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  flex-shrink: 0;
+}
+
+.kisan-mitra-chatbot-root .icon-edit-btn:hover {
+  background: var(--ag-green-primary, #059669) !important;
+  color: #ffffff !important;
+  border-color: #34d399 !important;
+  transform: translateY(-1px);
+}
+
+.kisan-mitra-chatbot-root .icon-delete-chat-btn {
+  background: rgba(239, 68, 68, 0.2) !important;
+  color: #fca5a5 !important;
+  border: 1px solid rgba(239, 68, 68, 0.3) !important;
+  border-radius: 8px !important;
+  width: 30px !important;
+  height: 30px !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  flex-shrink: 0;
+}
+
+.kisan-mitra-chatbot-root .icon-delete-chat-btn:hover {
+  background: #dc2626 !important;
+  color: #ffffff !important;
+  border-color: #ef4444 !important;
+  transform: translateY(-1px);
+}
+
+.kisan-mitra-chatbot-root .chat-item__edit-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+}
+
+.kisan-mitra-chatbot-root .chat-item__edit-input {
+  flex: 1;
+  background: rgba(0, 0, 0, 0.4) !important;
+  border: 1.5px solid #34d399 !important;
+  border-radius: 6px !important;
+  color: #ffffff !important;
+  padding: 4px 8px !important;
+  font-size: 0.85rem !important;
+  font-family: inherit;
+  outline: none !important;
+  min-width: 0;
+  width: auto !important;
+}
+
+.kisan-mitra-chatbot-root .chat-item__edit-input:focus {
+  border-color: #10b981 !important;
+  box-shadow: 0 0 0 2px rgba(52, 211, 153, 0.25) !important;
+}
+
+.kisan-mitra-chatbot-root .icon-save-btn {
+  background: var(--ag-green-primary, #059669) !important;
+  color: #ffffff !important;
+  border: none !important;
+  border-radius: 6px !important;
+  width: 28px !important;
+  height: 28px !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+
+.kisan-mitra-chatbot-root .icon-save-btn:hover {
+  background: var(--ag-green-hover, #047857) !important;
+}
+
+.kisan-mitra-chatbot-root .icon-cancel-btn {
+  background: rgba(255, 255, 255, 0.18) !important;
+  color: #ffffff !important;
+  border: none !important;
+  border-radius: 6px !important;
+  width: 28px !important;
+  height: 28px !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.82rem;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+
+.kisan-mitra-chatbot-root .icon-cancel-btn:hover {
+  background: rgba(255, 255, 255, 0.3) !important;
+}
+
+.kisan-mitra-chatbot-root .header-rename-btn {
+  background: transparent !important;
+  border: none !important;
+  color: var(--ag-text-muted, #64748b) !important;
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 2px 6px !important;
+  border-radius: 6px !important;
+  transition: all 0.22s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 6px;
+  box-shadow: none !important;
+}
+
+.kisan-mitra-chatbot-root .header-rename-btn:hover {
+  background: #f1f5f9 !important;
+  color: var(--ag-green-primary, #059669) !important;
+}
+
+/* Delete Confirm Row */
+.kisan-mitra-chatbot-root .delete-confirm {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+.kisan-mitra-chatbot-root .delete-confirm__yes {
+  background: #dc2626;
+  border: none;
+  border-radius: 6px;
+  color: #ffffff;
+  font-size: 0.72rem;
+  padding: 0.25rem 0.55rem;
+  cursor: pointer;
+  font-weight: 700;
+  transition: background 0.2s;
+}
+
+.kisan-mitra-chatbot-root .delete-confirm__yes:hover {
+  background: #b91c1c;
+}
+
+.kisan-mitra-chatbot-root .delete-confirm__no {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  border-radius: 6px;
+  color: #ffffff;
+  font-size: 0.72rem;
+  padding: 0.25rem 0.55rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.kisan-mitra-chatbot-root .delete-confirm__no:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.kisan-mitra-chatbot-root .chat-list__empty {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 0.82rem;
+  text-align: center;
+  margin-top: 1.5rem;
+  font-style: italic;
+}
+
+/* Sidebar Footer */
+.kisan-mitra-chatbot-root .sidebar__footer {
+  padding: 0.85rem 1.15rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  flex-shrink: 0;
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.kisan-mitra-chatbot-root .sidebar__farmer-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.kisan-mitra-chatbot-root .sidebar__farmer-icon {
+  font-size: 1.35rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.kisan-mitra-chatbot-root .sidebar__farmer-meta {
+  flex: 1;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.kisan-mitra-chatbot-root .sidebar__farmer-name {
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: #ffffff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.kisan-mitra-chatbot-root .sidebar__farmer-sub {
+  font-size: 0.72rem;
+  color: #a7f3d0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 500;
+}
+
+.kisan-mitra-chatbot-root .sidebar__footer-text {
+  color: #a7f3d0;
+  font-size: 0.76rem;
+  text-align: center;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+/* ==========================================================================
+   Main Chat Workspace Area
+   ========================================================================== */
+
+.kisan-mitra-chatbot-root .main-chat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  height: 100%;
+  background: var(--ag-bg-page, #f8fafc);
+}
+
+/* Topbar Header */
+.kisan-mitra-chatbot-root .chat-header {
+  height: 64px;
+  background: #ffffff;
+  border-bottom: 1px solid var(--ag-border, #e2e8f0);
+  display: flex;
+  align-items: center;
+  padding: 0 1.5rem;
+  gap: 1rem;
+  flex-shrink: 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  z-index: 20;
+}
+
+.kisan-mitra-chatbot-root .sidebar-toggle-btn {
+  background: #f8fafc;
+  border: 1.5px solid var(--ag-border, #cbd5e1);
+  border-radius: 0.5rem;
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 1.05rem;
+  color: var(--ag-forest-dark, #064e3b);
+  transition: all 0.2s;
+  box-shadow: none !important;
+}
+
+.kisan-mitra-chatbot-root .sidebar-toggle-btn:hover {
+  background: #ecfdf5;
+  border-color: #10b981;
+}
+
+.kisan-mitra-chatbot-root .chat-header__avatar {
+  font-size: 1.6rem;
+  line-height: 1;
+}
+
+.kisan-mitra-chatbot-root .chat-header__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.kisan-mitra-chatbot-root .chat-header__title {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--ag-text-dark, #0f172a);
+  margin-bottom: 0.15rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.kisan-mitra-chatbot-root .chat-header__sub {
+  font-size: 0.78rem;
+  color: var(--ag-text-muted, #64748b);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.kisan-mitra-chatbot-root .chat-header__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.85rem;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  border-radius: 9999px;
+  flex-shrink: 0;
+}
+
+.kisan-mitra-chatbot-root .status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.7);
+}
+
+.kisan-mitra-chatbot-root .status-label {
+  color: #064e3b;
+  font-size: 0.78rem;
+  font-weight: 750;
+  letter-spacing: 0.03em;
+}
+
+/* Error Banner */
+.kisan-mitra-chatbot-root .error-banner {
+  background: #fef2f2;
+  border-left: 4px solid #ef4444;
+  border-bottom: 1px solid #fecaca;
+  padding: 0.75rem 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  animation: fadeUp 0.22s ease;
+  z-index: 10;
+  flex-shrink: 0;
+}
+
+.kisan-mitra-chatbot-root .error-banner__content {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  font-size: 0.88rem;
+  color: #b91c1c;
+  font-weight: 600;
+}
+
+.kisan-mitra-chatbot-root .error-banner__close {
+  background: transparent;
+  border: none;
+  font-size: 1.1rem;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  transition: color 0.2s;
+}
+
+.kisan-mitra-chatbot-root .error-banner__close:hover {
+  color: #0f172a;
+}
+
+/* Quick Question Suggestions */
+.kisan-mitra-chatbot-root .suggestions {
+  padding: 1.15rem 1.5rem 0.35rem;
+  flex-shrink: 0;
+}
+
+.kisan-mitra-chatbot-root .suggestions__label {
+  font-size: 0.78rem;
+  color: #059669;
+  margin-bottom: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.kisan-mitra-chatbot-root .suggestions__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.kisan-mitra-chatbot-root .suggest-btn {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 9999px;
+  padding: 0.55rem 1.15rem;
+  font-size: 0.82rem;
+  color: #0f172a;
+  cursor: pointer;
+  transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  text-align: left;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  font-weight: 500;
+  font-family: inherit;
+}
+
+.kisan-mitra-chatbot-root .suggest-btn:hover {
+  background: #ecfdf5;
+  border-color: #10b981;
+  color: #064e3b;
+  transform: translateY(-1.5px);
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.15);
+}
+
+/* Messages List */
+.kisan-mitra-chatbot-root .messages-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.kisan-mitra-chatbot-root .message-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  animation: fadeUp 0.25s ease forwards;
+}
+
+.kisan-mitra-chatbot-root .message-row--user {
+  flex-direction: row-reverse;
+}
+
+.kisan-mitra-chatbot-root .message-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.15rem;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.kisan-mitra-chatbot-root .message-avatar--assistant {
+  background: linear-gradient(135deg, #064e3b 0%, #059669 100%);
+  border: 1.5px solid #a7f3d0;
+}
+
+.kisan-mitra-chatbot-root .message-avatar--user {
+  background: #f1f5f9;
+  border: 1.5px solid #cbd5e1;
+}
+
+.kisan-mitra-chatbot-root .message-wrapper {
+  max-width: 82%;
+  display: flex;
+  flex-direction: column;
+}
+
+.kisan-mitra-chatbot-root .message-row--user .message-wrapper {
+  align-items: flex-end;
+}
+
+.kisan-mitra-chatbot-root .message-meta-header {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.35rem;
+  padding: 0 0.35rem;
+}
+
+.kisan-mitra-chatbot-root .message-author-badge {
+  font-size: 0.75rem;
+  font-weight: 750;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.kisan-mitra-chatbot-root .message-author-badge--assistant {
+  color: #064e3b;
+}
+
+.kisan-mitra-chatbot-root .message-author-badge--user {
+  color: #475569;
+}
+
+.kisan-mitra-chatbot-root .message-author-dot {
+  width: 7.5px;
+  height: 7.5px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.7);
+}
+
+.kisan-mitra-chatbot-root .message-timestamp {
+  font-size: 0.72rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.kisan-mitra-chatbot-root .message-bubble {
+  padding: 1.15rem 1.45rem;
+  font-size: 0.95rem;
+  line-height: 1.72;
+  word-break: break-word;
+  position: relative;
+}
+
+.kisan-mitra-chatbot-root .message-bubble--assistant {
+  background: #ffffff;
+  color: #0f172a;
+  border-radius: 1.25rem 1.25rem 1.25rem 0.35rem;
+  border: 1.5px solid #e2e8f0;
+  box-shadow:
+    0 4px 18px -2px rgba(6, 78, 59, 0.06),
+    0 1px 3px rgba(0, 0, 0, 0.04);
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.kisan-mitra-chatbot-root .message-bubble--assistant:hover {
+  border-color: #cbd5e1;
+  box-shadow:
+    0 6px 22px -2px rgba(6, 78, 59, 0.08),
+    0 2px 5px rgba(0, 0, 0, 0.04);
+}
+
+.kisan-mitra-chatbot-root .message-bubble--user {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  color: #ffffff;
+  border-radius: 1.25rem 1.25rem 0.35rem 1.25rem;
+  box-shadow: 0 4px 16px rgba(5, 150, 105, 0.3);
+  font-weight: 500;
+  white-space: pre-wrap;
+}
+
+.kisan-mitra-chatbot-root .user-message-text {
+  color: #ffffff;
+  line-height: 1.6;
+}
+
+.kisan-mitra-chatbot-root .message-bubble--error {
+  background: #fef2f2 !important;
+  color: #b91c1c !important;
+  border: 1.5px solid #fecaca !important;
+  border-radius: 1.25rem 1.25rem 1.25rem 0.35rem;
+  font-weight: 500;
+}
+
+/* ── Rich Formatted Content Styles ── */
+.kisan-mitra-chatbot-root .chat-content-formatted {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  color: #0f172a;
+}
+
+.kisan-mitra-chatbot-root .chat-heading {
+  margin: 0.75rem 0 0.3rem 0;
+  line-height: 1.35;
+  letter-spacing: -0.015em;
+}
+
+.kisan-mitra-chatbot-root .chat-heading--1 {
+  font-size: 1.22rem;
+  font-weight: 800;
+  color: #064e3b;
+  border-bottom: 2px solid #a7f3d0;
+  padding-bottom: 0.4rem;
+}
+
+.kisan-mitra-chatbot-root .chat-heading--2 {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.kisan-mitra-chatbot-root .chat-heading--3 {
+  font-size: 1.02rem;
+  font-weight: 800;
+  color: #064e3b;
+  background: #ecfdf5;
+  border-left: 3.5px solid #059669;
+  padding: 0.35rem 0.75rem;
+  border-radius: 0 6px 6px 0;
+  margin: 0.85rem 0 0.45rem 0;
+}
+
+.kisan-mitra-chatbot-root .chat-p {
+  margin: 0.3rem 0;
+  line-height: 1.72;
+  color: #1e293b;
+  font-size: 0.945rem;
+}
+
+.kisan-mitra-chatbot-root .chat-inline-bold {
+  font-weight: 750;
+  color: #0f172a;
+}
+
+.kisan-mitra-chatbot-root .message-bubble--user .chat-inline-bold {
+  color: #ffffff;
+  font-weight: 800;
+}
+
+.kisan-mitra-chatbot-root .chat-inline-code {
+  background: #ecfdf5;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.88rem;
+  color: #064e3b;
+  border: 1px solid #a7f3d0;
+  font-weight: 600;
+}
+
+.kisan-mitra-chatbot-root .chat-code-block {
+  background: #0f172a;
+  color: #f8fafc;
+  padding: 0.85rem 1.1rem;
+  border-radius: 0.65rem;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 0.86rem;
+  overflow-x: auto;
+  margin: 0.6rem 0;
+  border: 1px solid #334155;
+}
+
+.kisan-mitra-chatbot-root .chat-code-block pre {
+  margin: 0;
+}
+
+.kisan-mitra-chatbot-root .chat-list-ul,
+.kisan-mitra-chatbot-root .chat-list-ol {
+  margin: 0.45rem 0 0.65rem 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.kisan-mitra-chatbot-root .chat-list-li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  line-height: 1.65;
+  color: #1e293b;
+}
+
+.kisan-mitra-chatbot-root .chat-list-bullet {
+  font-size: 0.85rem;
+  margin-top: 0.2rem;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.kisan-mitra-chatbot-root .chat-list-text {
+  flex: 1;
+}
+
+.kisan-mitra-chatbot-root .chat-list-oli {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  line-height: 1.65;
+  color: #1e293b;
+}
+
+.kisan-mitra-chatbot-root .chat-list-step-badge {
+  min-width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #ecfdf5;
+  border: 1.5px solid #a7f3d0;
+  color: #064e3b;
+  font-weight: 800;
+  font-size: 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 0.15rem;
+  flex-shrink: 0;
+}
+
+/* Callout Alert Cards */
+.kisan-mitra-chatbot-root .chat-callout {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  border-radius: 0.75rem;
+  padding: 0.85rem 1.15rem;
+  margin: 0.85rem 0;
+  border-left: 4.5px solid #64748b;
+  background: #f8fafc;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+
+.kisan-mitra-chatbot-root .chat-callout__icon {
+  font-size: 1.25rem;
+  line-height: 1;
+  flex-shrink: 0;
+  margin-top: 0.1rem;
+}
+
+.kisan-mitra-chatbot-root .chat-callout__body {
+  flex: 1;
+  font-size: 0.91rem;
+  line-height: 1.65;
+}
+
+.kisan-mitra-chatbot-root .chat-callout__body p {
+  margin: 0.25rem 0;
+}
+
+.kisan-mitra-chatbot-root .chat-callout--danger {
+  background: linear-gradient(135deg, #fff1f2 0%, #fee2e2 100%);
+  border-left-color: #ef4444;
+  color: #991b1b;
+}
+
+.kisan-mitra-chatbot-root .chat-callout--tip {
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+  border-left-color: #10b981;
+  color: #065f46;
+}
+
+.kisan-mitra-chatbot-root .chat-callout--info {
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  border-left-color: #38bdf8;
+  color: #075985;
+}
+
+.kisan-mitra-chatbot-root .chat-hr {
+  border: none;
+  border-top: 1.5px dashed #a7f3d0;
+  margin: 0.85rem 0;
+}
+
+/* Rich Data Tables */
+.kisan-mitra-chatbot-root .chat-table-wrapper {
+  overflow-x: auto;
+  margin: 0.85rem 0;
+  border-radius: 0.75rem;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.kisan-mitra-chatbot-root .chat-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+  background: #ffffff;
+  text-align: left;
+}
+
+.kisan-mitra-chatbot-root .chat-table th {
+  background: #f0fdf4 !important;
+  color: #064e3b !important;
+  font-weight: 750 !important;
+  padding: 0.7rem 0.95rem !important;
+  border-bottom: 1.5px solid #a7f3d0 !important;
+  font-size: 0.8rem !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.04em !important;
+  white-space: nowrap;
+}
+
+.kisan-mitra-chatbot-root .chat-table td {
+  padding: 0.7rem 0.95rem !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+  color: #1e293b !important;
+  font-size: 0.88rem !important;
+  line-height: 1.5 !important;
+}
+
+.kisan-mitra-chatbot-root .chat-table tbody tr:nth-child(even) {
+  background: #f8fafc;
+}
+
+.kisan-mitra-chatbot-root .chat-table tbody tr:hover {
+  background: #f0fdf4;
+}
+
+/* Bubble Action Toolbar */
+.kisan-mitra-chatbot-root .message-bubble-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin-top: 0.85rem;
+  padding-top: 0.7rem;
+  border-top: 1px dashed #e2e8f0;
+}
+
+.kisan-mitra-chatbot-root .bubble-action-btn {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #64748b;
+  font-size: 0.76rem;
+  font-weight: 600;
+  padding: 0.32rem 0.65rem;
+  border-radius: 6px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  transition: all 0.22s;
+  font-family: inherit;
+  box-shadow: none !important;
+}
+
+.kisan-mitra-chatbot-root .bubble-action-btn:hover {
+  background: #ecfdf5 !important;
+  border-color: #10b981 !important;
+  color: #064e3b !important;
+  transform: translateY(-1px);
+}
+
+.kisan-mitra-chatbot-root .bubble-action-btn--copied {
+  background: #ecfdf5 !important;
+  color: #059669 !important;
+  border-color: #a7f3d0 !important;
+}
+
+.kisan-mitra-chatbot-root .bubble-action-btn--speaking {
+  background: #fee2e2 !important;
+  color: #dc2626 !important;
+  border-color: #fca5a5 !important;
+}
+
+.kisan-mitra-chatbot-root .bubble-feedback-group {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-left: auto;
+}
+
+.kisan-mitra-chatbot-root .bubble-feedback-btn {
+  padding: 0.32rem 0.55rem;
+}
+
+.kisan-mitra-chatbot-root .bubble-feedback-btn--active {
+  background: #ecfdf5 !important;
+  border-color: #059669 !important;
+  color: #064e3b !important;
+  font-weight: 750 !important;
+}
+
+/* Typing Dots */
+.kisan-mitra-chatbot-root .typing-dots {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  padding: 0.35rem 0.15rem;
+}
+
+.kisan-mitra-chatbot-root .typing-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #059669;
+  animation: bounce 1.2s infinite;
+}
+
+.kisan-mitra-chatbot-root .typing-dot:nth-child(1) {
+  animation-delay: 0s;
+}
+.kisan-mitra-chatbot-root .typing-dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.kisan-mitra-chatbot-root .typing-dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+/* ==========================================================================
+   Chat Input Area
+   ========================================================================== */
+
+.kisan-mitra-chatbot-root .input-area {
+  padding: 0.85rem 1.5rem 1.25rem;
+  border-top: 1px solid #e2e8f0;
+  background: #ffffff;
+  flex-shrink: 0;
+}
+
+.kisan-mitra-chatbot-root .input-box {
+  display: flex;
+  gap: 0.65rem;
+  align-items: flex-end;
+  background: #f8fafc;
+  border-radius: 1rem;
+  padding: 0.5rem 0.5rem 0.5rem 1rem;
+  border: 1.5px solid #cbd5e1;
+  transition: all 0.22s;
+}
+
+.kisan-mitra-chatbot-root .input-box:focus-within {
+  border-color: #059669;
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.18);
+  background: #ffffff;
+}
+
+.kisan-mitra-chatbot-root .input-textarea {
+  flex: 1;
+  border: none;
+  background: transparent;
+  resize: none;
+  font-size: 0.92rem;
+  color: #0f172a;
+  line-height: 1.55;
+  max-height: 110px;
+  overflow-y: auto;
+  font-family: inherit;
+  outline: none;
+  padding: 0.35rem 0;
+}
+
+.kisan-mitra-chatbot-root .input-textarea::placeholder {
+  color: #94a3b8;
+}
+
+.kisan-mitra-chatbot-root .send-btn {
+  width: 42px;
+  height: 42px;
+  border-radius: 0.75rem;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.15rem;
+  transition: all 0.22s;
+  flex-shrink: 0;
+  outline: none;
+}
+
+.kisan-mitra-chatbot-root .send-btn--active {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  color: #ffffff;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.35);
+}
+
+.kisan-mitra-chatbot-root .send-btn--active:hover {
+  background: linear-gradient(135deg, #047857 0%, #064e3b 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(5, 150, 105, 0.45);
+}
+
+.kisan-mitra-chatbot-root .send-btn--disabled {
+  background: #e2e8f0;
+  color: #94a3b8;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.kisan-mitra-chatbot-root .input-hint {
+  text-align: center;
+  font-size: 0.78rem;
+  color: #64748b;
+  margin-top: 0.55rem;
+  font-weight: 500;
+}
+
+/* ==========================================================================
+   Responsive Adaptations
+   ========================================================================== */
+
+@media (max-width: 768px) {
+  .farmer-chatbot-modal-overlay {
+    padding: 0;
+  }
+  .farmer-chatbot-modal-container {
+    width: 100vw;
+    height: 100vh;
+    max-height: 100vh;
+    border-radius: 0;
+  }
+  .kisan-mitra-chatbot-root .sidebar {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 100;
+  }
+  .kisan-mitra-chatbot-root .sidebar--closed {
+    transform: translateX(-100%);
+    width: 275px !important;
+    min-width: 275px !important;
+  }
+  .kisan-mitra-chatbot-root .sidebar--open {
+    transform: translateX(0);
+  }
+  .kisan-mitra-chatbot-root .message-bubble {
+    max-width: 88%;
+  }
+  .kisan-mitra-chatbot-root .chat-header {
+    padding: 0 1rem;
+  }
+  .kisan-mitra-chatbot-root .input-area {
+    padding: 0.75rem 1rem 1rem;
+  }
+}

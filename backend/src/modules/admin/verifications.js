@@ -12,7 +12,9 @@ const reviewSchema = z.object({
 });
 
 const vetInclude = {
-  user: { select: { id: true, fullName: true, email: true, phone: true, status: true, createdAt: true } },
+  user: {
+    select: { id: true, fullName: true, email: true, phone: true, status: true, createdAt: true },
+  },
   serviceAreas: true,
   documents: {
     select: {
@@ -27,11 +29,15 @@ const vetInclude = {
 };
 
 const farmerInclude = {
-  user: { select: { id: true, fullName: true, email: true, phone: true, status: true, createdAt: true } },
+  user: {
+    select: { id: true, fullName: true, email: true, phone: true, status: true, createdAt: true },
+  },
 };
 
 const dairyOwnerInclude = {
-  user: { select: { id: true, fullName: true, email: true, phone: true, status: true, createdAt: true } },
+  user: {
+    select: { id: true, fullName: true, email: true, phone: true, status: true, createdAt: true },
+  },
 };
 
 export const adminVerificationsRouter = Router();

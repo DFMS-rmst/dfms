@@ -82,7 +82,7 @@ const modalInputStyle = {
   boxSizing: 'border-box',
 };
 
-export function DairyHub({ initialTab = 'analytics', user, workspace }) {
+export function DairyHub({ initialTab = 'analytics' }) {
   const [activeTab, setActiveTab] = useState(initialTab);
 
   // Synchronize activeTab when navigation changes
@@ -92,13 +92,11 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
 
   // Global state
   const [areasList, setAreasList] = useState([]);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
   // 1. Analytics state
   const [analytics, setAnalytics] = useState(null);
-  const [analyticsPeriod, setAnalyticsPeriod] = useState('last7days');
 
   // 2. Farmers & Enrollments state
   const [farmers, setFarmers] = useState([]);
@@ -106,12 +104,10 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
   const [farmerSearch, setFarmerSearch] = useState('');
   const [areaFilter, setAreaFilter] = useState('');
   const [enrollmentStatusFilter, setEnrollmentStatusFilter] = useState('ALL');
-  const [selectedFarmerDetail, setSelectedFarmerDetail] = useState(null);
 
   // 3. Milk Intakes state
   const [intakes, setIntakes] = useState([]);
   const [intakeShiftFilter, setIntakeShiftFilter] = useState('ALL');
-  const [intakeDateFilter, setIntakeDateFilter] = useState('');
 
   // 4. Sales state
   const [sales, setSales] = useState([]);
@@ -124,7 +120,6 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
   const [showEnrollModal, setShowEnrollModal] = useState(false);
   const [editingEnrollment, setEditingEnrollment] = useState(null);
   const [showIntakeModal, setShowIntakeModal] = useState(false);
-  const [prefilledFarmerForIntake, setPrefilledFarmerForIntake] = useState(null);
   const [showSaleModal, setShowSaleModal] = useState(false);
   const [inspectingFarmerHealth, setInspectingFarmerHealth] = useState(null);
   const [timelineAnimal, setTimelineAnimal] = useState(null);
@@ -194,7 +189,6 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
   }, []);
 
   async function loadAllData() {
-    setLoading(true);
     setError('');
     try {
       const todayStr = new Date().toISOString().split('T')[0];
@@ -218,8 +212,6 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
       setTanksData(tanksRes || { tanks: [], summary: {} });
     } catch (err) {
       setError(err.message || 'Failed to load dairy data');
-    } finally {
-      setLoading(false);
     }
   }
 
@@ -305,7 +297,7 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
         showNotification(
           enrollForm.status === 'PENDING_APPROVAL'
             ? `Join request for ${enrollForm.farmerName} submitted for review`
-            : `Farmer ${enrollForm.farmerName} successfully enrolled!`
+            : `Farmer ${enrollForm.farmerName} successfully enrolled!`,
         );
       }
       setShowEnrollModal(false);
@@ -330,8 +322,7 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
 
   // --- Handlers for Milk Collection Intake ---
   function openIntakeModal(farmer = null) {
-    setPrefilledFarmerForIntake(farmer);
-    const chosenFarmerId = farmer?.farmerIdNumber || (enrollments[0]?.farmerIdNumber || '');
+    const chosenFarmerId = farmer?.farmerIdNumber || enrollments[0]?.farmerIdNumber || '';
     const matchedEnr = enrollments.find((e) => e.farmerIdNumber === chosenFarmerId);
 
     setIntakeForm({
@@ -394,7 +385,7 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
         body: JSON.stringify(intakeForm),
       });
       showNotification(
-        `Milk intake of ${intakeForm.quantityLiters} L logged successfully! Total cost: ₹${res.totalCost.toLocaleString('en-IN')}`
+        `Milk intake of ${intakeForm.quantityLiters} L logged successfully! Total cost: ₹${res.totalCost.toLocaleString('en-IN')}`,
       );
       setShowIntakeModal(false);
       loadAllData();
@@ -413,7 +404,7 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
         body: JSON.stringify(saleForm),
       });
       showNotification(
-        `Milk sale recorded (${saleForm.quantityLiters} L to ${saleForm.buyerName})! Invoice: #${res.invoiceNumber}`
+        `Milk sale recorded (${saleForm.quantityLiters} L to ${saleForm.buyerName})! Invoice: #${res.invoiceNumber}`,
       );
       setShowSaleModal(false);
       loadAllData();
@@ -425,14 +416,11 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
   // --- Inspect Farmer Health & Timeline ---
   async function inspectFarmer(farmerIdNumber) {
     setError('');
-    setLoading(true);
     try {
       const res = await api(`/dairy/farmers/${encodeURIComponent(farmerIdNumber)}`);
       setInspectingFarmerHealth(res);
     } catch (err) {
       setError(err.message || `Unable to inspect farmer health for ${farmerIdNumber}`);
-    } finally {
-      setLoading(false);
     }
   }
 
@@ -488,7 +476,7 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
   });
 
   const pendingJoinRequestsCount = enrollments.filter(
-    (e) => e.status === 'PENDING_APPROVAL'
+    (e) => e.status === 'PENDING_APPROVAL',
   ).length;
 
   return (
@@ -505,16 +493,27 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
           boxShadow: '0 8px 24px rgba(5, 150, 105, 0.22)',
         }}
       >
-        <div className="flex-between" style={{ alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
+        <div
+          className="flex-between"
+          style={{ alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}
+        >
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.4rem' }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.6rem',
+                marginBottom: '0.4rem',
+              }}
+            >
               <span style={{ fontSize: '1.8rem' }}>🥛</span>
               <h1 style={{ margin: 0, color: '#ffffff', fontSize: '1.75rem', fontWeight: 800 }}>
                 Dairy Management &amp; Inventory Hub
               </h1>
             </div>
             <p style={{ margin: 0, color: '#d1fae5', fontSize: '0.95rem' }}>
-              Farmer Enrollment, Milk Collection Intake, Daily &amp; Monthly Sales Analytics, and Storage Silos.
+              Farmer Enrollment, Milk Collection Intake, Daily &amp; Monthly Sales Analytics, and
+              Storage Silos.
             </p>
           </div>
 
@@ -580,7 +579,14 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
             }}
           >
             <div>
-              <div style={{ fontSize: '0.78rem', color: '#a7f3d0', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              <div
+                style={{
+                  fontSize: '0.78rem',
+                  color: '#a7f3d0',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                }}
+              >
                 Today's Collection
               </div>
               <div style={{ fontSize: '1.45rem', fontWeight: 800 }}>
@@ -592,7 +598,14 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
             </div>
 
             <div>
-              <div style={{ fontSize: '0.78rem', color: '#a7f3d0', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              <div
+                style={{
+                  fontSize: '0.78rem',
+                  color: '#a7f3d0',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                }}
+              >
                 Today's Sales
               </div>
               <div style={{ fontSize: '1.45rem', fontWeight: 800 }}>
@@ -604,7 +617,14 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
             </div>
 
             <div>
-              <div style={{ fontSize: '0.78rem', color: '#a7f3d0', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              <div
+                style={{
+                  fontSize: '0.78rem',
+                  color: '#a7f3d0',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                }}
+              >
                 Month's Total Sales
               </div>
               <div style={{ fontSize: '1.45rem', fontWeight: 800 }}>
@@ -616,26 +636,45 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
             </div>
 
             <div>
-              <div style={{ fontSize: '0.78rem', color: '#a7f3d0', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              <div
+                style={{
+                  fontSize: '0.78rem',
+                  color: '#a7f3d0',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                }}
+              >
                 Current Tank Stock
               </div>
               <div style={{ fontSize: '1.45rem', fontWeight: 800 }}>
                 {analytics.summary.allTime.currentStockLiters} L
               </div>
-              <div style={{ fontSize: '0.78rem', color: '#d1fae5' }}>
-                In Storage Silos
-              </div>
+              <div style={{ fontSize: '0.78rem', color: '#d1fae5' }}>In Storage Silos</div>
             </div>
 
             <div>
-              <div style={{ fontSize: '0.78rem', color: '#a7f3d0', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              <div
+                style={{
+                  fontSize: '0.78rem',
+                  color: '#a7f3d0',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                }}
+              >
                 Monthly Net Profit
               </div>
               <div style={{ fontSize: '1.45rem', fontWeight: 800, color: '#fef08a' }}>
                 +₹{analytics.summary.month.netProfit.toLocaleString('en-IN')}
               </div>
               <div style={{ fontSize: '0.78rem', color: '#fef9c3' }}>
-                Margin: {analytics.summary.month.salesRevenue > 0 ? ((analytics.summary.month.netProfit / analytics.summary.month.salesRevenue) * 100).toFixed(1) : '0.0'}%
+                Margin:{' '}
+                {analytics.summary.month.salesRevenue > 0
+                  ? (
+                      (analytics.summary.month.netProfit / analytics.summary.month.salesRevenue) *
+                      100
+                    ).toFixed(1)
+                  : '0.0'}
+                %
               </div>
             </div>
           </div>
@@ -697,7 +736,10 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
             fontWeight: 700,
             fontSize: '0.95rem',
             color: activeTab === 'analytics' ? 'var(--ag-green-primary)' : 'var(--ag-text-muted)',
-            borderBottom: activeTab === 'analytics' ? '3px solid var(--ag-green-primary)' : '3px solid transparent',
+            borderBottom:
+              activeTab === 'analytics'
+                ? '3px solid var(--ag-green-primary)'
+                : '3px solid transparent',
             cursor: 'pointer',
           }}
         >
@@ -714,7 +756,10 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
             fontWeight: 700,
             fontSize: '0.95rem',
             color: activeTab === 'farmers' ? 'var(--ag-green-primary)' : 'var(--ag-text-muted)',
-            borderBottom: activeTab === 'farmers' ? '3px solid var(--ag-green-primary)' : '3px solid transparent',
+            borderBottom:
+              activeTab === 'farmers'
+                ? '3px solid var(--ag-green-primary)'
+                : '3px solid transparent',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
@@ -748,7 +793,10 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
             fontWeight: 700,
             fontSize: '0.95rem',
             color: activeTab === 'intake' ? 'var(--ag-green-primary)' : 'var(--ag-text-muted)',
-            borderBottom: activeTab === 'intake' ? '3px solid var(--ag-green-primary)' : '3px solid transparent',
+            borderBottom:
+              activeTab === 'intake'
+                ? '3px solid var(--ag-green-primary)'
+                : '3px solid transparent',
             cursor: 'pointer',
           }}
         >
@@ -765,7 +813,8 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
             fontWeight: 700,
             fontSize: '0.95rem',
             color: activeTab === 'sales' ? 'var(--ag-green-primary)' : 'var(--ag-text-muted)',
-            borderBottom: activeTab === 'sales' ? '3px solid var(--ag-green-primary)' : '3px solid transparent',
+            borderBottom:
+              activeTab === 'sales' ? '3px solid var(--ag-green-primary)' : '3px solid transparent',
             cursor: 'pointer',
           }}
         >
@@ -782,7 +831,8 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
             fontWeight: 700,
             fontSize: '0.95rem',
             color: activeTab === 'tanks' ? 'var(--ag-green-primary)' : 'var(--ag-text-muted)',
-            borderBottom: activeTab === 'tanks' ? '3px solid var(--ag-green-primary)' : '3px solid transparent',
+            borderBottom:
+              activeTab === 'tanks' ? '3px solid var(--ag-green-primary)' : '3px solid transparent',
             cursor: 'pointer',
           }}
         >
@@ -807,19 +857,38 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
             {/* Card 1: Today's Metrics */}
             <div className="card" style={{ borderLeft: '4px solid #059669' }}>
               <div className="flex-between">
-                <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#64748b' }}>TODAY'S OPERATIONS</span>
+                <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#64748b' }}>
+                  TODAY'S OPERATIONS
+                </span>
                 <span style={{ fontSize: '1.2rem' }}>☀️</span>
               </div>
               <div style={{ marginTop: '0.5rem' }}>
                 <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#0f172a' }}>
-                  {analytics.summary.today.salesCount} Sells · {analytics.summary.today.salesLiters} L
+                  {analytics.summary.today.salesCount} Sells · {analytics.summary.today.salesLiters}{' '}
+                  L
                 </div>
-                <div style={{ fontSize: '0.95rem', color: '#059669', fontWeight: 700, marginTop: '0.2rem' }}>
+                <div
+                  style={{
+                    fontSize: '0.95rem',
+                    color: '#059669',
+                    fontWeight: 700,
+                    marginTop: '0.2rem',
+                  }}
+                >
                   Revenue: ₹{analytics.summary.today.salesRevenue.toLocaleString('en-IN')}
                 </div>
               </div>
-              <div style={{ marginTop: '0.85rem', paddingTop: '0.65rem', borderTop: '1px solid #f1f5f9', fontSize: '0.85rem', color: '#64748b' }}>
-                Procurement: <strong>{analytics.summary.today.intakeLiters} L</strong> (₹{analytics.summary.today.intakeCost.toLocaleString('en-IN')})
+              <div
+                style={{
+                  marginTop: '0.85rem',
+                  paddingTop: '0.65rem',
+                  borderTop: '1px solid #f1f5f9',
+                  fontSize: '0.85rem',
+                  color: '#64748b',
+                }}
+              >
+                Procurement: <strong>{analytics.summary.today.intakeLiters} L</strong> (₹
+                {analytics.summary.today.intakeCost.toLocaleString('en-IN')})
                 <div style={{ color: '#059669', fontWeight: 600, marginTop: '0.2rem' }}>
                   Today's Net Margin: +₹{analytics.summary.today.netProfit.toLocaleString('en-IN')}
                 </div>
@@ -829,21 +898,41 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
             {/* Card 2: Current Month Metrics */}
             <div className="card" style={{ borderLeft: '4px solid #3b82f6' }}>
               <div className="flex-between">
-                <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#64748b' }}>THIS MONTH'S SALES</span>
+                <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#64748b' }}>
+                  THIS MONTH'S SALES
+                </span>
                 <span style={{ fontSize: '1.2rem' }}>📅</span>
               </div>
               <div style={{ marginTop: '0.5rem' }}>
                 <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#0f172a' }}>
                   ₹{analytics.summary.month.salesRevenue.toLocaleString('en-IN')}
                 </div>
-                <div style={{ fontSize: '0.95rem', color: '#2563eb', fontWeight: 700, marginTop: '0.2rem' }}>
-                  {analytics.summary.month.salesLiters} L Sold across {analytics.summary.month.salesCount} Transactions
+                <div
+                  style={{
+                    fontSize: '0.95rem',
+                    color: '#2563eb',
+                    fontWeight: 700,
+                    marginTop: '0.2rem',
+                  }}
+                >
+                  {analytics.summary.month.salesLiters} L Sold across{' '}
+                  {analytics.summary.month.salesCount} Transactions
                 </div>
               </div>
-              <div style={{ marginTop: '0.85rem', paddingTop: '0.65rem', borderTop: '1px solid #f1f5f9', fontSize: '0.85rem', color: '#64748b' }}>
-                Total Month Milk Inflow: <strong>{analytics.summary.month.intakeLiters} L</strong> (₹{analytics.summary.month.intakeCost.toLocaleString('en-IN')})
+              <div
+                style={{
+                  marginTop: '0.85rem',
+                  paddingTop: '0.65rem',
+                  borderTop: '1px solid #f1f5f9',
+                  fontSize: '0.85rem',
+                  color: '#64748b',
+                }}
+              >
+                Total Month Milk Inflow: <strong>{analytics.summary.month.intakeLiters} L</strong>{' '}
+                (₹{analytics.summary.month.intakeCost.toLocaleString('en-IN')})
                 <div style={{ color: '#2563eb', fontWeight: 600, marginTop: '0.2rem' }}>
-                  Month's Net Gross Profit: +₹{analytics.summary.month.netProfit.toLocaleString('en-IN')}
+                  Month's Net Gross Profit: +₹
+                  {analytics.summary.month.netProfit.toLocaleString('en-IN')}
                 </div>
               </div>
             </div>
@@ -851,20 +940,41 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
             {/* Card 3: Herd & Safety Compliance */}
             <div className="card" style={{ borderLeft: '4px solid #8b5cf6' }}>
               <div className="flex-between">
-                <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#64748b' }}>AMU &amp; LIVESTOCK COMPLIANCE</span>
+                <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#64748b' }}>
+                  AMU &amp; LIVESTOCK COMPLIANCE
+                </span>
                 <span style={{ fontSize: '1.2rem' }}>🛡️</span>
               </div>
               <div style={{ marginTop: '0.5rem' }}>
                 <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#166534' }}>
                   {analytics.summary.allTime.amuComplianceRate}%
                 </div>
-                <div style={{ fontSize: '0.95rem', color: '#059669', fontWeight: 600, marginTop: '0.2rem' }}>
+                <div
+                  style={{
+                    fontSize: '0.95rem',
+                    color: '#059669',
+                    fontWeight: 600,
+                    marginTop: '0.2rem',
+                  }}
+                >
                   Withdrawal Safe Clearance
                 </div>
               </div>
-              <div style={{ marginTop: '0.85rem', paddingTop: '0.65rem', borderTop: '1px solid #f1f5f9', fontSize: '0.85rem', color: '#64748b' }}>
-                Active Supplying Farmers: <strong>{analytics.summary.allTime.activeSupplyingFarmersCount}</strong>
-                <div>Available Silo Stock: <strong>{analytics.summary.allTime.currentStockLiters} L</strong></div>
+              <div
+                style={{
+                  marginTop: '0.85rem',
+                  paddingTop: '0.65rem',
+                  borderTop: '1px solid #f1f5f9',
+                  fontSize: '0.85rem',
+                  color: '#64748b',
+                }}
+              >
+                Active Supplying Farmers:{' '}
+                <strong>{analytics.summary.allTime.activeSupplyingFarmersCount}</strong>
+                <div>
+                  Available Silo Stock:{' '}
+                  <strong>{analytics.summary.allTime.currentStockLiters} L</strong>
+                </div>
               </div>
             </div>
           </div>
@@ -873,38 +983,84 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
           <div className="card" style={{ marginBottom: '1.75rem' }}>
             <div className="flex-between" style={{ marginBottom: '1rem', flexWrap: 'wrap' }}>
               <div>
-                <h3 style={{ margin: '0 0 0.25rem 0' }}>📈 Daily Milk Collection vs Sales Trend (Liters)</h3>
+                <h3 style={{ margin: '0 0 0.25rem 0' }}>
+                  📈 Daily Milk Collection vs Sales Trend (Liters)
+                </h3>
                 <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b' }}>
                   Day-by-day comparison of milk intake volume collected from farmers vs volume sold.
                 </p>
               </div>
               <div style={{ display: 'flex', gap: '1rem', fontSize: '0.85rem', fontWeight: 600 }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                  <span style={{ display: 'inline-block', width: '12px', height: '12px', background: '#059669', borderRadius: '3px' }}></span>
+                  <span
+                    style={{
+                      display: 'inline-block',
+                      width: '12px',
+                      height: '12px',
+                      background: '#059669',
+                      borderRadius: '3px',
+                    }}
+                  ></span>
                   Milk Intake (L)
                 </span>
                 <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                  <span style={{ display: 'inline-block', width: '12px', height: '12px', background: '#3b82f6', borderRadius: '3px' }}></span>
+                  <span
+                    style={{
+                      display: 'inline-block',
+                      width: '12px',
+                      height: '12px',
+                      background: '#3b82f6',
+                      borderRadius: '3px',
+                    }}
+                  ></span>
                   Milk Sold (L)
                 </span>
               </div>
             </div>
 
             {/* Custom Bar Visualization */}
-            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end', height: '220px', padding: '1rem 0', borderBottom: '1px solid #e2e8f0' }}>
+            <div
+              style={{
+                display: 'flex',
+                gap: '0.75rem',
+                alignItems: 'flex-end',
+                height: '220px',
+                padding: '1rem 0',
+                borderBottom: '1px solid #e2e8f0',
+              }}
+            >
               {analytics.dailyTrends?.slice(-7).map((d) => {
                 const maxVal = Math.max(
-                  ...analytics.dailyTrends.map((x) => Math.max(x.intakeLiters, x.salesLiters, 100))
+                  ...analytics.dailyTrends.map((x) => Math.max(x.intakeLiters, x.salesLiters, 100)),
                 );
                 const inHeight = Math.min(180, (d.intakeLiters / maxVal) * 180);
                 const outHeight = Math.min(180, (d.salesLiters / maxVal) * 180);
 
                 return (
-                  <div key={d.date} style={{ flex: 1, textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%', justifyContent: 'flex-end' }}>
+                  <div
+                    key={d.date}
+                    style={{
+                      flex: 1,
+                      textAlign: 'center',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      height: '100%',
+                      justifyContent: 'flex-end',
+                    }}
+                  >
                     <div style={{ fontSize: '0.72rem', color: '#64748b', marginBottom: '0.35rem' }}>
                       ₹{Math.round(d.salesRevenue)}
                     </div>
-                    <div style={{ display: 'flex', gap: '4px', alignItems: 'flex-end', width: '100%', justifyContent: 'center' }}>
+                    <div
+                      style={{
+                        display: 'flex',
+                        gap: '4px',
+                        alignItems: 'flex-end',
+                        width: '100%',
+                        justifyContent: 'center',
+                      }}
+                    >
                       <div
                         title={`Collected: ${d.intakeLiters} L (₹${d.intakeCost})`}
                         style={{
@@ -926,7 +1082,15 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
                         }}
                       ></div>
                     </div>
-                    <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#334155', marginTop: '0.5rem', whiteSpace: 'nowrap' }}>
+                    <div
+                      style={{
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        color: '#334155',
+                        marginTop: '0.5rem',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
                       {d.dayLabel.split(',')[0]}
                     </div>
                     <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>
@@ -939,15 +1103,29 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
           </div>
 
           {/* Grid: Top Supplier Farmers & Area Contributions */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '1.5rem' }}>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))',
+              gap: '1.5rem',
+            }}
+          >
             {/* Top Farmers Leaderboard */}
             <div className="card">
               <h3 style={{ margin: '0 0 1rem 0' }}>🏆 Top Supplying Farmers Leaderboard</h3>
-              {analytics.topFarmers?.length === 0 && <p style={{ color: '#64748b' }}>No collection data yet.</p>}
+              {analytics.topFarmers?.length === 0 && (
+                <p style={{ color: '#64748b' }}>No collection data yet.</p>
+              )}
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem' }}>
                   <thead>
-                    <tr style={{ borderBottom: '2px solid #e2e8f0', color: '#64748b', textAlign: 'left' }}>
+                    <tr
+                      style={{
+                        borderBottom: '2px solid #e2e8f0',
+                        color: '#64748b',
+                        textAlign: 'left',
+                      }}
+                    >
                       <th style={{ padding: '0.5rem' }}>Farmer</th>
                       <th style={{ padding: '0.5rem' }}>Area</th>
                       <th style={{ padding: '0.5rem' }}>Total Liters</th>
@@ -959,17 +1137,27 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
                     {analytics.topFarmers?.map((f, i) => (
                       <tr key={f.farmerIdNumber} style={{ borderBottom: '1px solid #f1f5f9' }}>
                         <td style={{ padding: '0.65rem 0.5rem' }}>
-                          <span style={{ fontWeight: 700 }}>#{i + 1} {f.farmerName}</span>
-                          <div style={{ fontSize: '0.75rem', color: '#64748b' }}><code>{f.farmerIdNumber}</code></div>
+                          <span style={{ fontWeight: 700 }}>
+                            #{i + 1} {f.farmerName}
+                          </span>
+                          <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                            <code>{f.farmerIdNumber}</code>
+                          </div>
                         </td>
-                        <td style={{ padding: '0.65rem 0.5rem', color: '#475569' }}>{f.villageArea}</td>
-                        <td style={{ padding: '0.65rem 0.5rem', fontWeight: 700, color: '#065f46' }}>
+                        <td style={{ padding: '0.65rem 0.5rem', color: '#475569' }}>
+                          {f.villageArea}
+                        </td>
+                        <td
+                          style={{ padding: '0.65rem 0.5rem', fontWeight: 700, color: '#065f46' }}
+                        >
                           {f.totalLiters} L
                         </td>
                         <td style={{ padding: '0.65rem 0.5rem' }}>
                           {f.avgFat}% / {f.avgSnf}%
                         </td>
-                        <td style={{ padding: '0.65rem 0.5rem', textAlign: 'right', fontWeight: 700 }}>
+                        <td
+                          style={{ padding: '0.65rem 0.5rem', textAlign: 'right', fontWeight: 700 }}
+                        >
                           ₹{f.totalPayout.toLocaleString('en-IN')}
                         </td>
                       </tr>
@@ -987,7 +1175,10 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
               </p>
               {analytics.areaContributions?.map((item) => (
                 <div key={item.area} style={{ marginBottom: '1rem' }}>
-                  <div className="flex-between" style={{ fontSize: '0.88rem', marginBottom: '0.25rem' }}>
+                  <div
+                    className="flex-between"
+                    style={{ fontSize: '0.88rem', marginBottom: '0.25rem' }}
+                  >
                     <span style={{ fontWeight: 600 }}>{item.area}</span>
                     <span>
                       <strong>{item.totalLiters} L</strong> ({item.percentage}%)
@@ -1032,13 +1223,22 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
               marginBottom: '1.5rem',
             }}
           >
-            <div className="flex-between" style={{ alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1rem' }}>
+            <div
+              className="flex-between"
+              style={{
+                alignItems: 'flex-start',
+                flexWrap: 'wrap',
+                gap: '0.75rem',
+                marginBottom: '1rem',
+              }}
+            >
               <div>
                 <h3 style={{ margin: '0 0 0.25rem 0', color: '#0f172a' }}>
                   🔍 Search Farmer ID &amp; Filter by Area Location
                 </h3>
                 <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b' }}>
-                  Enter a Farmer ID to quickly lookup milk supply quota, agreed rates, and clinical withdrawal records.
+                  Enter a Farmer ID to quickly lookup milk supply quota, agreed rates, and clinical
+                  withdrawal records.
                 </p>
               </div>
 
@@ -1052,10 +1252,24 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
               </button>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                gap: '0.75rem',
+              }}
+            >
               {/* Farmer ID or Name Search input */}
               <div>
-                <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '0.25rem' }}>
+                <label
+                  style={{
+                    fontSize: '0.8rem',
+                    fontWeight: 700,
+                    color: '#475569',
+                    display: 'block',
+                    marginBottom: '0.25rem',
+                  }}
+                >
                   FARMER ID OR NAME
                 </label>
                 <input
@@ -1069,13 +1283,18 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
 
               {/* Area Location Filter Dropdown */}
               <div>
-                <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '0.25rem' }}>
+                <label
+                  style={{
+                    fontSize: '0.8rem',
+                    fontWeight: 700,
+                    color: '#475569',
+                    display: 'block',
+                    marginBottom: '0.25rem',
+                  }}
+                >
                   FILTER BY AREA LOCATION NAME
                 </label>
-                <select
-                  value={areaFilter}
-                  onChange={(e) => setAreaFilter(e.target.value)}
-                >
+                <select value={areaFilter} onChange={(e) => setAreaFilter(e.target.value)}>
                   <option value="">All Area Locations ({areasList.length} Areas)</option>
                   {areasList.map((area) => (
                     <option key={area} value={area}>
@@ -1087,7 +1306,15 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
 
               {/* Status Filter */}
               <div>
-                <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '0.25rem' }}>
+                <label
+                  style={{
+                    fontSize: '0.8rem',
+                    fontWeight: 700,
+                    color: '#475569',
+                    display: 'block',
+                    marginBottom: '0.25rem',
+                  }}
+                >
                   ENROLLMENT STATUS
                 </label>
                 <select
@@ -1096,7 +1323,9 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
                 >
                   <option value="ALL">All Statuses ({enrollments.length})</option>
                   <option value="ACTIVE">Active Supplying Farmers</option>
-                  <option value="PENDING_APPROVAL">Pending Join Requests ({pendingJoinRequestsCount})</option>
+                  <option value="PENDING_APPROVAL">
+                    Pending Join Requests ({pendingJoinRequestsCount})
+                  </option>
                   <option value="SUSPENDED">Suspended Farmers</option>
                 </select>
               </div>
@@ -1139,7 +1368,10 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
               }}
             >
               <div>
-                <strong>📬 {pendingJoinRequestsCount} Farmer Join Request(s) Pending Review:</strong> Farmers have requested to join your dairy collection route.
+                <strong>
+                  📬 {pendingJoinRequestsCount} Farmer Join Request(s) Pending Review:
+                </strong>{' '}
+                Farmers have requested to join your dairy collection route.
               </div>
               <button
                 type="button"
@@ -1165,7 +1397,9 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
 
             {filteredEnrollments.length === 0 && (
               <div style={{ textAlign: 'center', padding: '2.5rem 1rem', color: '#64748b' }}>
-                <p style={{ fontSize: '1.1rem', margin: '0 0 0.5rem 0' }}>No farmers found matching criteria.</p>
+                <p style={{ fontSize: '1.1rem', margin: '0 0 0.5rem 0' }}>
+                  No farmers found matching criteria.
+                </p>
                 <button type="button" className="primary" onClick={() => openAddFarmerModal()}>
                   ➕ Enroll a Farmer Now
                 </button>
@@ -1176,7 +1410,13 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
                   <thead>
-                    <tr style={{ borderBottom: '2px solid #e2e8f0', color: '#64748b', textAlign: 'left' }}>
+                    <tr
+                      style={{
+                        borderBottom: '2px solid #e2e8f0',
+                        color: '#64748b',
+                        textAlign: 'left',
+                      }}
+                    >
                       <th style={{ padding: '0.75rem 0.5rem' }}>Farmer ID</th>
                       <th style={{ padding: '0.75rem 0.5rem' }}>Farmer &amp; Farm</th>
                       <th style={{ padding: '0.75rem 0.5rem' }}>Area / Location</th>
@@ -1213,7 +1453,9 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
                           </td>
 
                           <td style={{ padding: '0.75rem 0.5rem' }}>
-                            <span style={{ fontWeight: 600, color: '#0f172a' }}>{enr.villageArea}</span>
+                            <span style={{ fontWeight: 600, color: '#0f172a' }}>
+                              {enr.villageArea}
+                            </span>
                             <div style={{ fontSize: '0.78rem', color: '#64748b' }}>
                               {enr.district}, {enr.state}
                             </div>
@@ -1238,7 +1480,9 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
                             {enr.expectedDailyQuantity} L/day
                           </td>
 
-                          <td style={{ padding: '0.75rem 0.5rem', fontWeight: 700, color: '#059669' }}>
+                          <td
+                            style={{ padding: '0.75rem 0.5rem', fontWeight: 700, color: '#059669' }}
+                          >
                             ₹{enr.agreedRatePerLiter}/L
                           </td>
 
@@ -1249,8 +1493,16 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
                                 borderRadius: '999px',
                                 fontSize: '0.76rem',
                                 fontWeight: 700,
-                                background: isPending ? '#ffedd5' : enr.status === 'ACTIVE' ? '#dcfce7' : '#fee2e2',
-                                color: isPending ? '#c2410c' : enr.status === 'ACTIVE' ? '#166534' : '#991b1b',
+                                background: isPending
+                                  ? '#ffedd5'
+                                  : enr.status === 'ACTIVE'
+                                    ? '#dcfce7'
+                                    : '#fee2e2',
+                                color: isPending
+                                  ? '#c2410c'
+                                  : enr.status === 'ACTIVE'
+                                    ? '#166534'
+                                    : '#991b1b',
                               }}
                             >
                               {isPending ? '⏳ Pending Request' : enr.status}
@@ -1318,11 +1570,15 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
       {activeTab === 'intake' && (
         <div>
           <div className="card" style={{ marginBottom: '1.5rem' }}>
-            <div className="flex-between" style={{ alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem' }}>
+            <div
+              className="flex-between"
+              style={{ alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem' }}
+            >
               <div>
                 <h3 style={{ margin: '0 0 0.25rem 0' }}>🥛 Milk Collection Intake Terminal</h3>
                 <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b' }}>
-                  Log per-farmer milk arrivals, fat/SNF quality scores, procurement cost, and verify AMU withdrawal clearance.
+                  Log per-farmer milk arrivals, fat/SNF quality scores, procurement cost, and verify
+                  AMU withdrawal clearance.
                 </p>
               </div>
 
@@ -1337,7 +1593,9 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
             </div>
 
             {/* Quick Filters */}
-            <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.25rem', flexWrap: 'wrap' }}>
+            <div
+              style={{ display: 'flex', gap: '0.75rem', marginTop: '1.25rem', flexWrap: 'wrap' }}
+            >
               <select
                 value={intakeShiftFilter}
                 onChange={(e) => setIntakeShiftFilter(e.target.value)}
@@ -1352,15 +1610,25 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
 
           {/* Intakes Table */}
           <div className="card">
-            <h3 style={{ margin: '0 0 1rem 0' }}>📋 Recent Milk Collection Records ({intakes.length})</h3>
+            <h3 style={{ margin: '0 0 1rem 0' }}>
+              📋 Recent Milk Collection Records ({intakes.length})
+            </h3>
 
-            {intakes.length === 0 && <p style={{ color: '#64748b' }}>No milk collection records recorded yet.</p>}
+            {intakes.length === 0 && (
+              <p style={{ color: '#64748b' }}>No milk collection records recorded yet.</p>
+            )}
 
             {intakes.length > 0 && (
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem' }}>
                   <thead>
-                    <tr style={{ borderBottom: '2px solid #e2e8f0', color: '#64748b', textAlign: 'left' }}>
+                    <tr
+                      style={{
+                        borderBottom: '2px solid #e2e8f0',
+                        color: '#64748b',
+                        textAlign: 'left',
+                      }}
+                    >
                       <th style={{ padding: '0.65rem 0.5rem' }}>Date &amp; Shift</th>
                       <th style={{ padding: '0.65rem 0.5rem' }}>Farmer</th>
                       <th style={{ padding: '0.65rem 0.5rem' }}>Area</th>
@@ -1375,7 +1643,9 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
                   </thead>
                   <tbody>
                     {intakes
-                      .filter((item) => intakeShiftFilter === 'ALL' || item.shift === intakeShiftFilter)
+                      .filter(
+                        (item) => intakeShiftFilter === 'ALL' || item.shift === intakeShiftFilter,
+                      )
                       .map((intake) => (
                         <tr key={intake.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                           <td style={{ padding: '0.65rem 0.5rem', whiteSpace: 'nowrap' }}>
@@ -1396,22 +1666,34 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
                             {intake.villageArea || 'Route Center'}
                           </td>
 
-                          <td style={{ padding: '0.65rem 0.5rem', fontWeight: 800, color: '#0f172a' }}>
+                          <td
+                            style={{ padding: '0.65rem 0.5rem', fontWeight: 800, color: '#0f172a' }}
+                          >
                             {intake.quantityLiters} L
                           </td>
 
                           <td style={{ padding: '0.65rem 0.5rem' }}>
-                            <span style={{ fontWeight: 600 }}>{intake.fatPercentage}%</span> / {intake.snfPercentage}%
+                            <span style={{ fontWeight: 600 }}>{intake.fatPercentage}%</span> /{' '}
+                            {intake.snfPercentage}%
                           </td>
 
                           <td style={{ padding: '0.65rem 0.5rem' }}>₹{intake.ratePerLiter}</td>
 
-                          <td style={{ padding: '0.65rem 0.5rem', fontWeight: 800, color: '#059669' }}>
+                          <td
+                            style={{ padding: '0.65rem 0.5rem', fontWeight: 800, color: '#059669' }}
+                          >
                             ₹{intake.totalCost.toLocaleString('en-IN')}
                           </td>
 
                           <td style={{ padding: '0.65rem 0.5rem' }}>
-                            <span style={{ fontSize: '0.8rem', background: '#f1f5f9', padding: '0.2rem 0.45rem', borderRadius: '4px' }}>
+                            <span
+                              style={{
+                                fontSize: '0.8rem',
+                                background: '#f1f5f9',
+                                padding: '0.2rem 0.45rem',
+                                borderRadius: '4px',
+                              }}
+                            >
                               {intake.storageTank}
                             </span>
                           </td>
@@ -1423,11 +1705,15 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
                                 borderRadius: '999px',
                                 fontSize: '0.75rem',
                                 fontWeight: 700,
-                                background: intake.eligibilityStatus === 'CLEARED' ? '#dcfce7' : '#fee2e2',
-                                color: intake.eligibilityStatus === 'CLEARED' ? '#166534' : '#991b1b',
+                                background:
+                                  intake.eligibilityStatus === 'CLEARED' ? '#dcfce7' : '#fee2e2',
+                                color:
+                                  intake.eligibilityStatus === 'CLEARED' ? '#166534' : '#991b1b',
                               }}
                             >
-                              {intake.eligibilityStatus === 'CLEARED' ? '✓ Cleared Safe' : '⚠️ Caution'}
+                              {intake.eligibilityStatus === 'CLEARED'
+                                ? '✓ Cleared Safe'
+                                : '⚠️ Caution'}
                             </span>
                           </td>
 
@@ -1461,11 +1747,17 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
       {activeTab === 'sales' && (
         <div>
           <div className="card" style={{ marginBottom: '1.5rem' }}>
-            <div className="flex-between" style={{ alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem' }}>
+            <div
+              className="flex-between"
+              style={{ alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem' }}
+            >
               <div>
-                <h3 style={{ margin: '0 0 0.25rem 0' }}>💰 Milk Sales &amp; Distribution Terminal</h3>
+                <h3 style={{ margin: '0 0 0.25rem 0' }}>
+                  💰 Milk Sales &amp; Distribution Terminal
+                </h3>
                 <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b' }}>
-                  Track daily customer sales, retail booth deliveries, wholesale buyers, and commercial revenues.
+                  Track daily customer sales, retail booth deliveries, wholesale buyers, and
+                  commercial revenues.
                 </p>
               </div>
 
@@ -1480,7 +1772,9 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
             </div>
 
             {/* Quick Filters */}
-            <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.25rem', flexWrap: 'wrap' }}>
+            <div
+              style={{ display: 'flex', gap: '0.75rem', marginTop: '1.25rem', flexWrap: 'wrap' }}
+            >
               <select
                 value={salesBuyerFilter}
                 onChange={(e) => setSalesBuyerFilter(e.target.value)}
@@ -1505,7 +1799,13 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem' }}>
                   <thead>
-                    <tr style={{ borderBottom: '2px solid #e2e8f0', color: '#64748b', textAlign: 'left' }}>
+                    <tr
+                      style={{
+                        borderBottom: '2px solid #e2e8f0',
+                        color: '#64748b',
+                        textAlign: 'left',
+                      }}
+                    >
                       <th style={{ padding: '0.65rem 0.5rem' }}>Date</th>
                       <th style={{ padding: '0.65rem 0.5rem' }}>Invoice #</th>
                       <th style={{ padding: '0.65rem 0.5rem' }}>Buyer / Customer</th>
@@ -1520,14 +1820,20 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
                   </thead>
                   <tbody>
                     {sales
-                      .filter((item) => salesBuyerFilter === 'ALL' || item.buyerType === salesBuyerFilter)
+                      .filter(
+                        (item) => salesBuyerFilter === 'ALL' || item.buyerType === salesBuyerFilter,
+                      )
                       .map((sale) => (
                         <tr key={sale.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                          <td style={{ padding: '0.65rem 0.5rem', whiteSpace: 'nowrap' }}>{sale.saleDate}</td>
+                          <td style={{ padding: '0.65rem 0.5rem', whiteSpace: 'nowrap' }}>
+                            {sale.saleDate}
+                          </td>
                           <td style={{ padding: '0.65rem 0.5rem', fontWeight: 700 }}>
                             <code>{sale.invoiceNumber}</code>
                           </td>
-                          <td style={{ padding: '0.65rem 0.5rem', fontWeight: 600 }}>{sale.buyerName}</td>
+                          <td style={{ padding: '0.65rem 0.5rem', fontWeight: 600 }}>
+                            {sale.buyerName}
+                          </td>
                           <td style={{ padding: '0.65rem 0.5rem' }}>
                             <span
                               style={{
@@ -1542,16 +1848,28 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
                             </span>
                           </td>
                           <td style={{ padding: '0.65rem 0.5rem' }}>{sale.milkType}</td>
-                          <td style={{ padding: '0.65rem 0.5rem', fontWeight: 800 }}>{sale.quantityLiters} L</td>
+                          <td style={{ padding: '0.65rem 0.5rem', fontWeight: 800 }}>
+                            {sale.quantityLiters} L
+                          </td>
                           <td style={{ padding: '0.65rem 0.5rem' }}>₹{sale.pricePerLiter}/L</td>
-                          <td style={{ padding: '0.65rem 0.5rem', fontWeight: 800, color: '#2563eb' }}>
+                          <td
+                            style={{ padding: '0.65rem 0.5rem', fontWeight: 800, color: '#2563eb' }}
+                          >
                             ₹{sale.totalAmount.toLocaleString('en-IN')}
                           </td>
-                          <td style={{ padding: '0.65rem 0.5rem', fontSize: '0.8rem', color: '#64748b' }}>
+                          <td
+                            style={{
+                              padding: '0.65rem 0.5rem',
+                              fontSize: '0.8rem',
+                              color: '#64748b',
+                            }}
+                          >
                             {sale.dispensedFromTank}
                           </td>
                           <td style={{ padding: '0.65rem 0.5rem' }}>
-                            <span style={{ color: '#047857', fontWeight: 700 }}>{sale.paymentMethod}</span>
+                            <span style={{ color: '#047857', fontWeight: 700 }}>
+                              {sale.paymentMethod}
+                            </span>
                           </td>
                         </tr>
                       ))}
@@ -1569,9 +1887,12 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
       {activeTab === 'tanks' && (
         <div>
           <div className="card" style={{ marginBottom: '1.5rem' }}>
-            <h3 style={{ margin: '0 0 0.25rem 0' }}>🛢️ Bulk Milk Coolers &amp; Silo Storage Status</h3>
+            <h3 style={{ margin: '0 0 0.25rem 0' }}>
+              🛢️ Bulk Milk Coolers &amp; Silo Storage Status
+            </h3>
             <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b' }}>
-              Real-time monitoring of dairy cooling tanks, capacity utilization, storage temperature, and live stock levels.
+              Real-time monitoring of dairy cooling tanks, capacity utilization, storage
+              temperature, and live stock levels.
             </p>
           </div>
 
@@ -1607,7 +1928,10 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
                 </div>
 
                 <div style={{ marginTop: '0.75rem', marginBottom: '1rem' }}>
-                  <div className="flex-between" style={{ fontSize: '0.85rem', marginBottom: '0.25rem' }}>
+                  <div
+                    className="flex-between"
+                    style={{ fontSize: '0.85rem', marginBottom: '0.25rem' }}
+                  >
                     <span style={{ color: '#64748b' }}>Current Storage</span>
                     <span style={{ fontWeight: 800, fontSize: '1.2rem', color: '#0f172a' }}>
                       {tank.currentStockLiters} / {tank.capacityLiters} L
@@ -1615,7 +1939,14 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
                   </div>
 
                   {/* Progress bar */}
-                  <div style={{ height: '10px', background: '#e2e8f0', borderRadius: '999px', overflow: 'hidden' }}>
+                  <div
+                    style={{
+                      height: '10px',
+                      background: '#e2e8f0',
+                      borderRadius: '999px',
+                      overflow: 'hidden',
+                    }}
+                  >
                     <div
                       style={{
                         width: `${tank.utilizationPercent}%`,
@@ -1625,15 +1956,35 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
                       }}
                     ></div>
                   </div>
-                  <div style={{ textAlign: 'right', fontSize: '0.75rem', color: '#64748b', marginTop: '0.2rem' }}>
+                  <div
+                    style={{
+                      textAlign: 'right',
+                      fontSize: '0.75rem',
+                      color: '#64748b',
+                      marginTop: '0.2rem',
+                    }}
+                  >
                     {tank.utilizationPercent}% Capacity Filled
                   </div>
                 </div>
 
-                <div style={{ fontSize: '0.82rem', color: '#64748b', borderTop: '1px solid #f1f5f9', paddingTop: '0.65rem' }}>
-                  <div>Total Inflow (Intake): <strong>{tank.totalInflowLiters} L</strong></div>
-                  <div>Total Outflow (Sales): <strong>{tank.totalOutflowLiters} L</strong></div>
-                  <div>Milk Dedicated: <strong>{tank.milkType} Milk</strong></div>
+                <div
+                  style={{
+                    fontSize: '0.82rem',
+                    color: '#64748b',
+                    borderTop: '1px solid #f1f5f9',
+                    paddingTop: '0.65rem',
+                  }}
+                >
+                  <div>
+                    Total Inflow (Intake): <strong>{tank.totalInflowLiters} L</strong>
+                  </div>
+                  <div>
+                    Total Outflow (Sales): <strong>{tank.totalOutflowLiters} L</strong>
+                  </div>
+                  <div>
+                    Milk Dedicated: <strong>{tank.milkType} Milk</strong>
+                  </div>
                 </div>
               </div>
             ))}
@@ -1653,15 +2004,31 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
           >
             <div style={modalHeaderStyle}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <div style={{ width: '42px', height: '42px', borderRadius: '10px', background: '#ecfdf5', color: '#059669', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.4rem' }}>
+                <div
+                  style={{
+                    width: '42px',
+                    height: '42px',
+                    borderRadius: '10px',
+                    background: '#ecfdf5',
+                    color: '#059669',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '1.4rem',
+                  }}
+                >
                   🧑‍🌾
                 </div>
                 <div>
                   <h2 style={{ margin: 0, fontSize: '1.35rem', color: '#0f172a', fontWeight: 800 }}>
-                    {editingEnrollment ? '⚙️ Edit Farmer Information' : '🧑‍🌾 Enroll Farmer / Process Join Request'}
+                    {editingEnrollment
+                      ? '⚙️ Edit Farmer Information'
+                      : '🧑‍🌾 Enroll Farmer / Process Join Request'}
                   </h2>
                   <p style={{ margin: 0, fontSize: '0.82rem', color: '#64748b' }}>
-                    {editingEnrollment ? 'Update supplier partnership & milk supply contract' : 'Register approved farmer supplier or process pending cooperative join request'}
+                    {editingEnrollment
+                      ? 'Update supplier partnership & milk supply contract'
+                      : 'Register approved farmer supplier or process pending cooperative join request'}
                   </p>
                 </div>
               </div>
@@ -1684,7 +2051,9 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
                     required
                     placeholder="e.g. KCC-MH-2024-5501 or hkasdf..."
                     value={enrollForm.farmerIdNumber}
-                    onChange={(e) => setEnrollForm({ ...enrollForm, farmerIdNumber: e.target.value })}
+                    onChange={(e) =>
+                      setEnrollForm({ ...enrollForm, farmerIdNumber: e.target.value })
+                    }
                     style={modalInputStyle}
                   />
                 </label>
@@ -1765,7 +2134,9 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
                     type="number"
                     step="0.5"
                     value={enrollForm.expectedDailyQuantity}
-                    onChange={(e) => setEnrollForm({ ...enrollForm, expectedDailyQuantity: e.target.value })}
+                    onChange={(e) =>
+                      setEnrollForm({ ...enrollForm, expectedDailyQuantity: e.target.value })
+                    }
                     style={modalInputStyle}
                   />
                 </label>
@@ -1777,7 +2148,9 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
                     step="0.5"
                     required
                     value={enrollForm.agreedRatePerLiter}
-                    onChange={(e) => setEnrollForm({ ...enrollForm, agreedRatePerLiter: e.target.value })}
+                    onChange={(e) =>
+                      setEnrollForm({ ...enrollForm, agreedRatePerLiter: e.target.value })
+                    }
                     style={modalInputStyle}
                   />
                 </label>
@@ -1786,7 +2159,9 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
                   Payment Method
                   <select
                     value={enrollForm.paymentMethod}
-                    onChange={(e) => setEnrollForm({ ...enrollForm, paymentMethod: e.target.value })}
+                    onChange={(e) =>
+                      setEnrollForm({ ...enrollForm, paymentMethod: e.target.value })
+                    }
                     style={modalInputStyle}
                   >
                     <option value="BANK_TRANSFER">Bank Account Transfer</option>
@@ -1833,12 +2208,23 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
                   rows="2"
                   placeholder="e.g. Route inspection completed; clean animal health verified"
                   value={enrollForm.joinRequestNotes}
-                  onChange={(e) => setEnrollForm({ ...enrollForm, joinRequestNotes: e.target.value })}
+                  onChange={(e) =>
+                    setEnrollForm({ ...enrollForm, joinRequestNotes: e.target.value })
+                  }
                   style={{ ...modalInputStyle, height: '70px', resize: 'vertical' }}
                 ></textarea>
               </label>
 
-              <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid #e2e8f0' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  gap: '0.75rem',
+                  justifyContent: 'flex-end',
+                  marginTop: '1.5rem',
+                  paddingTop: '1rem',
+                  borderTop: '1px solid #e2e8f0',
+                }}
+              >
                 <button
                   type="button"
                   onClick={() => setShowEnrollModal(false)}
@@ -1887,7 +2273,19 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
           >
             <div style={modalHeaderStyle}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <div style={{ width: '42px', height: '42px', borderRadius: '10px', background: '#ecfdf5', color: '#059669', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.4rem' }}>
+                <div
+                  style={{
+                    width: '42px',
+                    height: '42px',
+                    borderRadius: '10px',
+                    background: '#ecfdf5',
+                    color: '#059669',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '1.4rem',
+                  }}
+                >
                   🥛
                 </div>
                 <div>
@@ -1895,7 +2293,8 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
                     🥛 Log Milk Collection Intake
                   </h2>
                   <p style={{ margin: 0, fontSize: '0.82rem', color: '#64748b' }}>
-                    Record procurement batch with automatic AMU withdrawal safety check &amp; silo assignment
+                    Record procurement batch with automatic AMU withdrawal safety check &amp; silo
+                    assignment
                   </p>
                 </div>
               </div>
@@ -1934,7 +2333,9 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
                     type="date"
                     required
                     value={intakeForm.collectionDate}
-                    onChange={(e) => setIntakeForm({ ...intakeForm, collectionDate: e.target.value })}
+                    onChange={(e) =>
+                      setIntakeForm({ ...intakeForm, collectionDate: e.target.value })
+                    }
                     style={modalInputStyle}
                   />
                 </label>
@@ -1971,7 +2372,12 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
                     step="0.5"
                     required
                     value={intakeForm.quantityLiters}
-                    onChange={(e) => setIntakeForm({ ...intakeForm, quantityLiters: parseFloat(e.target.value) || 0 })}
+                    onChange={(e) =>
+                      setIntakeForm({
+                        ...intakeForm,
+                        quantityLiters: parseFloat(e.target.value) || 0,
+                      })
+                    }
                     style={modalInputStyle}
                   />
                 </label>
@@ -1983,7 +2389,12 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
                     step="0.5"
                     required
                     value={intakeForm.ratePerLiter}
-                    onChange={(e) => setIntakeForm({ ...intakeForm, ratePerLiter: parseFloat(e.target.value) || 0 })}
+                    onChange={(e) =>
+                      setIntakeForm({
+                        ...intakeForm,
+                        ratePerLiter: parseFloat(e.target.value) || 0,
+                      })
+                    }
                     style={modalInputStyle}
                   />
                 </label>
@@ -1994,7 +2405,12 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
                     type="number"
                     step="0.1"
                     value={intakeForm.fatPercentage}
-                    onChange={(e) => setIntakeForm({ ...intakeForm, fatPercentage: parseFloat(e.target.value) || 0 })}
+                    onChange={(e) =>
+                      setIntakeForm({
+                        ...intakeForm,
+                        fatPercentage: parseFloat(e.target.value) || 0,
+                      })
+                    }
                     style={modalInputStyle}
                   />
                 </label>
@@ -2005,7 +2421,12 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
                     type="number"
                     step="0.1"
                     value={intakeForm.snfPercentage}
-                    onChange={(e) => setIntakeForm({ ...intakeForm, snfPercentage: parseFloat(e.target.value) || 0 })}
+                    onChange={(e) =>
+                      setIntakeForm({
+                        ...intakeForm,
+                        snfPercentage: parseFloat(e.target.value) || 0,
+                      })
+                    }
                     style={modalInputStyle}
                   />
                 </label>
@@ -2028,7 +2449,9 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
                   Payout Status
                   <select
                     value={intakeForm.paymentStatus}
-                    onChange={(e) => setIntakeForm({ ...intakeForm, paymentStatus: e.target.value })}
+                    onChange={(e) =>
+                      setIntakeForm({ ...intakeForm, paymentStatus: e.target.value })
+                    }
                     style={modalInputStyle}
                   >
                     <option value="PAID">✓ Paid</option>
@@ -2051,19 +2474,46 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
                 }}
               >
                 <div>
-                  <div style={{ fontSize: '0.82rem', color: '#166534', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  <div
+                    style={{
+                      fontSize: '0.82rem',
+                      color: '#166534',
+                      fontWeight: 600,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.04em',
+                    }}
+                  >
                     Total Procurement Payout:
                   </div>
                   <div style={{ fontSize: '1.65rem', fontWeight: 800, color: '#166534' }}>
-                    ₹{(intakeForm.quantityLiters * intakeForm.ratePerLiter).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    ₹
+                    {(intakeForm.quantityLiters * intakeForm.ratePerLiter).toLocaleString('en-IN', {
+                      minimumFractionDigits: 2,
+                    })}
                   </div>
                 </div>
-                <div style={{ textAlign: 'right', fontSize: '0.9rem', color: '#166534', fontWeight: 600 }}>
+                <div
+                  style={{
+                    textAlign: 'right',
+                    fontSize: '0.9rem',
+                    color: '#166534',
+                    fontWeight: 600,
+                  }}
+                >
                   {intakeForm.quantityLiters} Liters @ ₹{intakeForm.ratePerLiter}/L
                 </div>
               </div>
 
-              <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid #e2e8f0' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  gap: '0.75rem',
+                  justifyContent: 'flex-end',
+                  marginTop: '1.5rem',
+                  paddingTop: '1rem',
+                  borderTop: '1px solid #e2e8f0',
+                }}
+              >
                 <button
                   type="button"
                   onClick={() => setShowIntakeModal(false)}
@@ -2112,7 +2562,19 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
           >
             <div style={modalHeaderStyle}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <div style={{ width: '42px', height: '42px', borderRadius: '10px', background: '#eff6ff', color: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.4rem' }}>
+                <div
+                  style={{
+                    width: '42px',
+                    height: '42px',
+                    borderRadius: '10px',
+                    background: '#eff6ff',
+                    color: '#2563eb',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '1.4rem',
+                  }}
+                >
                   💰
                 </div>
                 <div>
@@ -2193,7 +2655,9 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
                     step="0.5"
                     required
                     value={saleForm.quantityLiters}
-                    onChange={(e) => setSaleForm({ ...saleForm, quantityLiters: parseFloat(e.target.value) || 0 })}
+                    onChange={(e) =>
+                      setSaleForm({ ...saleForm, quantityLiters: parseFloat(e.target.value) || 0 })
+                    }
                     style={modalInputStyle}
                   />
                 </label>
@@ -2205,7 +2669,9 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
                     step="0.5"
                     required
                     value={saleForm.pricePerLiter}
-                    onChange={(e) => setSaleForm({ ...saleForm, pricePerLiter: parseFloat(e.target.value) || 0 })}
+                    onChange={(e) =>
+                      setSaleForm({ ...saleForm, pricePerLiter: parseFloat(e.target.value) || 0 })
+                    }
                     style={modalInputStyle}
                   />
                 </label>
@@ -2214,7 +2680,9 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
                   Dispense From Silo / Tank
                   <select
                     value={saleForm.dispensedFromTank}
-                    onChange={(e) => setSaleForm({ ...saleForm, dispensedFromTank: e.target.value })}
+                    onChange={(e) =>
+                      setSaleForm({ ...saleForm, dispensedFromTank: e.target.value })
+                    }
                     style={modalInputStyle}
                   >
                     <option value="Tank A (Chilled Bulk)">Tank A (Chilled Bulk)</option>
@@ -2251,19 +2719,46 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
                 }}
               >
                 <div>
-                  <div style={{ fontSize: '0.82rem', color: '#1e40af', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  <div
+                    style={{
+                      fontSize: '0.82rem',
+                      color: '#1e40af',
+                      fontWeight: 600,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.04em',
+                    }}
+                  >
                     Total Sale Revenue:
                   </div>
                   <div style={{ fontSize: '1.65rem', fontWeight: 800, color: '#1e40af' }}>
-                    ₹{(saleForm.quantityLiters * saleForm.pricePerLiter).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    ₹
+                    {(saleForm.quantityLiters * saleForm.pricePerLiter).toLocaleString('en-IN', {
+                      minimumFractionDigits: 2,
+                    })}
                   </div>
                 </div>
-                <div style={{ textAlign: 'right', fontSize: '0.9rem', color: '#1e40af', fontWeight: 600 }}>
+                <div
+                  style={{
+                    textAlign: 'right',
+                    fontSize: '0.9rem',
+                    color: '#1e40af',
+                    fontWeight: 600,
+                  }}
+                >
                   {saleForm.quantityLiters} Liters @ ₹{saleForm.pricePerLiter}/L
                 </div>
               </div>
 
-              <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid #e2e8f0' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  gap: '0.75rem',
+                  justifyContent: 'flex-end',
+                  marginTop: '1.5rem',
+                  paddingTop: '1rem',
+                  borderTop: '1px solid #e2e8f0',
+                }}
+              >
                 <button
                   type="button"
                   onClick={() => setShowSaleModal(false)}
@@ -2319,18 +2814,25 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
                     borderRadius: '999px',
                     fontSize: '0.75rem',
                     fontWeight: 700,
-                    background: inspectingFarmerHealth.summary.canCollectEntireHerd ? '#dcfce7' : '#fef3c7',
-                    color: inspectingFarmerHealth.summary.canCollectEntireHerd ? '#166534' : '#92400e',
+                    background: inspectingFarmerHealth.summary.canCollectEntireHerd
+                      ? '#dcfce7'
+                      : '#fef3c7',
+                    color: inspectingFarmerHealth.summary.canCollectEntireHerd
+                      ? '#166534'
+                      : '#92400e',
                     marginBottom: '0.35rem',
                   }}
                 >
-                  {inspectingFarmerHealth.summary.canCollectEntireHerd ? '✓ ALL HERD CLEAR FOR MILK' : '⚠️ WITHHOLDING ANIMALS DETECTED'}
+                  {inspectingFarmerHealth.summary.canCollectEntireHerd
+                    ? '✓ ALL HERD CLEAR FOR MILK'
+                    : '⚠️ WITHHOLDING ANIMALS DETECTED'}
                 </span>
                 <h2 style={{ margin: 0, fontSize: '1.45rem', color: '#0f172a', fontWeight: 800 }}>
                   {inspectingFarmerHealth.farmer.fullName} — {inspectingFarmerHealth.farm.name}
                 </h2>
                 <div style={{ fontSize: '0.88rem', color: '#64748b' }}>
-                  Farmer ID: <code>{inspectingFarmerHealth.farmer.farmerIdNumber}</code> · Location: {inspectingFarmerHealth.farm.district}, {inspectingFarmerHealth.farm.state}
+                  Farmer ID: <code>{inspectingFarmerHealth.farmer.farmerIdNumber}</code> · Location:{' '}
+                  {inspectingFarmerHealth.farm.district}, {inspectingFarmerHealth.farm.state}
                 </div>
               </div>
 
@@ -2349,7 +2851,9 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
               style={{
                 padding: '0.85rem 1rem',
                 borderRadius: '0.65rem',
-                background: inspectingFarmerHealth.summary.canCollectEntireHerd ? '#f0fdf4' : '#fff7ed',
+                background: inspectingFarmerHealth.summary.canCollectEntireHerd
+                  ? '#f0fdf4'
+                  : '#fff7ed',
                 border: `1px solid ${inspectingFarmerHealth.summary.canCollectEntireHerd ? '#86efac' : '#fed7aa'}`,
                 color: inspectingFarmerHealth.summary.canCollectEntireHerd ? '#166534' : '#9a3412',
                 fontSize: '0.9rem',
@@ -2366,10 +2870,18 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
             </h4>
 
             {inspectingFarmerHealth.animals.length === 0 && (
-              <p style={{ color: '#64748b' }}>No individual cattle records registered on platform for this farm.</p>
+              <p style={{ color: '#64748b' }}>
+                No individual cattle records registered on platform for this farm.
+              </p>
             )}
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '0.85rem' }}>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+                gap: '0.85rem',
+              }}
+            >
               {inspectingFarmerHealth.animals.map((a) => {
                 const isEligible = a.milkEligibility?.isEligible;
                 return (
@@ -2401,7 +2913,16 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
                     </div>
 
                     {a.milkEligibility?.blocker && (
-                      <div style={{ fontSize: '0.78rem', color: '#9a3412', marginTop: '0.45rem', background: '#fff7ed', padding: '0.4rem', borderRadius: '4px' }}>
+                      <div
+                        style={{
+                          fontSize: '0.78rem',
+                          color: '#9a3412',
+                          marginTop: '0.45rem',
+                          background: '#fff7ed',
+                          padding: '0.4rem',
+                          borderRadius: '4px',
+                        }}
+                      >
                         {a.milkEligibility.blocker}
                       </div>
                     )}
@@ -2410,7 +2931,12 @@ export function DairyHub({ initialTab = 'analytics', user, workspace }) {
                       type="button"
                       className="secondary"
                       onClick={() => openAnimalTimeline(a)}
-                      style={{ width: '100%', fontSize: '0.8rem', padding: '0.35rem', marginTop: '0.75rem' }}
+                      style={{
+                        width: '100%',
+                        fontSize: '0.8rem',
+                        padding: '0.35rem',
+                        marginTop: '0.75rem',
+                      }}
                     >
                       📜 View Health History
                     </button>

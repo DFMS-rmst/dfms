@@ -141,15 +141,8 @@ withdrawalRouter.post(
   asyncHandler(async (req, res) => {
     if (!req.principal.platformRoles.includes('PLATFORM_ADMIN'))
       throw new AppError(403, 'FORBIDDEN', 'Platform admin role required');
-    const {
-      code,
-      drugId,
-      drugProductId,
-      jurisdiction,
-      organization,
-      sourceTitle,
-      sourceUrl,
-    } = req.body;
+    const { code, drugId, drugProductId, jurisdiction, organization, sourceTitle, sourceUrl } =
+      req.body;
 
     const product = await prisma.drugProduct.findFirst({
       where: { id: drugProductId, drugId },

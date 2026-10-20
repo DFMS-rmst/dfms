@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  animalQrDataUrl,
-  animalVerificationUrl,
-  renderAnimalTagPdf,
-} from './pdf.js';
+import { animalQrDataUrl, animalVerificationUrl, renderAnimalTagPdf } from './pdf.js';
 
 describe('Animal QR tag generation & PDF', () => {
   const sampleAnimal = {

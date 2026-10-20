@@ -10,6 +10,7 @@ const TIMELINE_EVENT_LABELS = {
   TREATMENT_CANCELLED: 'Treatment Cancelled',
   TREATMENT_ADMINISTERED: 'Medicine Administration Recorded',
   MILK_ELIGIBILITY_CHANGED: 'Milk Eligibility Updated',
+  ANIMAL_RISK_ASSESSED: 'Clinical Animal Risk Assessed',
 };
 
 export function timelineEventLabel(eventType) {

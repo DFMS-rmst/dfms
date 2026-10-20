@@ -49,7 +49,7 @@ async function main() {
     ],
   };
 
-  for (const [date, items] of Object.entries(dailyIntakeVariations)) {
+  for (const items of Object.values(dailyIntakeVariations)) {
     for (const item of items) {
       await prisma.$executeRawUnsafe(
         'UPDATE `dairy_milk_intakes` SET `quantityLiters` = ?, `fatPercentage` = ?, `snfPercentage` = ?, `ratePerLiter` = ?, `totalCost` = ? WHERE `id` = ?',
@@ -58,7 +58,7 @@ async function main() {
         item.snf,
         item.rate,
         item.cost,
-        item.id
+        item.id,
       );
     }
   }
@@ -102,14 +102,14 @@ async function main() {
     ],
   };
 
-  for (const [date, items] of Object.entries(dailySalesVariations)) {
+  for (const items of Object.values(dailySalesVariations)) {
     for (const item of items) {
       await prisma.$executeRawUnsafe(
         'UPDATE `dairy_milk_sales` SET `quantityLiters` = ?, `pricePerLiter` = ?, `totalAmount` = ? WHERE `id` = ?',
         item.qty,
         item.price,
         item.total,
-        item.id
+        item.id,
       );
     }
   }
@@ -117,4 +117,6 @@ async function main() {
   console.log('Successfully applied realistic dynamic operational data to dairy records.');
 }
 
-main().catch(console.error).finally(() => prisma.$disconnect());
+main()
+  .catch(console.error)
+  .finally(() => prisma.$disconnect());

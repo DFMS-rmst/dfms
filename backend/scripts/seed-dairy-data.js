@@ -22,7 +22,7 @@ async function main() {
   // Check if enrollments already exist
   const existingEnrollments = await prisma.$queryRawUnsafe(
     'SELECT COUNT(*) as count FROM `dairy_farmer_enrollments` WHERE `dairyUserId` = ?',
-    dairyUserId
+    dairyUserId,
   );
   const count = Number(existingEnrollments[0]?.count || 0);
 
@@ -162,7 +162,8 @@ async function main() {
         bankName: null,
         upiId: 'vikrammore@paytm',
         status: 'PENDING_APPROVAL',
-        joinRequestNotes: 'Requested to join dairy collection route #3. Needs route manager inspection.',
+        joinRequestNotes:
+          'Requested to join dairy collection route #3. Needs route manager inspection.',
       },
     ];
 
@@ -199,15 +200,15 @@ async function main() {
         f.bankName,
         f.upiId,
         f.status,
-        f.joinRequestNotes
+        f.joinRequestNotes,
       );
     }
   }
 
   // Check milk intakes
   const existingIntakes = await prisma.$queryRawUnsafe(
-    'SELECT COUNT(*) as count FROM \`dairy_milk_intakes\` WHERE \`dairyUserId\` = ?',
-    dairyUserId
+    'SELECT COUNT(*) as count FROM `dairy_milk_intakes` WHERE `dairyUserId` = ?',
+    dairyUserId,
   );
   if (Number(existingIntakes[0]?.count || 0) === 0) {
     console.log('Generating realistic 7-day milk collection intake records...');
@@ -245,7 +246,7 @@ async function main() {
         'CLEARED',
         'PAID',
         'GRADE_A',
-        'AMU Clearance verified safe. High quality.'
+        'AMU Clearance verified safe. High quality.',
       );
 
       await prisma.$executeRawUnsafe(
@@ -274,7 +275,7 @@ async function main() {
         'CLEARED',
         'PAID',
         'GRADE_A',
-        'Evening batch received at 6:30 PM.'
+        'Evening batch received at 6:30 PM.',
       );
 
       // Farmer 2 (Ramesh) - Morning
@@ -304,7 +305,7 @@ async function main() {
         'CLEARED',
         'PAID',
         'GRADE_A',
-        'Pure buffalo milk, excellent SNF.'
+        'Pure buffalo milk, excellent SNF.',
       );
 
       // Farmer 3 (Suresh) - Morning
@@ -334,15 +335,15 @@ async function main() {
         'CLEARED',
         'PAID',
         'GRADE_A',
-        'Standard collection.'
+        'Standard collection.',
       );
     }
   }
 
   // Check sales
   const existingSales = await prisma.$queryRawUnsafe(
-    'SELECT COUNT(*) as count FROM \`dairy_milk_sales\` WHERE \`dairyUserId\` = ?',
-    dairyUserId
+    'SELECT COUNT(*) as count FROM `dairy_milk_sales` WHERE `dairyUserId` = ?',
+    dairyUserId,
   );
   if (Number(existingSales[0]?.count || 0) === 0) {
     console.log('Generating realistic 7-day milk sales records...');
@@ -373,7 +374,7 @@ async function main() {
         'Tank A (Chilled Bulk)',
         'PAID',
         'UPI',
-        'Local resident consumers counter sales.'
+        'Local resident consumers counter sales.',
       );
 
       // Sweet Mart Commercial Wholesale
@@ -396,7 +397,7 @@ async function main() {
         'Silo-2 (Buffalo)',
         'PAID',
         'BANK_TRANSFER',
-        'High-fat buffalo milk for sweet preparation.'
+        'High-fat buffalo milk for sweet preparation.',
       );
 
       // Evening Dairy Booth
@@ -419,7 +420,7 @@ async function main() {
         'Silo-1 (Raw Cow)',
         'PAID',
         'CASH',
-        'Evening distribution delivery.'
+        'Evening distribution delivery.',
       );
     }
   }

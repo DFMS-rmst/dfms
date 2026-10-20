@@ -77,7 +77,8 @@ describe('farmer milk eligibility explanation', () => {
       <EligibilityCard
         check={check('REVIEW_REQUIRED', {
           explanation: {
-            question: 'Milk eligibility is not applicable because this animal is not recorded as lactating.',
+            question:
+              'Milk eligibility is not applicable because this animal is not recorded as lactating.',
             blockers: ['ANIMAL_NOT_LACTATING'],
           },
         })}
@@ -91,7 +92,9 @@ describe('farmer milk eligibility explanation', () => {
 
   it('renders loading and API error states without blanking the page', async () => {
     apiMock.mockImplementation(() => new Promise(() => {}));
-    const { unmount } = render(<CoreEngine farms={[{ id: 'farm-1', name: 'Farm' }]} isAdmin={false} />);
+    const { unmount } = render(
+      <CoreEngine farms={[{ id: 'farm-1', name: 'Farm' }]} isAdmin={false} />,
+    );
     expect(screen.getByText(/Loading current AMU and milk eligibility/)).toBeInTheDocument();
     unmount();
     apiMock.mockRejectedValue(new Error('Eligibility service unavailable'));
