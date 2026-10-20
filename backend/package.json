@@ -9,6 +9,7 @@
     "test": "vitest run --fileParallelism=false",
     "test:unit": "vitest run --fileParallelism=false --exclude '**/*.integration.test.js'",
     "test:integration": "vitest run --fileParallelism=false '**/*.integration.test.js'",
+    "prisma:generate": "prisma generate",
     "db:check": "node scripts/check-database.js"
   },
   "dependencies": {
