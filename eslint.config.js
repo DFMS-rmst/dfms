@@ -15,6 +15,7 @@ export default [
       '.venv-ml/**',
       '.pytest_cache/**',
       '**/.pytest_cache/**',
+      'ml-service/**',
     ],
   },
   js.configs.recommended,

@@ -73,7 +73,8 @@ export function DairyFarmerLookup() {
         <div>
           <h1 style={{ margin: '0 0 0.35rem 0' }}>🥛 Farmer &amp; Livestock Health Lookup</h1>
           <p style={{ margin: 0, color: 'var(--ag-text-muted)' }}>
-            Search registered farmers by Farmer ID to verify herd health records, withdrawal status, and milk collection eligibility.
+            Search registered farmers by Farmer ID to verify herd health records, withdrawal status,
+            and milk collection eligibility.
           </p>
         </div>
         <button type="button" className="secondary" onClick={loadFarmers}>
@@ -95,7 +96,8 @@ export function DairyFarmerLookup() {
           🔍 Lookup Farmer by ID
         </h3>
         <p style={{ margin: '0 0 1rem 0', fontSize: '0.88rem', color: '#475569' }}>
-          Enter a Farmer ID (e.g. Kisan Credit Card number, Farmer Registration ID, or Farm Name) to inspect their livestock health records.
+          Enter a Farmer ID (e.g. Kisan Credit Card number, Farmer Registration ID, or Farm Name) to
+          inspect their livestock health records.
         </p>
 
         <form
@@ -153,8 +155,14 @@ export function DairyFarmerLookup() {
       {selectedFarmer && (
         <div style={{ marginBottom: '2.5rem' }}>
           {/* Header Card */}
-          <div className="card" style={{ marginBottom: '1.25rem', borderLeft: '4px solid var(--ag-green-primary)' }}>
-            <div className="flex-between" style={{ alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
+          <div
+            className="card"
+            style={{ marginBottom: '1.25rem', borderLeft: '4px solid var(--ag-green-primary)' }}
+          >
+            <div
+              className="flex-between"
+              style={{ alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}
+            >
               <div>
                 <span
                   style={{
@@ -173,15 +181,30 @@ export function DairyFarmerLookup() {
                 <h2 style={{ margin: '0 0 0.35rem 0', fontSize: '1.6rem' }}>
                   {selectedFarmer.farmer.fullName}
                 </h2>
-                <p style={{ margin: '0 0 0.5rem 0', color: 'var(--ag-text-muted)', fontSize: '0.92rem' }}>
+                <p
+                  style={{
+                    margin: '0 0 0.5rem 0',
+                    color: 'var(--ag-text-muted)',
+                    fontSize: '0.92rem',
+                  }}
+                >
                   <strong>Farmer ID:</strong>{' '}
-                  <code style={{ fontSize: '0.95rem', padding: '0.15rem 0.4rem', background: '#f1f5f9', borderRadius: '0.25rem' }}>
+                  <code
+                    style={{
+                      fontSize: '0.95rem',
+                      padding: '0.15rem 0.4rem',
+                      background: '#f1f5f9',
+                      borderRadius: '0.25rem',
+                    }}
+                  >
                     {selectedFarmer.farmer.farmerIdNumber}
                   </code>{' '}
-                  | <strong>Farm:</strong> {selectedFarmer.farm.name} ({selectedFarmer.farm.district}, {selectedFarmer.farm.state})
+                  | <strong>Farm:</strong> {selectedFarmer.farm.name} (
+                  {selectedFarmer.farm.district}, {selectedFarmer.farm.state})
                 </p>
                 <p style={{ margin: 0, fontSize: '0.88rem', color: '#64748b' }}>
-                  <strong>Contact:</strong> {selectedFarmer.farmer.phone || 'N/A'} · {selectedFarmer.farmer.email}
+                  <strong>Contact:</strong> {selectedFarmer.farmer.phone || 'N/A'} ·{' '}
+                  {selectedFarmer.farmer.email}
                 </p>
               </div>
 
@@ -207,10 +230,13 @@ export function DairyFarmerLookup() {
                     marginTop: '0.2rem',
                   }}
                 >
-                  {selectedFarmer.summary.canCollectEntireHerd ? '✓ ALL ELIGIBLE' : '⚠️ CAUTION REQUIRED'}
+                  {selectedFarmer.summary.canCollectEntireHerd
+                    ? '✓ ALL ELIGIBLE'
+                    : '⚠️ CAUTION REQUIRED'}
                 </div>
                 <div style={{ fontSize: '0.82rem', marginTop: '0.35rem', color: '#475569' }}>
-                  {selectedFarmer.summary.eligibleForCollectionCount} / {selectedFarmer.summary.totalAnimals} Animals Clear
+                  {selectedFarmer.summary.eligibleForCollectionCount} /{' '}
+                  {selectedFarmer.summary.totalAnimals} Animals Clear
                 </div>
               </div>
             </div>
@@ -253,11 +279,20 @@ export function DairyFarmerLookup() {
                   className="card animal-card"
                   style={{
                     borderTop: `4px solid ${
-                      isEligible ? 'var(--ag-green-primary)' : isWithdrawal ? '#ea580c' : '#8b5cf6'
+                      isEligible
+                        ? 'var(--ag-green-primary)'
+                        : isWithdrawal
+                          ? '#ea580c'
+                          : isTreatment
+                            ? '#ef4444'
+                            : '#8b5cf6'
                     }`,
                   }}
                 >
-                  <div className="flex-between" style={{ alignItems: 'flex-start', marginBottom: '0.5rem' }}>
+                  <div
+                    className="flex-between"
+                    style={{ alignItems: 'flex-start', marginBottom: '0.5rem' }}
+                  >
                     <div>
                       <h4 style={{ margin: 0, fontSize: '1.2rem' }}>{a.name || a.tagNumber}</h4>
                       <span style={{ fontSize: '0.85rem', color: 'var(--ag-text-muted)' }}>
@@ -274,7 +309,11 @@ export function DairyFarmerLookup() {
                         color: isEligible ? '#166534' : isWithdrawal ? '#c2410c' : '#6b21a8',
                       }}
                     >
-                      {isEligible ? '✓ Safe For Milk' : isWithdrawal ? '⚠️ Under Withdrawal' : '🩺 In Treatment'}
+                      {isEligible
+                        ? '✓ Safe For Milk'
+                        : isWithdrawal
+                          ? '⚠️ Under Withdrawal'
+                          : '🩺 In Treatment'}
                     </span>
                   </div>
 
@@ -299,7 +338,8 @@ export function DairyFarmerLookup() {
                       <strong>Restriction:</strong> {a.milkEligibility.blocker}
                       {a.milkEligibility.drug && (
                         <div>
-                          <strong>Drug:</strong> {a.milkEligibility.drug} ({a.milkEligibility.route || 'Clinical'})
+                          <strong>Drug:</strong> {a.milkEligibility.drug} (
+                          {a.milkEligibility.route || 'Clinical'})
                         </div>
                       )}
                       {a.milkEligibility.withdrawalEndsAt && (
@@ -347,19 +387,29 @@ export function DairyFarmerLookup() {
       {/* REGISTERED FARMERS DIRECTORY */}
       {!selectedFarmer && (
         <div className="card">
-          <h3 style={{ margin: '0 0 1rem 0' }}>📋 Registered Farmers Directory ({farmersList.length})</h3>
+          <h3 style={{ margin: '0 0 1rem 0' }}>
+            📋 Registered Farmers Directory ({farmersList.length})
+          </h3>
 
           {loadingList && <p>Loading farmers directory…</p>}
 
           {!loadingList && farmersList.length === 0 && (
-            <p style={{ color: 'var(--ag-text-muted)' }}>No farmers registered on the platform yet.</p>
+            <p style={{ color: 'var(--ag-text-muted)' }}>
+              No farmers registered on the platform yet.
+            </p>
           )}
 
           {!loadingList && farmersList.length > 0 && (
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
                 <thead>
-                  <tr style={{ borderBottom: '2px solid #e2e8f0', textAlign: 'left', color: '#64748b' }}>
+                  <tr
+                    style={{
+                      borderBottom: '2px solid #e2e8f0',
+                      textAlign: 'left',
+                      color: '#64748b',
+                    }}
+                  >
                     <th style={{ padding: '0.75rem 0.5rem' }}>Farmer ID</th>
                     <th style={{ padding: '0.75rem 0.5rem' }}>Farmer Name</th>
                     <th style={{ padding: '0.75rem 0.5rem' }}>Farm</th>
@@ -373,14 +423,22 @@ export function DairyFarmerLookup() {
                   {farmersList.map((f) => (
                     <tr key={f.farmId} style={{ borderBottom: '1px solid #f1f5f9' }}>
                       <td style={{ padding: '0.75rem 0.5rem', fontWeight: 700 }}>
-                        <code style={{ background: '#f8fafc', padding: '0.15rem 0.4rem', borderRadius: '0.25rem' }}>
+                        <code
+                          style={{
+                            background: '#f8fafc',
+                            padding: '0.15rem 0.4rem',
+                            borderRadius: '0.25rem',
+                          }}
+                        >
                           {f.farmerIdNumber}
                         </code>
                       </td>
                       <td style={{ padding: '0.75rem 0.5rem' }}>
                         <strong>{f.farmerName}</strong>
                         {f.farmerPhone && (
-                          <div style={{ fontSize: '0.8rem', color: '#64748b' }}>{f.farmerPhone}</div>
+                          <div style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                            {f.farmerPhone}
+                          </div>
                         )}
                       </td>
                       <td style={{ padding: '0.75rem 0.5rem' }}>{f.farmName}</td>
@@ -399,7 +457,9 @@ export function DairyFarmerLookup() {
                             color: f.allClearForMilk ? '#166534' : '#92400e',
                           }}
                         >
-                          {f.allClearForMilk ? '✓ All Clear' : `${f.withholdingAnimalsCount} Withholding`}
+                          {f.allClearForMilk
+                            ? '✓ All Clear'
+                            : `${f.withholdingAnimalsCount} Withholding`}
                         </span>
                       </td>
                       <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right' }}>

@@ -694,8 +694,8 @@ treatmentsRouter.patch(
   validate(
     z
       .object({
-      status: z.enum(['ACTIVE', 'COMPLETED', 'CANCELLED']),
-      notes: z.string().trim().max(3000).optional().nullable(),
+        status: z.enum(['ACTIVE', 'COMPLETED', 'CANCELLED']),
+        notes: z.string().trim().max(3000).optional().nullable(),
       })
       .superRefine((value, context) => {
         if (value.status === 'CANCELLED' && !value.notes?.trim())
@@ -738,10 +738,9 @@ treatmentsRouter.patch(
           status: req.body.status,
           startedAt: req.body.status === 'ACTIVE' ? new Date() : treatment.startedAt,
           completedAt: req.body.status === 'COMPLETED' ? new Date() : null,
-          completionNotes:
-            ['COMPLETED', 'CANCELLED'].includes(req.body.status)
-              ? req.body.notes
-              : treatment.completionNotes,
+          completionNotes: ['COMPLETED', 'CANCELLED'].includes(req.body.status)
+            ? req.body.notes
+            : treatment.completionNotes,
         },
       });
       if (req.body.status === 'ACTIVE')

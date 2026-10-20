@@ -1303,6 +1303,51 @@ ALTER TABLE `AdvisorConversation` ADD CONSTRAINT `AdvisorConversation_userId_fke
 -- AddForeignKey
 ALTER TABLE `AdvisorMessage` ADD CONSTRAINT `AdvisorMessage_conversationId_fkey` FOREIGN KEY (`conversationId`) REFERENCES `AdvisorConversation`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
+-- CreateTable
+CREATE TABLE `AnimalRiskAssessment` (
+    `id` VARCHAR(191) NOT NULL,
+    `animalId` VARCHAR(191) NOT NULL,
+    `caseId` VARCHAR(191) NULL,
+    `veterinarianId` VARCHAR(191) NULL,
+    `createdById` VARCHAR(191) NOT NULL,
+    `species` VARCHAR(60) NOT NULL,
+    `ageYears` DECIMAL(6, 2) NOT NULL,
+    `weightKg` DECIMAL(8, 2) NOT NULL,
+    `treatmentsLast30d` INTEGER NOT NULL,
+    `treatmentsLast90d` INTEGER NOT NULL,
+    `daysSinceLastTreatment` INTEGER NOT NULL,
+    `uniqueAntimicrobialClasses90d` INTEGER NOT NULL,
+    `maxRepeatedClassCount90d` INTEGER NOT NULL,
+    `meanTreatmentIntervalDays` DECIMAL(8, 2) NOT NULL,
+    `totalAntimicrobialDays90d` INTEGER NOT NULL,
+    `recurrentConditionEvents90d` INTEGER NOT NULL,
+    `noResponseEvents90d` INTEGER NOT NULL,
+    `partialResponseEvents90d` INTEGER NOT NULL,
+    `predictedRisk` VARCHAR(40) NOT NULL,
+    `probabilities` JSON NOT NULL,
+    `notes` TEXT NULL,
+    `recommendations` TEXT NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL,
+
+    INDEX `AnimalRiskAssessment_animalId_createdAt_idx`(`animalId`, `createdAt`),
+    INDEX `AnimalRiskAssessment_caseId_idx`(`caseId`),
+    INDEX `AnimalRiskAssessment_veterinarianId_idx`(`veterinarianId`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- AddForeignKey
+ALTER TABLE `AnimalRiskAssessment` ADD CONSTRAINT `AnimalRiskAssessment_animalId_fkey` FOREIGN KEY (`animalId`) REFERENCES `Animal`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `AnimalRiskAssessment` ADD CONSTRAINT `AnimalRiskAssessment_caseId_fkey` FOREIGN KEY (`caseId`) REFERENCES `VeterinaryCase`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `AnimalRiskAssessment` ADD CONSTRAINT `AnimalRiskAssessment_veterinarianId_fkey` FOREIGN KEY (`veterinarianId`) REFERENCES `VeterinarianProfile`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `AnimalRiskAssessment` ADD CONSTRAINT `AnimalRiskAssessment_createdById_fkey` FOREIGN KEY (`createdById`) REFERENCES `User`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
 -- ============================================================
 -- SEED DATA: REGULATORY REFERENCE SOURCES
 -- ============================================================

@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { api, download } from './api.js';
 import { canCompleteTreatment, treatmentRequestIdFromResponse } from './workflowContracts.js';
+import { AnimalRiskAssessmentModal, AnimalRiskReportModal } from './AnimalRiskPrediction.jsx';
 
 const Field = ({ label, name, type = 'text', required = true }) => (
   <label>
@@ -109,7 +110,8 @@ function AnimalQrScannerModal({ farmId, onClose, onResolved }) {
       onClose();
     } catch (err) {
       setCameraError(
-        err.message || 'No active animal matching this tag was found on this farm. Cross-farm access is prevented.',
+        err.message ||
+          'No active animal matching this tag was found on this farm. Cross-farm access is prevented.',
       );
     } finally {
       setResolving(false);
@@ -241,7 +243,8 @@ function AnimalQrScannerModal({ farmId, onClose, onResolved }) {
               fontSize: '0.78rem',
             }}
           >
-            Verified strictly against authorized farm livestock records. Cross-farm access is blocked.
+            Verified strictly against authorized farm livestock records. Cross-farm access is
+            blocked.
           </small>
         </div>
       </div>
@@ -326,7 +329,9 @@ function RequestForm({ farms, veterinarians, refresh }) {
     setAnimals((prev) => (prev.some((a) => a.id === matched.id) ? prev : [matched, ...prev]));
     setAnimalId(matched.id);
     setResolvedAnimal(matched);
-    setSuccess(`✅ Animal tag verified on farm: ${matched.tagNumber} (${matched.name || matched.species || 'Livestock'}).`);
+    setSuccess(
+      `✅ Animal tag verified on farm: ${matched.tagNumber} (${matched.name || matched.species || 'Livestock'}).`,
+    );
   }
 
   async function submit(event) {
@@ -376,7 +381,9 @@ function RequestForm({ farms, veterinarians, refresh }) {
           console.warn('Optional attachment upload error:', fileErr);
         }
       }
-      setSuccess('✅ Treatment request sent successfully! Assigned veterinarian has been notified.');
+      setSuccess(
+        '✅ Treatment request sent successfully! Assigned veterinarian has been notified.',
+      );
       form.reset();
       refresh?.();
     } catch (err) {
@@ -453,8 +460,9 @@ function RequestForm({ farms, veterinarians, refresh }) {
                 </strong>
               </div>
               <small style={{ color: '#047857', display: 'block', marginTop: '0.15rem' }}>
-                Species: {currentAnimal.species?.canonicalName || currentAnimal.species || 'Livestock'} · Sex:{' '}
-                {(currentAnimal.sex || 'FEMALE').replaceAll('_', ' ')} ·{' '}
+                Species:{' '}
+                {currentAnimal.species?.canonicalName || currentAnimal.species || 'Livestock'} ·
+                Sex: {(currentAnimal.sex || 'FEMALE').replaceAll('_', ' ')} ·{' '}
                 {currentAnimal.lactating ? 'Lactating' : 'Dry'}
               </small>
             </div>
@@ -486,9 +494,7 @@ function RequestForm({ farms, veterinarians, refresh }) {
             }}
             required
           >
-            {animals.length === 0 && (
-              <option value="">No animals found for selected farm</option>
-            )}
+            {animals.length === 0 && <option value="">No animals found for selected farm</option>}
             {animals.length > 0 && filteredAnimals.length === 0 && (
               <option value="">No animals match &quot;{searchQuery}&quot;</option>
             )}
@@ -501,7 +507,8 @@ function RequestForm({ farms, veterinarians, refresh }) {
         </label>
         {animals.length === 0 && (
           <p className="notice" style={{ marginTop: '0.3rem', fontSize: '0.85rem' }}>
-            ⚠️ No animals found on this farm. Please add an animal to this farm before requesting treatment.
+            ⚠️ No animals found on this farm. Please add an animal to this farm before requesting
+            treatment.
           </p>
         )}
       </div>
@@ -534,7 +541,8 @@ function RequestForm({ farms, veterinarians, refresh }) {
       </label>
       {veterinarians.length === 0 && (
         <p className="notice" style={{ marginTop: '-0.3rem', fontSize: '0.85rem' }}>
-          ⚠️ No verified veterinarians found matching search criteria. Use search bar above or verify a veterinarian profile.
+          ⚠️ No verified veterinarians found matching search criteria. Use search bar above or
+          verify a veterinarian profile.
         </p>
       )}
 
@@ -549,7 +557,12 @@ function RequestForm({ farms, veterinarians, refresh }) {
       </label>
       <label>
         Observations (Min 3 characters)
-        <textarea name="observations" placeholder="Describe symptoms or reason for request..." required minLength={3} />
+        <textarea
+          name="observations"
+          placeholder="Describe symptoms or reason for request..."
+          required
+          minLength={3}
+        />
       </label>
       <label>
         Symptoms / Notes (Optional)
@@ -573,9 +586,32 @@ function CaseWorkspace({ caseId, context, user, capabilities, close }) {
   const [workflowError, setWorkflowError] = useState('');
   const [prescriptionDrugId, setPrescriptionDrugId] = useState('');
   const [prescriptionProductId, setPrescriptionProductId] = useState('');
+  const [showRiskModal, setShowRiskModal] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [caseRisk, setCaseRisk] = useState(null);
+
+  async function loadRisk() {
+    if (!item?.animal?.id) return;
+    try {
+      const res = await api(`/ml/animals/${item.animal.id}/latest-risk`);
+      setCaseRisk(res?.assessment || res?.data?.assessment || null);
+    } catch {
+      // ignore
+    }
+  }
+
   async function load() {
-    setItem((await api(`/veterinary-cases/${caseId}`)).case);
+    const caseData = (await api(`/veterinary-cases/${caseId}`)).case;
+    setItem(caseData);
     setMessages((await api(`/veterinary-cases/${caseId}/messages`)).messages);
+    if (caseData?.animal?.id) {
+      try {
+        const res = await api(`/ml/animals/${caseData.animal.id}/latest-risk`);
+        setCaseRisk(res?.assessment || res?.data?.assessment || null);
+      } catch {
+        // ignore
+      }
+    }
   }
   // Reload when the selected case changes; load intentionally closes over that case id.
   useEffect(() => {
@@ -657,7 +693,9 @@ function CaseWorkspace({ caseId, context, user, capabilities, close }) {
     }
   }
   async function complete(id) {
-    if (!window.confirm('Complete this treatment course using the recorded administration history?'))
+    if (
+      !window.confirm('Complete this treatment course using the recorded administration history?')
+    )
       return;
     setWorkflowError('');
     try {
@@ -710,14 +748,89 @@ function CaseWorkspace({ caseId, context, user, capabilities, close }) {
         </button>
       </div>
       <div className="card">
-        <span className="badge">{item.status}</span>
-        <h3>{item.animal.name || item.animal.tagNumber}</h3>
-        <p>
-          {item.farm.name} · Assigned to {item.veterinarian.user.fullName}
-        </p>
-        <p>
-          <strong>Farmer observations:</strong> {item.request.observations}
-        </p>
+        <div
+          className="flex-between"
+          style={{ alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem' }}
+        >
+          <div>
+            <span className="badge">{item.status}</span>
+            <h3 style={{ margin: '0.35rem 0' }}>{item.animal.name || item.animal.tagNumber}</h3>
+            <p style={{ margin: '0.2rem 0', color: 'var(--ag-text-muted)', fontSize: '0.88rem' }}>
+              {item.farm.name} · Tag: <strong>{item.animal.tagNumber}</strong> · Assigned to{' '}
+              {item.veterinarian.user.fullName}
+            </p>
+            <p style={{ margin: '0.4rem 0 0' }}>
+              <strong>Farmer observations:</strong> {item.request.observations}
+            </p>
+          </div>
+
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.45rem',
+              alignItems: 'flex-end',
+            }}
+          >
+            {caseRisk && (
+              <span
+                style={{
+                  background:
+                    caseRisk.predictedRisk === 'HIGH'
+                      ? '#fef2f2'
+                      : caseRisk.predictedRisk === 'MEDIUM'
+                        ? '#fffbeb'
+                        : '#f0fdf4',
+                  color:
+                    caseRisk.predictedRisk === 'HIGH'
+                      ? '#dc2626'
+                      : caseRisk.predictedRisk === 'MEDIUM'
+                        ? '#d97706'
+                        : '#16a34a',
+                  border: `1px solid ${
+                    caseRisk.predictedRisk === 'HIGH'
+                      ? '#fecaca'
+                      : caseRisk.predictedRisk === 'MEDIUM'
+                        ? '#fde68a'
+                        : '#bbf7d0'
+                  }`,
+                  padding: '0.28rem 0.65rem',
+                  borderRadius: '9999px',
+                  fontWeight: 700,
+                  fontSize: '0.78rem',
+                  letterSpacing: '0.03em',
+                }}
+              >
+                {caseRisk.predictedRisk === 'HIGH'
+                  ? '🚨 HIGH RISK'
+                  : caseRisk.predictedRisk === 'MEDIUM'
+                    ? '⚠️ MEDIUM RISK'
+                    : '✅ LOW RISK'}
+              </span>
+            )}
+            <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+              {caseRisk && (
+                <button
+                  type="button"
+                  className="secondary"
+                  style={{ fontSize: '0.82rem', padding: '0.4rem 0.75rem' }}
+                  onClick={() => setShowReportModal(true)}
+                >
+                  📊 View Risk Report
+                </button>
+              )}
+              {assignedVerifiedVeterinarian && (
+                <button
+                  type="button"
+                  style={{ fontSize: '0.82rem', padding: '0.4rem 0.75rem' }}
+                  onClick={() => setShowRiskModal(true)}
+                >
+                  🧠 {caseRisk ? 'Re-evaluate Risk' : 'Animal Risk Assessment'}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
       {workflowError && <p className="error">{workflowError}</p>}
       <div className="workflow-columns">
@@ -909,8 +1022,7 @@ function CaseWorkspace({ caseId, context, user, capabilities, close }) {
           <p>{t.administrations.length} actual administration(s) recorded</p>
           {t.administrations.length > 0 && (
             <p>
-              Last administration:{' '}
-              {new Date(t.administrations[0].administeredAt).toLocaleString()}
+              Last administration: {new Date(t.administrations[0].administeredAt).toLocaleString()}
             </p>
           )}
           {t.administrations.map((a, index) => (
@@ -918,13 +1030,18 @@ function CaseWorkspace({ caseId, context, user, capabilities, close }) {
               <strong>Administration #{t.administrations.length - index}</strong>
               <p>Medicine: {a.drug.canonicalName}</p>
               <p>Product: {a.drugProduct?.productName || 'Not specified'}</p>
-              <p>Actual amount: {a.amount} {a.amountUnit}</p>
+              <p>
+                Actual amount: {a.amount} {a.amountUnit}
+              </p>
               <p>Route: {a.route}</p>
               <p>Administered at: {new Date(a.administeredAt).toLocaleString()}</p>
               <p>Recorded by: {a.administeredBy?.fullName || 'Recorded user unavailable'}</p>
               <p>
                 Performed by:{' '}
-                {a.performedBy?.fullName || a.performedByName || a.administeredBy?.fullName || 'Not recorded'}
+                {a.performedBy?.fullName ||
+                  a.performedByName ||
+                  a.administeredBy?.fullName ||
+                  'Not recorded'}
               </p>
               <p>Notes: {a.notes || 'None'}</p>
               <p>Deviation: {a.deviationReason || 'None recorded'}</p>
@@ -972,14 +1089,43 @@ function CaseWorkspace({ caseId, context, user, capabilities, close }) {
               )}
               {assignedVerifiedVeterinarian && t.administrations.length === 0 && (
                 <p className="notice">
-                  Completion is unavailable until an actual medicine administration is recorded.
-                  If no medicine was given, cancel the treatment with a reason.
+                  Completion is unavailable until an actual medicine administration is recorded. If
+                  no medicine was given, cancel the treatment with a reason.
                 </p>
               )}
             </>
           )}
         </article>
       ))}
+      {showRiskModal && (
+        <AnimalRiskAssessmentModal
+          animalId={item.animal.id}
+          caseId={caseId}
+          animalInfo={item.animal}
+          onClose={() => setShowRiskModal(false)}
+          onSaved={(newAssessment) => {
+            setCaseRisk(newAssessment);
+            load();
+            loadRisk();
+          }}
+        />
+      )}
+
+      {showReportModal && (
+        <AnimalRiskReportModal
+          animal={item.animal}
+          farmId={item.farmId}
+          onClose={() => setShowReportModal(false)}
+          onOpenAssessment={
+            assignedVerifiedVeterinarian
+              ? () => {
+                  setShowReportModal(false);
+                  setShowRiskModal(true);
+                }
+              : null
+          }
+        />
+      )}
     </section>
   );
 }
@@ -1050,17 +1196,26 @@ export function AdministrationForm({ treatment, caseItem, onAdminister }) {
       (selectedItem.drugProductId || '') !== drugProductId);
 
   return (
-    <form className="card form" style={{ background: '#f8fafc', marginTop: '1rem', border: '1px solid #cbd5e1' }} onSubmit={submit}>
+    <form
+      className="card form"
+      style={{ background: '#f8fafc', marginTop: '1rem', border: '1px solid #cbd5e1' }}
+      onSubmit={submit}
+    >
       <div className="flex-between" style={{ alignItems: 'center' }}>
         <h4 style={{ margin: 0, color: '#0f172a' }}>💉 Record Administration #{nextNumber}</h4>
         <span className="badge success">Auto-Filled Prescribed Dose</span>
       </div>
       <p style={{ fontSize: '0.84rem', color: '#64748b', margin: '0.35rem 0 0.85rem' }}>
-        Select a prescribed item to auto-populate the recommended dose amount, unit, and route. Recording an administration registers an actual dosage event for AMU tracking.
+        Select a prescribed item to auto-populate the recommended dose amount, unit, and route.
+        Recording an administration registers an actual dosage event for AMU tracking.
       </p>
       {error && <p className="error">{error}</p>}
-      <p><strong>Animal:</strong> {caseItem.animal.name || caseItem.animal.tagNumber}</p>
-      <p><strong>Treatment:</strong> {treatment.status}</p>
+      <p>
+        <strong>Animal:</strong> {caseItem.animal.name || caseItem.animal.tagNumber}
+      </p>
+      <p>
+        <strong>Treatment:</strong> {treatment.status}
+      </p>
       <label>
         Prescribed Medicine Item
         <select value={selectedItemId} onChange={(e) => setSelectedItemId(e.target.value)}>
@@ -1074,12 +1229,21 @@ export function AdministrationForm({ treatment, caseItem, onAdminister }) {
       {selectedItem && (
         <div className="notice">
           <strong>Prescription:</strong> {selectedItem.drug.canonicalName}
-          {' · '}{selectedItem.drugProduct?.productName || 'Product not specified'}
-          {' · '}{selectedItem.doseValue} {selectedItem.doseUnit}
-          {' · '}{selectedItem.route}
+          {' · '}
+          {selectedItem.drugProduct?.productName || 'Product not specified'}
+          {' · '}
+          {selectedItem.doseValue} {selectedItem.doseUnit}
+          {' · '}
+          {selectedItem.route}
         </div>
       )}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.75rem' }}>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+          gap: '0.75rem',
+        }}
+      >
         <label>
           Amount Given
           <input

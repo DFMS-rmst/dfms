@@ -61,7 +61,6 @@ export function navigationFor(workspace) {
       ['admin', 'User Verifications'],
       ['core-engine', 'Organization Analytics'],
       ['certificates', 'Certificates'],
-      ['ai', 'AI Advisor'],
     ];
   if (workspace.kind === 'DAIRY_OWNER')
     return [
@@ -69,7 +68,6 @@ export function navigationFor(workspace) {
       ['dairy-farmers', 'Farmer Directory & Requests'],
       ['dairy-inventory', 'Milk Inventory & Sales'],
       ['core-engine', 'Procurement & AMU Analysis'],
-      ['ai', 'AI Advisor'],
     ];
   if (workspace.kind === 'VETERINARIAN')
     return workspace.veterinarianStatus === 'VERIFIED'
@@ -78,7 +76,6 @@ export function navigationFor(workspace) {
           ['veterinary-care', 'Assigned Care'],
           ['core-engine', 'Relevant AMU & Eligibility'],
           ['certificates', 'Relevant Certificates'],
-          ['ai', 'AI Advisor'],
         ]
       : [['vet', 'Verification Status']];
   if (workspace.kind === 'FARM') {
@@ -92,7 +89,7 @@ export function navigationFor(workspace) {
             ['core-engine', 'AMU & Milk Eligibility'],
             ['daily-clearance', "Today's Milk Eligibility"],
             ['certificates', 'Certificates'],
-            ['ai', 'AI Advisor'],
+            ['farmer-chatbot', '🌾 Kisan Mitra (AI)'],
           ]
         : []),
       ...(capabilities.owns ? [['members', 'Farm Members']] : []),

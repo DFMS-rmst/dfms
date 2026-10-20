@@ -17,7 +17,10 @@ const schema = z.object({
   FRONTEND_URL: emptyToUndefined(z.string().url().default('http://localhost:5173')),
   APP_BASE_URL: emptyToUndefined(z.string().url().default('http://localhost:5173')),
   DATABASE_URL: emptyToUndefined(
-    z.string().min(1).default('mysql://farm_app:farm_app_local_password@127.0.0.1:3307/digital_farm'),
+    z
+      .string()
+      .min(1)
+      .default('mysql://farm_app:farm_app_local_password@127.0.0.1:3307/digital_farm'),
   ),
   JWT_SECRET: emptyToUndefined(
     z.string().min(32).default('local-docker-jwt-secret-change-me-25007'),

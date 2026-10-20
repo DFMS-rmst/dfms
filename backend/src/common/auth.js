@@ -14,12 +14,20 @@ export const signVerificationToken = (userId, role) =>
 export const authenticateVerificationToken = asyncHandler(async (request, _response, next) => {
   const [scheme, token] = (request.headers.authorization || '').split(' ');
   if (scheme !== 'Bearer' || !token || token === 'undefined' || token === 'null')
-    throw new AppError(401, 'AUTH_REQUIRED', 'Verification authorization token is missing or expired');
+    throw new AppError(
+      401,
+      'AUTH_REQUIRED',
+      'Verification authorization token is missing or expired',
+    );
   let payload;
   try {
     payload = jwt.verify(token, secret());
   } catch {
-    throw new AppError(401, 'INVALID_VERIFICATION_TOKEN', 'Verification token is invalid or expired');
+    throw new AppError(
+      401,
+      'INVALID_VERIFICATION_TOKEN',
+      'Verification token is invalid or expired',
+    );
   }
   const user = await prisma.user.findUnique({
     where: { id: payload.sub },

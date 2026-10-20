@@ -39,7 +39,8 @@ const blockerText = (code) =>
     CONFLICTING_SOURCE: 'Conflicting reference sources',
     TREATMENT_COMPLETION_DATE_MISSING: 'Treatment completion evidence is incomplete',
     ANIMAL_NOT_LACTATING: 'Milk eligibility is not applicable because the animal is not lactating',
-    REFERENCE_BLOCKED_FOR_CERTIFICATE_USE: 'The reference is explicitly blocked from automatic certificate use',
+    REFERENCE_BLOCKED_FOR_CERTIFICATE_USE:
+      'The reference is explicitly blocked from automatic certificate use',
     REVIEW_REQUIRED: 'The reference requires independent review',
     NOT_AVAILABLE: 'The required withdrawal reference is not available',
     RULE_NOT_FOUND: 'The reference record confirms that no usable rule was found',
@@ -54,38 +55,75 @@ export function EligibilityCard({ check, canIssue = false, onReevaluate, onIssue
       <span className="badge">{notApplicable ? 'NOT APPLICABLE' : statusLabel(check.status)}</span>
       <h3>{check.animal?.name || check.animal?.tagNumber || 'Animal'}</h3>
       {check.animal?.farm && check.animal?.species && (
-        <p>{check.animal.farm.name} · {check.animal.species.canonicalName}</p>
+        <p>
+          {check.animal.farm.name} · {check.animal.species.canonicalName}
+        </p>
       )}
       <h4>{notApplicable ? 'Milk eligibility not applicable' : copy.title}</h4>
-      <p><strong>Reason:</strong> {explanation.question || copy.reason}</p>
+      <p>
+        <strong>Reason:</strong> {explanation.question || copy.reason}
+      </p>
       {explanation.blockers?.length > 0 && (
-        <p><strong>Blocking evidence:</strong> {explanation.blockers.map(blockerText).join('; ')}</p>
+        <p>
+          <strong>Blocking evidence:</strong> {explanation.blockers.map(blockerText).join('; ')}
+        </p>
       )}
-      {copy.action && !notApplicable && <p><strong>Action:</strong> {copy.action}</p>}
-      <p><strong>Evaluated at:</strong> {new Date(check.evaluatedAt).toLocaleString()}</p>
-      <p><strong>Eligible from:</strong> {check.eligibilityDate ? new Date(check.eligibilityDate).toLocaleString() : 'Not calculable'}</p>
+      {copy.action && !notApplicable && (
+        <p>
+          <strong>Action:</strong> {copy.action}
+        </p>
+      )}
+      <p>
+        <strong>Evaluated at:</strong> {new Date(check.evaluatedAt).toLocaleString()}
+      </p>
+      <p>
+        <strong>Eligible from:</strong>{' '}
+        {check.eligibilityDate
+          ? new Date(check.eligibilityDate).toLocaleString()
+          : 'Not calculable'}
+      </p>
       {(check.treatmentEvaluations || []).map((item) => (
         <section className="notice" key={item.id}>
           <strong>{item.drug?.canonicalName || 'Treatment status'}</strong>
           <p>Product: {item.drugProduct?.productName || 'Product not identified'}</p>
           <p>Actual route: {item.route || 'Not available'}</p>
-          <p>Last administration: {item.lastAdministrationAt ? new Date(item.lastAdministrationAt).toLocaleString() : 'Not recorded'}</p>
-          <p>Treatment completed: {item.treatmentCompletedAt ? new Date(item.treatmentCompletedAt).toLocaleString() : 'Not completed'}</p>
+          <p>
+            Last administration:{' '}
+            {item.lastAdministrationAt
+              ? new Date(item.lastAdministrationAt).toLocaleString()
+              : 'Not recorded'}
+          </p>
+          <p>
+            Treatment completed:{' '}
+            {item.treatmentCompletedAt
+              ? new Date(item.treatmentCompletedAt).toLocaleString()
+              : 'Not completed'}
+          </p>
           <p>Status: {statusLabel(item.status)}</p>
-          {item.withdrawalEndsAt && <p>Withdrawal until: {new Date(item.withdrawalEndsAt).toLocaleString()}</p>}
+          {item.withdrawalEndsAt && (
+            <p>Withdrawal until: {new Date(item.withdrawalEndsAt).toLocaleString()}</p>
+          )}
           {item.blockerCode && <p>Reason: {blockerText(item.blockerCode)}</p>}
           {item.withdrawalRule && (
             <p>
-              Reference: {item.withdrawalRule.source.organization} — {item.withdrawalRule.source.title}
-              {' · '}{item.withdrawalRule.jurisdiction}
-              {' · '}{item.withdrawalRule.verificationStatus.replaceAll('_', ' ')}
-              {' · '}{item.withdrawalRule.durationValue} {item.withdrawalRule.durationUnit}
+              Reference: {item.withdrawalRule.source.organization} —{' '}
+              {item.withdrawalRule.source.title}
+              {' · '}
+              {item.withdrawalRule.jurisdiction}
+              {' · '}
+              {item.withdrawalRule.verificationStatus.replaceAll('_', ' ')}
+              {' · '}
+              {item.withdrawalRule.durationValue} {item.withdrawalRule.durationUnit}
             </p>
           )}
         </section>
       ))}
-      <p className="notice">This is a rule-based eligibility result and not a laboratory residue test.</p>
-      {onReevaluate && <button onClick={() => onReevaluate(check.animal.id)}>Refresh current eligibility</button>}
+      <p className="notice">
+        This is a rule-based eligibility result and not a laboratory residue test.
+      </p>
+      {onReevaluate && (
+        <button onClick={() => onReevaluate(check.animal.id)}>Refresh current eligibility</button>
+      )}
       {canIssue && !notApplicable && check.status === 'ELIGIBLE_FOR_MILK' && onIssue && (
         <button onClick={() => onIssue(check.animal.id)}>Generate Certificate</button>
       )}
@@ -168,10 +206,22 @@ export function CoreEngine({ farms, isAdmin, canIssue = false }) {
             <Metric
               title="Recorded Administrations (Doses Given)"
               value={summary.totalAdministrations}
-              help={summary.totalAdministrations === 0 ? "0 dosage events recorded yet. Administer a prescribed dose in Veterinary Care to record Administration #1." : "Total actual dosage events recorded across active treatments."}
+              help={
+                summary.totalAdministrations === 0
+                  ? '0 dosage events recorded yet. Administer a prescribed dose in Veterinary Care to record Administration #1.'
+                  : 'Total actual dosage events recorded across active treatments.'
+              }
             />
-            <Metric title="Antimicrobial treatments" value={summary.totalAntimicrobialTreatments} help="Number of distinct active/completed treatment courses." />
-            <Metric title="Treated animals" value={summary.treatedAnimals} help="Distinct animals that received treatment." />
+            <Metric
+              title="Antimicrobial treatments"
+              value={summary.totalAntimicrobialTreatments}
+              help="Number of distinct active/completed treatment courses."
+            />
+            <Metric
+              title="Treated animals"
+              value={summary.treatedAnimals}
+              help="Distinct animals that received treatment."
+            />
             <Metric
               title="Animals treated"
               value={`${summary.animalsTreatedPercentage.toFixed(1)}%`}
@@ -251,7 +301,13 @@ function Metric({ title, value, help }) {
     <article className="card">
       <small style={{ fontWeight: 700, color: '#475569' }}>{title}</small>
       <h3 style={{ margin: '0.4rem 0 0.2rem', fontSize: '1.5rem' }}>{value}</h3>
-      {help && <small style={{ fontSize: '0.78rem', color: '#64748b', display: 'block', lineHeight: 1.35 }}>{help}</small>}
+      {help && (
+        <small
+          style={{ fontSize: '0.78rem', color: '#64748b', display: 'block', lineHeight: 1.35 }}
+        >
+          {help}
+        </small>
+      )}
     </article>
   );
 }

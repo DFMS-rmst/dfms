@@ -35,8 +35,12 @@ describe('PublicAnimalVerification Component', () => {
     expect(screen.getByText('Green Valley Dairy')).toBeInTheDocument();
     // Verify privacy & scope: slaughter eligibility is explicitly not certified, and no clinical transcripts
     expect(screen.getByText(/does not certify slaughter eligibility/i)).toBeInTheDocument();
-    expect(screen.queryByText(/slaughter cleared|slaughter eligible|slaughter approved/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/clinical diagnosis|doctor prescription|chat transcript/i)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/slaughter cleared|slaughter eligible|slaughter approved/i),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/clinical diagnosis|doctor prescription|chat transcript/i),
+    ).not.toBeInTheDocument();
   });
 
   it('renders fail-closed blocked status when statutory withdrawal rule is missing', async () => {
@@ -61,7 +65,9 @@ describe('PublicAnimalVerification Component', () => {
 
     expect(await screen.findByText('COW-RULE-MISSING')).toBeInTheDocument();
     expect(screen.getByText(/RULE MISSING — MILK BLOCKED \(FAIL-CLOSED\)/i)).toBeInTheDocument();
-    expect(screen.getByText(/Statutory milk withdrawal reference rule is missing/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Statutory milk withdrawal reference rule is missing/i),
+    ).toBeInTheDocument();
   });
 
   it('displays user-friendly error when animal verification ID is not found', async () => {
@@ -70,6 +76,8 @@ describe('PublicAnimalVerification Component', () => {
     render(<PublicAnimalVerification verificationId="invalid-id" />);
 
     expect(await screen.findByText(/Verification Error/i)).toBeInTheDocument();
-    expect(screen.getByText(/Animal record not found for this verification ID/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Animal record not found for this verification ID/i),
+    ).toBeInTheDocument();
   });
 });

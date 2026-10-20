@@ -25,7 +25,7 @@ export function AdminVerifications() {
 
   useEffect(() => {
     loadVerifications();
-  }, [activeTab, statusFilter]);
+  }, [activeTab, statusFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleReview(type, id, status) {
     setMessage('');
@@ -52,7 +52,8 @@ export function AdminVerifications() {
         <div>
           <h1 style={{ margin: '0 0 0.35rem 0' }}>User Verifications &amp; Approval</h1>
           <p style={{ margin: 0, color: 'var(--ag-text-muted)' }}>
-            Review and validate registrations for Veterinarians, Farmers, and Dairy Owners before platform access.
+            Review and validate registrations for Veterinarians, Farmers, and Dairy Owners before
+            platform access.
           </p>
         </div>
         <button type="button" className="secondary" onClick={loadVerifications}>
@@ -61,7 +62,17 @@ export function AdminVerifications() {
       </div>
 
       {message && (
-        <div style={{ padding: '0.85rem 1rem', background: '#ecfdf5', color: '#065f46', borderRadius: '0.75rem', marginBottom: '1rem', border: '1px solid #a7f3d0', fontWeight: 600 }}>
+        <div
+          style={{
+            padding: '0.85rem 1rem',
+            background: '#ecfdf5',
+            color: '#065f46',
+            borderRadius: '0.75rem',
+            marginBottom: '1rem',
+            border: '1px solid #a7f3d0',
+            fontWeight: 600,
+          }}
+        >
           ✅ {message}
         </div>
       )}
@@ -93,14 +104,22 @@ export function AdminVerifications() {
         ))}
 
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <label htmlFor="statusFilter" style={{ fontSize: '0.85rem', fontWeight: 700, color: '#475569' }}>
+          <label
+            htmlFor="statusFilter"
+            style={{ fontSize: '0.85rem', fontWeight: 700, color: '#475569' }}
+          >
             Status:
           </label>
           <select
             id="statusFilter"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            style={{ padding: '0.4rem 0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', fontSize: '0.85rem' }}
+            style={{
+              padding: '0.4rem 0.75rem',
+              borderRadius: '0.5rem',
+              border: '1px solid #cbd5e1',
+              fontSize: '0.85rem',
+            }}
           >
             <option value="PENDING">Pending Approval</option>
             <option value="VERIFIED">Verified</option>
@@ -112,23 +131,37 @@ export function AdminVerifications() {
 
       {loading && <p>Loading applicant verifications…</p>}
 
-      {!loading && allVets.length === 0 && allFarmers.length === 0 && allDairyOwners.length === 0 && (
-        <div className="card" style={{ textAlign: 'center', padding: '2.5rem' }}>
-          <span style={{ fontSize: '2.5rem' }}>📋</span>
-          <h3 style={{ margin: '0.75rem 0 0.35rem 0' }}>No verification requests found</h3>
-          <p style={{ color: 'var(--ag-text-muted)' }}>
-            There are no {statusFilter.toLowerCase()} applications for the selected criteria.
-          </p>
-        </div>
-      )}
+      {!loading &&
+        allVets.length === 0 &&
+        allFarmers.length === 0 &&
+        allDairyOwners.length === 0 && (
+          <div className="card" style={{ textAlign: 'center', padding: '2.5rem' }}>
+            <span style={{ fontSize: '2.5rem' }}>📋</span>
+            <h3 style={{ margin: '0.75rem 0 0.35rem 0' }}>No verification requests found</h3>
+            <p style={{ color: 'var(--ag-text-muted)' }}>
+              There are no {statusFilter.toLowerCase()} applications for the selected criteria.
+            </p>
+          </div>
+        )}
 
       <div style={{ display: 'grid', gap: '1.25rem' }}>
         {/* VETERINARIANS */}
         {(activeTab === 'ALL' || activeTab === 'VETERINARIAN') &&
           allVets.map((v) => (
-            <article className="card review" key={`vet-${v.id}`} style={{ borderLeft: '4px solid #3b82f6' }}>
+            <article
+              className="card review"
+              key={`vet-${v.id}`}
+              style={{ borderLeft: '4px solid #3b82f6' }}
+            >
               <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.35rem' }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.6rem',
+                    marginBottom: '0.35rem',
+                  }}
+                >
                   <span style={{ fontSize: '1.2rem' }}>🩺</span>
                   <h3 style={{ margin: 0 }}>{v.user?.fullName}</h3>
                   <span className="badge" style={{ background: '#dbeafe', color: '#1e40af' }}>
@@ -137,8 +170,18 @@ export function AdminVerifications() {
                   <span
                     className="badge"
                     style={{
-                      background: v.status === 'VERIFIED' ? '#dcfce7' : v.status === 'REJECTED' ? '#fee2e2' : '#fef3c7',
-                      color: v.status === 'VERIFIED' ? '#166534' : v.status === 'REJECTED' ? '#991b1b' : '#92400e',
+                      background:
+                        v.status === 'VERIFIED'
+                          ? '#dcfce7'
+                          : v.status === 'REJECTED'
+                            ? '#fee2e2'
+                            : '#fef3c7',
+                      color:
+                        v.status === 'VERIFIED'
+                          ? '#166534'
+                          : v.status === 'REJECTED'
+                            ? '#991b1b'
+                            : '#92400e',
                     }}
                   >
                     {v.status}
@@ -149,11 +192,14 @@ export function AdminVerifications() {
                   {v.experienceYears != null ? `${v.experienceYears} Years` : 'Not specified'}
                 </p>
                 <p style={{ margin: '0.2rem 0', fontSize: '0.88rem' }}>
-                  <strong>Council &amp; Reg:</strong> {v.registrationCouncil} — <code>{v.registrationNumber}</code>
+                  <strong>Council &amp; Reg:</strong> {v.registrationCouncil} —{' '}
+                  <code>{v.registrationNumber}</code>
                 </p>
-                <p style={{ margin: '0.2rem 0', fontSize: '0.85rem', color: 'var(--ag-text-muted)' }}>
-                  <strong>Contact:</strong> {v.user?.email} {v.user?.phone ? `· ${v.user.phone}` : ''} |{' '}
-                  <strong>Service:</strong>{' '}
+                <p
+                  style={{ margin: '0.2rem 0', fontSize: '0.85rem', color: 'var(--ag-text-muted)' }}
+                >
+                  <strong>Contact:</strong> {v.user?.email}{' '}
+                  {v.user?.phone ? `· ${v.user.phone}` : ''} | <strong>Service:</strong>{' '}
                   {v.serviceAreas?.[0]?.state || 'India'}
                   {v.serviceAreas?.[0]?.district ? `, ${v.serviceAreas[0].district}` : ''}
                 </p>
@@ -163,7 +209,12 @@ export function AdminVerifications() {
                     <button
                       type="button"
                       className="link"
-                      onClick={() => setPreviewDoc({ name: v.documentName || 'Veterinary License', data: v.documentData })}
+                      onClick={() =>
+                        setPreviewDoc({
+                          name: v.documentName || 'Veterinary License',
+                          data: v.documentData,
+                        })
+                      }
                     >
                       📎 View Submitted License Document ({v.documentName || 'Certificate'})
                     </button>
@@ -171,9 +222,20 @@ export function AdminVerifications() {
                 )}
               </div>
 
-              <div className="actions" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', minWidth: '160px' }}>
+              <div
+                className="actions"
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.5rem',
+                  minWidth: '160px',
+                }}
+              >
                 {v.status !== 'VERIFIED' && (
-                  <button type="button" onClick={() => handleReview('veterinarians', v.id, 'VERIFIED')}>
+                  <button
+                    type="button"
+                    onClick={() => handleReview('veterinarians', v.id, 'VERIFIED')}
+                  >
                     ✓ Approve &amp; Activate
                   </button>
                 )}
@@ -193,9 +255,20 @@ export function AdminVerifications() {
         {/* FARMERS */}
         {(activeTab === 'ALL' || activeTab === 'FARMER') &&
           allFarmers.map((f) => (
-            <article className="card review" key={`farmer-${f.id}`} style={{ borderLeft: '4px solid #10b981' }}>
+            <article
+              className="card review"
+              key={`farmer-${f.id}`}
+              style={{ borderLeft: '4px solid #10b981' }}
+            >
               <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.35rem' }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.6rem',
+                    marginBottom: '0.35rem',
+                  }}
+                >
                   <span style={{ fontSize: '1.2rem' }}>🌾</span>
                   <h3 style={{ margin: 0 }}>{f.user?.fullName}</h3>
                   <span className="badge" style={{ background: '#d1fae5', color: '#065f46' }}>
@@ -204,8 +277,18 @@ export function AdminVerifications() {
                   <span
                     className="badge"
                     style={{
-                      background: f.status === 'VERIFIED' ? '#dcfce7' : f.status === 'REJECTED' ? '#fee2e2' : '#fef3c7',
-                      color: f.status === 'VERIFIED' ? '#166534' : f.status === 'REJECTED' ? '#991b1b' : '#92400e',
+                      background:
+                        f.status === 'VERIFIED'
+                          ? '#dcfce7'
+                          : f.status === 'REJECTED'
+                            ? '#fee2e2'
+                            : '#fef3c7',
+                      color:
+                        f.status === 'VERIFIED'
+                          ? '#166534'
+                          : f.status === 'REJECTED'
+                            ? '#991b1b'
+                            : '#92400e',
                     }}
                   >
                     {f.status}
@@ -216,11 +299,15 @@ export function AdminVerifications() {
                   <code>{f.farmerIdNumber || 'N/A'}</code>
                 </p>
                 <p style={{ margin: '0.2rem 0', fontSize: '0.88rem' }}>
-                  <strong>Location:</strong> {f.district}, {f.state} {f.taluka ? `(${f.taluka})` : ''} {f.pincode ? `· ${f.pincode}` : ''} |{' '}
+                  <strong>Location:</strong> {f.district}, {f.state}{' '}
+                  {f.taluka ? `(${f.taluka})` : ''} {f.pincode ? `· ${f.pincode}` : ''} |{' '}
                   <strong>Livestock Count:</strong> {f.totalCattle || 0} Cattle
                 </p>
-                <p style={{ margin: '0.2rem 0', fontSize: '0.85rem', color: 'var(--ag-text-muted)' }}>
-                  <strong>Contact:</strong> {f.user?.email} {f.user?.phone ? `· ${f.user.phone}` : ''}
+                <p
+                  style={{ margin: '0.2rem 0', fontSize: '0.85rem', color: 'var(--ag-text-muted)' }}
+                >
+                  <strong>Contact:</strong> {f.user?.email}{' '}
+                  {f.user?.phone ? `· ${f.user.phone}` : ''}
                 </p>
 
                 {f.documentData && (
@@ -228,7 +315,12 @@ export function AdminVerifications() {
                     <button
                       type="button"
                       className="link"
-                      onClick={() => setPreviewDoc({ name: f.documentName || 'Farmer Land/ID Document', data: f.documentData })}
+                      onClick={() =>
+                        setPreviewDoc({
+                          name: f.documentName || 'Farmer Land/ID Document',
+                          data: f.documentData,
+                        })
+                      }
                     >
                       📎 View Submitted Farmer Document ({f.documentName || 'Proof Document'})
                     </button>
@@ -236,7 +328,15 @@ export function AdminVerifications() {
                 )}
               </div>
 
-              <div className="actions" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', minWidth: '160px' }}>
+              <div
+                className="actions"
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.5rem',
+                  minWidth: '160px',
+                }}
+              >
                 {f.status !== 'VERIFIED' && (
                   <button type="button" onClick={() => handleReview('farmers', f.id, 'VERIFIED')}>
                     ✓ Approve &amp; Activate
@@ -258,9 +358,20 @@ export function AdminVerifications() {
         {/* DAIRY OWNERS */}
         {(activeTab === 'ALL' || activeTab === 'DAIRY_OWNER') &&
           allDairyOwners.map((d) => (
-            <article className="card review" key={`dairy-${d.id}`} style={{ borderLeft: '4px solid #8b5cf6' }}>
+            <article
+              className="card review"
+              key={`dairy-${d.id}`}
+              style={{ borderLeft: '4px solid #8b5cf6' }}
+            >
               <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.35rem' }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.6rem',
+                    marginBottom: '0.35rem',
+                  }}
+                >
                   <span style={{ fontSize: '1.2rem' }}>🥛</span>
                   <h3 style={{ margin: 0 }}>{d.user?.fullName}</h3>
                   <span className="badge" style={{ background: '#ede9fe', color: '#5b21b6' }}>
@@ -269,8 +380,18 @@ export function AdminVerifications() {
                   <span
                     className="badge"
                     style={{
-                      background: d.status === 'VERIFIED' ? '#dcfce7' : d.status === 'REJECTED' ? '#fee2e2' : '#fef3c7',
-                      color: d.status === 'VERIFIED' ? '#166534' : d.status === 'REJECTED' ? '#991b1b' : '#92400e',
+                      background:
+                        d.status === 'VERIFIED'
+                          ? '#dcfce7'
+                          : d.status === 'REJECTED'
+                            ? '#fee2e2'
+                            : '#fef3c7',
+                      color:
+                        d.status === 'VERIFIED'
+                          ? '#166534'
+                          : d.status === 'REJECTED'
+                            ? '#991b1b'
+                            : '#92400e',
                     }}
                   >
                     {d.status}
@@ -281,11 +402,18 @@ export function AdminVerifications() {
                   <code>{d.fssaiLicenseNumber}</code>
                 </p>
                 <p style={{ margin: '0.2rem 0', fontSize: '0.88rem' }}>
-                  <strong>Operational Region:</strong> {d.district}, {d.state} {d.operationalArea ? `(${d.operationalArea})` : ''} |{' '}
-                  <strong>Daily Processing:</strong> {d.dailyCapacityLiters ? `${d.dailyCapacityLiters.toLocaleString()} L/day` : 'N/A'}
+                  <strong>Operational Region:</strong> {d.district}, {d.state}{' '}
+                  {d.operationalArea ? `(${d.operationalArea})` : ''} |{' '}
+                  <strong>Daily Processing:</strong>{' '}
+                  {d.dailyCapacityLiters
+                    ? `${d.dailyCapacityLiters.toLocaleString()} L/day`
+                    : 'N/A'}
                 </p>
-                <p style={{ margin: '0.2rem 0', fontSize: '0.85rem', color: 'var(--ag-text-muted)' }}>
-                  <strong>Contact:</strong> {d.user?.email} {d.user?.phone ? `· ${d.user.phone}` : ''}
+                <p
+                  style={{ margin: '0.2rem 0', fontSize: '0.85rem', color: 'var(--ag-text-muted)' }}
+                >
+                  <strong>Contact:</strong> {d.user?.email}{' '}
+                  {d.user?.phone ? `· ${d.user.phone}` : ''}
                 </p>
 
                 {d.documentData && (
@@ -293,7 +421,12 @@ export function AdminVerifications() {
                     <button
                       type="button"
                       className="link"
-                      onClick={() => setPreviewDoc({ name: d.documentName || 'FSSAI License Document', data: d.documentData })}
+                      onClick={() =>
+                        setPreviewDoc({
+                          name: d.documentName || 'FSSAI License Document',
+                          data: d.documentData,
+                        })
+                      }
                     >
                       📎 View Submitted FSSAI License ({d.documentName || 'License Proof'})
                     </button>
@@ -301,9 +434,20 @@ export function AdminVerifications() {
                 )}
               </div>
 
-              <div className="actions" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', minWidth: '160px' }}>
+              <div
+                className="actions"
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.5rem',
+                  minWidth: '160px',
+                }}
+              >
                 {d.status !== 'VERIFIED' && (
-                  <button type="button" onClick={() => handleReview('dairy-owners', d.id, 'VERIFIED')}>
+                  <button
+                    type="button"
+                    onClick={() => handleReview('dairy-owners', d.id, 'VERIFIED')}
+                  >
                     ✓ Approve &amp; Activate
                   </button>
                 )}
@@ -339,7 +483,12 @@ export function AdminVerifications() {
               <img
                 src={previewDoc.data}
                 alt={previewDoc.name}
-                style={{ width: '100%', maxHeight: '70vh', objectFit: 'contain', borderRadius: '0.5rem' }}
+                style={{
+                  width: '100%',
+                  maxHeight: '70vh',
+                  objectFit: 'contain',
+                  borderRadius: '0.5rem',
+                }}
               />
             ) : previewDoc.data.startsWith('data:application/pdf') ? (
               <iframe

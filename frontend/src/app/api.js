@@ -37,9 +37,6 @@ export async function api(path, options = {}, retry = true) {
       .map(([field, messages]) => `${field}: ${messages[0]}`)
       .join('; ');
     const codeMessageMap = {
-      LLM_NOT_CONFIGURED: 'Smart Advisor is unavailable because no LLM provider key is configured.',
-      LLM_UNAVAILABLE: 'Smart Advisor provider is currently unavailable.',
-      LLM_INVALID_RESPONSE: 'Smart Advisor returned an invalid response.',
       ML_SERVICE_UNAVAILABLE: 'ML decision-support service is unavailable.',
       ML_SERVICE_ERROR: 'ML decision-support service encountered an error.',
     };

@@ -99,139 +99,139 @@ animalsRouter.get(
     });
   }),
 );
-  animalsRouter.post(
-    '/resolve-tag',
-    validate(z.object({ tagInput: z.string().trim().min(1) })),
-    asyncHandler(async (request, response) => {
-      await requireFarmAccess(request.principal.user.id, request.params.farmId);
-      const { tagInput } = request.body;
-      let lookupId = tagInput;
-      const urlMatch = tagInput.match(/\/verify\/animal\/([^/?#]+)/);
-      if (urlMatch) {
-        lookupId = urlMatch[1];
-      }
-      const animal = await prisma.animal.findFirst({
-        where: {
-          farmId: request.params.farmId,
-          status: 'ACTIVE',
-          OR: [
-            { verificationId: lookupId },
-            { tagNumber: lookupId },
-            { id: lookupId },
-            { name: lookupId },
-          ],
-        },
-        include: { species: true, breed: true },
-      });
-      if (!animal) {
-        return response.status(404).json({
-          error: {
-            code: 'ANIMAL_NOT_FOUND',
-            message:
-              'No active animal matching this tag, QR code, or identifier was found on this farm. Cross-farm access is prevented.',
-            requestId: request.id,
-          },
-        });
-      }
-      response.json({
-        data: {
-          animal: {
-            id: animal.id,
-            tagNumber: animal.tagNumber,
-            name: animal.name,
-            species: animal.species?.canonicalName,
-            speciesId: animal.speciesId,
-            breed: animal.breed?.name,
-            breedId: animal.breedId,
-            verificationId: animal.verificationId,
-            lactating: animal.lactating,
-            sex: animal.sex,
-          },
+animalsRouter.post(
+  '/resolve-tag',
+  validate(z.object({ tagInput: z.string().trim().min(1) })),
+  asyncHandler(async (request, response) => {
+    await requireFarmAccess(request.principal.user.id, request.params.farmId);
+    const { tagInput } = request.body;
+    let lookupId = tagInput;
+    const urlMatch = tagInput.match(/\/verify\/animal\/([^/?#]+)/);
+    if (urlMatch) {
+      lookupId = urlMatch[1];
+    }
+    const animal = await prisma.animal.findFirst({
+      where: {
+        farmId: request.params.farmId,
+        status: 'ACTIVE',
+        OR: [
+          { verificationId: lookupId },
+          { tagNumber: lookupId },
+          { id: lookupId },
+          { name: lookupId },
+        ],
+      },
+      include: { species: true, breed: true },
+    });
+    if (!animal) {
+      return response.status(404).json({
+        error: {
+          code: 'ANIMAL_NOT_FOUND',
+          message:
+            'No active animal matching this tag, QR code, or identifier was found on this farm. Cross-farm access is prevented.',
+          requestId: request.id,
         },
       });
-    }),
-  );
-  animalsRouter.get(
-    '/:animalId/qr-tag',
-    asyncHandler(async (request, response) => {
-      await requireFarmAccess(request.principal.user.id, request.params.farmId);
-      const animal = await prisma.animal.findFirst({
-        where: { id: request.params.animalId, farmId: request.params.farmId },
-        include: { species: true, breed: true, farm: true },
-      });
-      if (!animal) throw new AppError(404, 'ANIMAL_NOT_FOUND', 'Animal not found');
-      let verificationId = animal.verificationId;
-      if (!verificationId) {
-        verificationId = `anm_${crypto.randomBytes(16).toString('base64url')}`;
-        await prisma.animal.update({
-          where: { id: animal.id },
-          data: { verificationId },
-        });
-      }
-      const qr = await animalQrDataUrl(verificationId);
-      const url = animalVerificationUrl(verificationId);
-      response.json({
-        data: {
-          animalId: animal.id,
+    }
+    response.json({
+      data: {
+        animal: {
+          id: animal.id,
           tagNumber: animal.tagNumber,
           name: animal.name,
           species: animal.species?.canonicalName,
-          farmName: animal.farm?.name,
-          verificationId,
-          verificationUrl: url,
-          qrDataUrl: qr,
+          speciesId: animal.speciesId,
+          breed: animal.breed?.name,
+          breedId: animal.breedId,
+          verificationId: animal.verificationId,
+          lactating: animal.lactating,
+          sex: animal.sex,
         },
+      },
+    });
+  }),
+);
+animalsRouter.get(
+  '/:animalId/qr-tag',
+  asyncHandler(async (request, response) => {
+    await requireFarmAccess(request.principal.user.id, request.params.farmId);
+    const animal = await prisma.animal.findFirst({
+      where: { id: request.params.animalId, farmId: request.params.farmId },
+      include: { species: true, breed: true, farm: true },
+    });
+    if (!animal) throw new AppError(404, 'ANIMAL_NOT_FOUND', 'Animal not found');
+    let verificationId = animal.verificationId;
+    if (!verificationId) {
+      verificationId = `anm_${crypto.randomBytes(16).toString('base64url')}`;
+      await prisma.animal.update({
+        where: { id: animal.id },
+        data: { verificationId },
       });
-    }),
-  );
-  animalsRouter.get(
-    '/:animalId/tag-pdf',
-    asyncHandler(async (request, response) => {
-      await requireFarmAccess(request.principal.user.id, request.params.farmId);
-      const animal = await prisma.animal.findFirst({
-        where: { id: request.params.animalId, farmId: request.params.farmId },
-        include: { species: true, breed: true, farm: true },
+    }
+    const qr = await animalQrDataUrl(verificationId);
+    const url = animalVerificationUrl(verificationId);
+    response.json({
+      data: {
+        animalId: animal.id,
+        tagNumber: animal.tagNumber,
+        name: animal.name,
+        species: animal.species?.canonicalName,
+        farmName: animal.farm?.name,
+        verificationId,
+        verificationUrl: url,
+        qrDataUrl: qr,
+      },
+    });
+  }),
+);
+animalsRouter.get(
+  '/:animalId/tag-pdf',
+  asyncHandler(async (request, response) => {
+    await requireFarmAccess(request.principal.user.id, request.params.farmId);
+    const animal = await prisma.animal.findFirst({
+      where: { id: request.params.animalId, farmId: request.params.farmId },
+      include: { species: true, breed: true, farm: true },
+    });
+    if (!animal) throw new AppError(404, 'ANIMAL_NOT_FOUND', 'Animal not found');
+    let verificationId = animal.verificationId;
+    if (!verificationId) {
+      verificationId = `anm_${crypto.randomBytes(16).toString('base64url')}`;
+      await prisma.animal.update({
+        where: { id: animal.id },
+        data: { verificationId },
       });
-      if (!animal) throw new AppError(404, 'ANIMAL_NOT_FOUND', 'Animal not found');
-      let verificationId = animal.verificationId;
-      if (!verificationId) {
-        verificationId = `anm_${crypto.randomBytes(16).toString('base64url')}`;
-        await prisma.animal.update({
-          where: { id: animal.id },
-          data: { verificationId },
-        });
-      }
-      const pdf = await renderAnimalTagPdf({ animal, verificationId });
-      await appendAudit({
-        actorUserId: request.principal.user.id,
-        action: 'ANIMAL_TAG_PDF_GENERATED',
-        entityType: 'Animal',
-        entityId: animal.id,
-        farmId: request.params.farmId,
+    }
+    const pdf = await renderAnimalTagPdf({ animal, verificationId });
+    await appendAudit({
+      actorUserId: request.principal.user.id,
+      action: 'ANIMAL_TAG_PDF_GENERATED',
+      entityType: 'Animal',
+      entityId: animal.id,
+      farmId: request.params.farmId,
+    });
+    response
+      .set({
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `attachment; filename="Animal-Tag-${animal.tagNumber}.pdf"`,
+      })
+      .send(pdf);
+  }),
+);
+animalsRouter.get(
+  '/:animalId',
+  asyncHandler(async (request, response) => {
+    await requireFarmAccess(request.principal.user.id, request.params.farmId);
+    const animal = await prisma.animal.findFirst({
+      where: { id: request.params.animalId, farmId: request.params.farmId },
+      include: details,
+    });
+    if (!animal)
+      return response.status(404).json({
+        error: { code: 'ANIMAL_NOT_FOUND', message: 'Animal not found', requestId: request.id },
       });
-      response
-        .set({
-          'Content-Type': 'application/pdf',
-          'Content-Disposition': `attachment; filename="Animal-Tag-${animal.tagNumber}.pdf"`,
-        })
-        .send(pdf);
-    }),
-  );
-  animalsRouter.get(
-    '/:animalId',
-    asyncHandler(async (request, response) => {
-      await requireFarmAccess(request.principal.user.id, request.params.farmId);
-      const animal = await prisma.animal.findFirst({
-        where: { id: request.params.animalId, farmId: request.params.farmId },
-        include: details,
-      });
-      if (!animal)
-        return response.status(404).json({
-          error: { code: 'ANIMAL_NOT_FOUND', message: 'Animal not found', requestId: request.id },
-        });
-      response.json({ data: { animal } });
-    }),
-  );
+    response.json({ data: { animal } });
+  }),
+);
 animalsRouter.patch(
   '/:animalId',
   validate(animalSchema.partial()),

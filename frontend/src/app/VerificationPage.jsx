@@ -26,19 +26,22 @@ export function VerificationPage({
   const roleMeta = {
     VETERINARIAN: {
       title: 'Veterinarian Credential & License Verification',
-      subtitle: 'Submit your statutory council registration number, qualification, and license document for platform review.',
+      subtitle:
+        'Submit your statutory council registration number, qualification, and license document for platform review.',
       badge: '🩺 Registered Practitioner',
       icon: '🩺',
     },
     FARMER: {
       title: 'Farmer Identity & Livestock Farm Verification',
-      subtitle: 'Submit your farm location, farmer registration or Kisan Credit ID, and land/identity document for administrative validation.',
+      subtitle:
+        'Submit your farm location, farmer registration or Kisan Credit ID, and land/identity document for administrative validation.',
       badge: '🌾 Livestock Producer',
       icon: '🌾',
     },
     DAIRY_OWNER: {
       title: 'Dairy Enterprise & FSSAI Verification',
-      subtitle: 'Submit your dairy processing plant details, FSSAI license number, and registration proof for platform operator approval.',
+      subtitle:
+        'Submit your dairy processing plant details, FSSAI license number, and registration proof for platform operator approval.',
       badge: '🥛 Dairy Cooperative / Plant',
       icon: '🥛',
     },
@@ -75,7 +78,9 @@ export function VerificationPage({
   async function handleSubmit(e) {
     e.preventDefault();
     if (!token) {
-      setError('Your verification session has expired or is invalid. Please return to Sign In or Register to obtain a fresh verification session.');
+      setError(
+        'Your verification session has expired or is invalid. Please return to Sign In or Register to obtain a fresh verification session.',
+      );
       return;
     }
     setSubmitting(true);
@@ -121,20 +126,37 @@ export function VerificationPage({
         <div className="verification-page-container">
           <div className="verification-card verification-success-card">
             <div className="verification-success-icon">🎉</div>
-            <h2 style={{ fontSize: '1.85rem', color: '#0f172a', margin: '0 0 0.75rem 0', fontWeight: 800 }}>
+            <h2
+              style={{
+                fontSize: '1.85rem',
+                color: '#0f172a',
+                margin: '0 0 0.75rem 0',
+                fontWeight: 800,
+              }}
+            >
               Verification Submitted Successfully!
             </h2>
             <div className="verification-status-pill">
               <span>⏳</span> Status: Pending Administrator Approval
             </div>
-            <p style={{ color: '#475569', fontSize: '0.98rem', lineHeight: '1.6', margin: '0 0 1.5rem 0' }}>
-              Thank you, <strong>{user?.fullName || pendingUser?.fullName}</strong>. Your verification details and supporting
-              documents for <strong>{roleMeta.badge}</strong> have been received.
+            <p
+              style={{
+                color: '#475569',
+                fontSize: '0.98rem',
+                lineHeight: '1.6',
+                margin: '0 0 1.5rem 0',
+              }}
+            >
+              Thank you, <strong>{user?.fullName || pendingUser?.fullName}</strong>. Your
+              verification details and supporting documents for <strong>{roleMeta.badge}</strong>{' '}
+              have been received.
             </p>
             <div className="verification-next-steps">
               <h4>What happens next?</h4>
               <ul>
-                <li>The Platform Administrator will inspect your submitted credentials and documents.</li>
+                <li>
+                  The Platform Administrator will inspect your submitted credentials and documents.
+                </li>
                 <li>Once validated and approved, your account will be activated.</li>
                 <li>You can then sign in directly with your email and password.</li>
               </ul>
@@ -168,11 +190,7 @@ export function VerificationPage({
             <span className="verification-step-badge">
               <span>🌾</span> Commercial Ag-Tech Onboarding
             </span>
-            <button
-              type="button"
-              className="verification-back-btn"
-              onClick={handleBack}
-            >
+            <button type="button" className="verification-back-btn" onClick={handleBack}>
               <span>←</span> Return to Sign In
             </button>
           </div>
@@ -264,7 +282,9 @@ export function VerificationPage({
 
                 <div className="form-row-2">
                   <div className="input-group">
-                    <label htmlFor="registrationNumber">Veterinary Council Registration No. *</label>
+                    <label htmlFor="registrationNumber">
+                      Veterinary Council Registration No. *
+                    </label>
                     <div className="input-field-wrapper">
                       <span className="field-icon">🔢</span>
                       <input
@@ -309,7 +329,13 @@ export function VerificationPage({
                     <label htmlFor="state">Service State *</label>
                     <div className="input-field-wrapper">
                       <span className="field-icon">📍</span>
-                      <input id="state" name="state" type="text" required placeholder="e.g. Gujarat" />
+                      <input
+                        id="state"
+                        name="state"
+                        type="text"
+                        required
+                        placeholder="e.g. Gujarat"
+                      />
                     </div>
                   </div>
                   <div className="input-group">
@@ -377,14 +403,26 @@ export function VerificationPage({
                     <label htmlFor="state">State *</label>
                     <div className="input-field-wrapper">
                       <span className="field-icon">📍</span>
-                      <input id="state" name="state" type="text" required placeholder="e.g. Gujarat" />
+                      <input
+                        id="state"
+                        name="state"
+                        type="text"
+                        required
+                        placeholder="e.g. Gujarat"
+                      />
                     </div>
                   </div>
                   <div className="input-group">
                     <label htmlFor="district">District *</label>
                     <div className="input-field-wrapper">
                       <span className="field-icon">🏙️</span>
-                      <input id="district" name="district" type="text" required placeholder="e.g. Anand" />
+                      <input
+                        id="district"
+                        name="district"
+                        type="text"
+                        required
+                        placeholder="e.g. Anand"
+                      />
                     </div>
                   </div>
                   <div className="input-group">
@@ -458,14 +496,26 @@ export function VerificationPage({
                     <label htmlFor="state">Operational State *</label>
                     <div className="input-field-wrapper">
                       <span className="field-icon">📍</span>
-                      <input id="state" name="state" type="text" required placeholder="e.g. Gujarat" />
+                      <input
+                        id="state"
+                        name="state"
+                        type="text"
+                        required
+                        placeholder="e.g. Gujarat"
+                      />
                     </div>
                   </div>
                   <div className="input-group">
                     <label htmlFor="district">Primary District *</label>
                     <div className="input-field-wrapper">
                       <span className="field-icon">🏙️</span>
-                      <input id="district" name="district" type="text" required placeholder="e.g. Rajkot" />
+                      <input
+                        id="district"
+                        name="district"
+                        type="text"
+                        required
+                        placeholder="e.g. Rajkot"
+                      />
                     </div>
                   </div>
                 </div>
@@ -515,27 +565,34 @@ export function VerificationPage({
                 Upload Official Verification Document / Certificate
               </div>
               <div className="verification-upload-hint">
-                {role === 'VETERINARIAN' && 'Upload your State Veterinary Council Registration Certificate or Degree.'}
-                {role === 'FARMER' && 'Upload your Farmer ID card, Kisan Credit Card, or Land Record certificate.'}
-                {role === 'DAIRY_OWNER' && 'Upload your FSSAI Dairy License or Business Registration Certificate.'}
+                {role === 'VETERINARIAN' &&
+                  'Upload your State Veterinary Council Registration Certificate or Degree.'}
+                {role === 'FARMER' &&
+                  'Upload your Farmer ID card, Kisan Credit Card, or Land Record certificate.'}
+                {role === 'DAIRY_OWNER' &&
+                  'Upload your FSSAI Dairy License or Business Registration Certificate.'}
                 <br />
-                <span style={{ fontSize: '0.78rem', color: '#94a3b8' }}>PDF, PNG, JPG (Max 5MB) • Drag & drop or click to browse</span>
+                <span style={{ fontSize: '0.78rem', color: '#94a3b8' }}>
+                  PDF, PNG, JPG (Max 5MB) • Drag & drop or click to browse
+                </span>
               </div>
               {docName ? (
                 <div className="verification-file-selected">
                   <span>✓</span> Document Selected: {docName}
                 </div>
               ) : (
-                <span style={{
-                  display: 'inline-block',
-                  padding: '0.4rem 0.9rem',
-                  background: '#ffffff',
-                  border: '1px solid #cbd5e1',
-                  borderRadius: '0.5rem',
-                  fontSize: '0.84rem',
-                  fontWeight: 600,
-                  color: '#475569'
-                }}>
+                <span
+                  style={{
+                    display: 'inline-block',
+                    padding: '0.4rem 0.9rem',
+                    background: '#ffffff',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '0.5rem',
+                    fontSize: '0.84rem',
+                    fontWeight: 600,
+                    color: '#475569',
+                  }}
+                >
                   Browse File
                 </span>
               )}
@@ -558,8 +615,16 @@ export function VerificationPage({
             </button>
           </form>
 
-          <p style={{ marginTop: '1.25rem', textAlign: 'center', fontSize: '0.82rem', color: '#64748b' }}>
-            🔒 All documents and credentials are encrypted and accessible only to authorized platform administrators.
+          <p
+            style={{
+              marginTop: '1.25rem',
+              textAlign: 'center',
+              fontSize: '0.82rem',
+              color: '#64748b',
+            }}
+          >
+            🔒 All documents and credentials are encrypted and accessible only to authorized
+            platform administrators.
           </p>
         </div>
       </div>

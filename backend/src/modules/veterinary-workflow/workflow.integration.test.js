@@ -317,7 +317,9 @@ describe.sequential('complete veterinary workflow', () => {
       });
     expect(diagnosed.status).toBe(201);
     diagnosisId = diagnosed.body.data.diagnosis.id;
-    const drug = (await prisma.drug.findFirst({ where: { code: 'AMOXICILLIN' } })) || (await prisma.drug.findFirst());
+    const drug =
+      (await prisma.drug.findFirst({ where: { code: 'AMOXICILLIN' } })) ||
+      (await prisma.drug.findFirst());
     const drugProduct = await prisma.drugProduct.findFirst({ where: { drugId: drug.id } });
     const payload = {
       diagnosisId,
@@ -401,9 +403,7 @@ describe.sequential('complete veterinary workflow', () => {
     expect(
       (
         await request(app)
-          .post(
-            `/api/v1/treatments/${neverAdministered.body.data.treatment.id}/administrations`,
-          )
+          .post(`/api/v1/treatments/${neverAdministered.body.data.treatment.id}/administrations`)
           .set(auth(vet))
           .send({
             prescriptionItemId: ids.prescriptionItemId,

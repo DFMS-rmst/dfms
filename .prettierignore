@@ -5,4 +5,7 @@ artifacts
 cache
 package-lock.json
 backend/prisma/migrations
+ml-service/
+.venv/
+venv/
 

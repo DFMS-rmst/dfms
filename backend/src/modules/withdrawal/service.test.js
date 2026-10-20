@@ -46,7 +46,8 @@ describe('withdrawal and milk eligibility rules', () => {
   it('restores a reused historical hash as the only current eligibility row', async () => {
     const rows = [];
     const model = {
-      findFirst: async ({ where }) => rows.find((row) => row.animalId === where.animalId && row.isCurrent) || null,
+      findFirst: async ({ where }) =>
+        rows.find((row) => row.animalId === where.animalId && row.isCurrent) || null,
       findUnique: async ({ where }) =>
         rows.find(
           (row) =>
@@ -54,7 +55,9 @@ describe('withdrawal and milk eligibility rules', () => {
             row.inputHash === where.animalId_inputHash.inputHash,
         ) || null,
       updateMany: async ({ where, data }) => {
-        rows.filter((row) => row.animalId === where.animalId && row.isCurrent).forEach((row) => Object.assign(row, data));
+        rows
+          .filter((row) => row.animalId === where.animalId && row.isCurrent)
+          .forEach((row) => Object.assign(row, data));
       },
       update: async ({ where, data }) => {
         const row = rows.find((entry) => entry.id === where.id);
@@ -62,7 +65,12 @@ describe('withdrawal and milk eligibility rules', () => {
         return row;
       },
       create: async ({ data }) => {
-        const row = { ...data, id: `check-${rows.length + 1}`, isCurrent: true, treatmentEvaluations: [] };
+        const row = {
+          ...data,
+          id: `check-${rows.length + 1}`,
+          isCurrent: true,
+          treatmentEvaluations: [],
+        };
         rows.push(row);
         return row;
       },
@@ -77,13 +85,22 @@ describe('withdrawal and milk eligibility rules', () => {
       evaluations: [],
     });
     await reconcileCurrentEligibility(tx, {
-      animalId: 'animal-1', inputHash: 'hash-a', calculated: calculated('TREATMENT_ACTIVE'), triggeredBy: 'A',
+      animalId: 'animal-1',
+      inputHash: 'hash-a',
+      calculated: calculated('TREATMENT_ACTIVE'),
+      triggeredBy: 'A',
     });
     await reconcileCurrentEligibility(tx, {
-      animalId: 'animal-1', inputHash: 'hash-b', calculated: calculated('ELIGIBLE_FOR_MILK'), triggeredBy: 'B',
+      animalId: 'animal-1',
+      inputHash: 'hash-b',
+      calculated: calculated('ELIGIBLE_FOR_MILK'),
+      triggeredBy: 'B',
     });
     await reconcileCurrentEligibility(tx, {
-      animalId: 'animal-1', inputHash: 'hash-a', calculated: calculated('TREATMENT_ACTIVE'), triggeredBy: 'A_AGAIN',
+      animalId: 'animal-1',
+      inputHash: 'hash-a',
+      calculated: calculated('TREATMENT_ACTIVE'),
+      triggeredBy: 'A_AGAIN',
     });
     expect(rows.filter((row) => row.isCurrent)).toHaveLength(1);
     expect(rows.find((row) => row.isCurrent).status).toBe('TREATMENT_ACTIVE');
@@ -177,10 +194,10 @@ describe('withdrawal and milk eligibility rules', () => {
       'RULE_NOT_FOUND',
     );
     expect(
-      resolveRule(
-        [{ ...exactRule, formulation: 'SUSPENSION_FOR_INJECTION_150_MG_PER_ML' }],
-        { ...base, formulation: 'TABLET' },
-      ).status,
+      resolveRule([{ ...exactRule, formulation: 'SUSPENSION_FOR_INJECTION_150_MG_PER_ML' }], {
+        ...base,
+        formulation: 'TABLET',
+      }).status,
     ).toBe('RULE_NOT_FOUND');
   });
   it('uses the last administration and the later treatment-completion anchor', async () => {
@@ -193,17 +210,11 @@ describe('withdrawal and milk eligibility rules', () => {
         administration({ administeredAt: new Date('2026-08-20T10:00:00Z') }),
       ],
     };
-    const result = await calculateEligibility(
-      'a1',
-      new Date('2026-08-21T09:00:00Z'),
-      client([t]),
-    );
+    const result = await calculateEligibility('a1', new Date('2026-08-21T09:00:00Z'), client([t]));
     expect(result.evaluations[0].lastAdministrationAt.toISOString()).toBe(
       '2026-08-20T10:00:00.000Z',
     );
-    expect(result.evaluations[0].withdrawalEndsAt.toISOString()).toBe(
-      '2026-08-23T08:00:00.000Z',
-    );
+    expect(result.evaluations[0].withdrawalEndsAt.toISOString()).toBe('2026-08-23T08:00:00.000Z');
   });
   it('ignores cancelled treatments only when no administration occurred', async () => {
     const none = await calculateEligibility(

@@ -11,7 +11,8 @@ const statusConfig = {
       color: '#064e3b',
     },
     icon: '✅',
-    summary: 'This animal is currently cleared for milk collection based on recorded treatment history.',
+    summary:
+      'This animal is currently cleared for milk collection based on recorded treatment history.',
   },
   UNDER_WITHDRAWAL: {
     label: 'UNDER WITHDRAWAL — MILK BLOCKED',
@@ -81,12 +82,14 @@ export function PublicAnimalVerification({ verificationId }) {
       .finally(() => setLoading(false));
   }, [verificationId]);
 
-  const config = data ? statusConfig[data.status] || {
-    label: data.status?.replaceAll('_', ' ') || 'UNKNOWN',
-    bannerStyle: { backgroundColor: '#f1f5f9', borderColor: '#94a3b8', color: '#1e293b' },
-    icon: 'ℹ️',
-    summary: 'Status evaluation is currently pending or unclassified.',
-  } : null;
+  const config = data
+    ? statusConfig[data.status] || {
+        label: data.status?.replaceAll('_', ' ') || 'UNKNOWN',
+        bannerStyle: { backgroundColor: '#f1f5f9', borderColor: '#94a3b8', color: '#1e293b' },
+        icon: 'ℹ️',
+        summary: 'Status evaluation is currently pending or unclassified.',
+      }
+    : null;
 
   return (
     <main className="auth-page" style={{ padding: '2rem 1rem' }}>
@@ -274,8 +277,8 @@ export function PublicAnimalVerification({ verificationId }) {
             >
               <strong>Scope Notice:</strong> Individual animal verification applies exclusively to{' '}
               <strong>Milk Collection Eligibility</strong> under recorded veterinary treatment
-              history. It does not certify slaughter eligibility, which requires a separate statutory
-              regulatory clearance.
+              history. It does not certify slaughter eligibility, which requires a separate
+              statutory regulatory clearance.
             </div>
 
             <p className="notice" style={{ fontSize: '0.82rem' }}>

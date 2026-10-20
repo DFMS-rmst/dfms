@@ -21,9 +21,9 @@ const input = {
 
 describe('administration evidence validation', () => {
   it('accepts actual evidence matching its prescription item', () => {
-    expect(
-      validateAdministrationEvidence(item, input, new Date('2026-09-23T09:00:00Z')),
-    ).toEqual({ deviates: false });
+    expect(validateAdministrationEvidence(item, input, new Date('2026-09-23T09:00:00Z'))).toEqual({
+      deviates: false,
+    });
   });
 
   it('rejects a missing or unrelated prescription item', () => {
@@ -33,16 +33,16 @@ describe('administration evidence validation', () => {
   });
 
   it('rejects a client drug that differs from the prescription item', () => {
-    expect(() =>
-      validateAdministrationEvidence(item, { ...input, drugId: 'drug-2' }),
-    ).toThrow('Drug does not match the selected prescription item');
+    expect(() => validateAdministrationEvidence(item, { ...input, drugId: 'drug-2' })).toThrow(
+      'Drug does not match the selected prescription item',
+    );
   });
 
   it('requires a reason for amount, unit, route, or product deviation', () => {
     expect(administrationDeviates(item, { ...input, route: 'ORAL' })).toBe(true);
-    expect(() =>
-      validateAdministrationEvidence(item, { ...input, route: 'ORAL' }),
-    ).toThrow('A reason is required');
+    expect(() => validateAdministrationEvidence(item, { ...input, route: 'ORAL' })).toThrow(
+      'A reason is required',
+    );
     expect(
       validateAdministrationEvidence(item, {
         ...input,
