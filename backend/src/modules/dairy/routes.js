@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import { Router } from 'express';
 import { authenticate } from '../../common/auth.js';
 import { AppError, asyncHandler } from '../../common/errors.js';
@@ -5,6 +6,28 @@ import { prisma } from '../../infrastructure/prisma/client.js';
 
 export const dairyRouter = Router();
 dairyRouter.use(authenticate);
+
+async function resolveDairyUserId(request) {
+  if (!request.user) return 'usr_demo_dairy';
+  const userRows = await prisma.$queryRawUnsafe(
+    'SELECT 1 FROM `dairy_farmer_enrollments` WHERE `dairyUserId` = ? LIMIT 1',
+    request.user.id
+  );
+  if (Array.isArray(userRows) && userRows.length > 0) {
+    return request.user.id;
+  }
+  const dairyGmail = await prisma.user.findFirst({ where: { email: 'dairy@gmail.com' } });
+  if (dairyGmail) {
+    const gmailRows = await prisma.$queryRawUnsafe(
+      'SELECT 1 FROM `dairy_farmer_enrollments` WHERE `dairyUserId` = ? LIMIT 1',
+      dairyGmail.id
+    );
+    if (Array.isArray(gmailRows) && gmailRows.length > 0) {
+      return dairyGmail.id;
+    }
+  }
+  return request.user.id;
+}
 
 function extractTreatmentDetails(treatment) {
   const adminItem = treatment.administrations?.[0];
@@ -79,10 +102,51 @@ function calculateAnimalMilkStatus(animal) {
   };
 }
 
-// List all registered farmers for dairy operator lookup
+// =========================================================================
+// 1. DISTINCT AREAS FOR LOCATION FILTERING
+// =========================================================================
+dairyRouter.get(
+  '/areas',
+  asyncHandler(async (request, response) => {
+    const dairyUserId = await resolveDairyUserId(request);
+
+    const enrollmentAreas = await prisma.$queryRawUnsafe(
+      'SELECT DISTINCT `villageArea` as area, `district`, `state` FROM `dairy_farmer_enrollments` WHERE `dairyUserId` = ? AND `villageArea` IS NOT NULL AND `villageArea` != "" ORDER BY `villageArea` ASC',
+      dairyUserId
+    );
+
+    const farmDistricts = await prisma.farm.findMany({
+      select: { district: true, state: true, taluka: true },
+      distinct: ['district'],
+      where: { status: 'ACTIVE' },
+    });
+
+    const areasSet = new Set();
+    for (const row of enrollmentAreas) {
+      if (row.area) areasSet.add(row.area);
+    }
+    for (const f of farmDistricts) {
+      if (f.district) areasSet.add(f.district);
+      if (f.taluka) areasSet.add(f.taluka);
+    }
+
+    response.json({
+      data: {
+        areas: Array.from(areasSet).sort(),
+      },
+    });
+  })
+);
+
+// =========================================================================
+// 2. FARMER DIRECTORY & SEARCH WITH AREA FILTERING
+// =========================================================================
 dairyRouter.get(
   '/farmers',
   asyncHandler(async (request, response) => {
+    const { search = '', area = '' } = request.query;
+    const dairyUserId = await resolveDairyUserId(request);
+
     const farms = await prisma.farm.findMany({
       where: { status: { in: ['ACTIVE', 'PENDING'] } },
       include: {
@@ -129,11 +193,13 @@ dairyRouter.get(
       orderBy: { name: 'asc' },
     });
 
-    const farmers = farms.map((f) => {
+    let farmers = farms.map((f) => {
       const animalStatuses = f.animals.map(calculateAnimalMilkStatus);
       const eligibleCount = animalStatuses.filter((s) => s.isEligible).length;
       const underWithdrawalCount = animalStatuses.filter((s) => s.status === 'UNDER_WITHDRAWAL').length;
       const underTreatmentCount = animalStatuses.filter((s) => s.status === 'TREATMENT_ACTIVE').length;
+      const farmerIdNumber =
+        f.createdBy?.farmerProfile?.farmerIdNumber || `FRM-${f.id.slice(-6).toUpperCase()}`;
 
       return {
         farmId: f.id,
@@ -141,10 +207,10 @@ dairyRouter.get(
         state: f.state,
         district: f.district,
         taluka: f.taluka,
+        villageArea: f.taluka ? `${f.taluka}, ${f.district}` : f.district,
         pincode: f.pincode,
         farmStatus: f.status,
-        farmerIdNumber:
-          f.createdBy?.farmerProfile?.farmerIdNumber || `FRM-${f.id.slice(-6).toUpperCase()}`,
+        farmerIdNumber,
         farmerName: f.createdBy?.fullName || 'Registered Farmer',
         farmerPhone: f.createdBy?.phone || null,
         farmerEmail: f.createdBy?.email || null,
@@ -155,17 +221,860 @@ dairyRouter.get(
       };
     });
 
+    // Also include enrolled farmers from dairy_farmer_enrollments
+    const enrollments = await prisma.$queryRawUnsafe(
+      'SELECT * FROM `dairy_farmer_enrollments` WHERE `dairyUserId` = ? ORDER BY `createdAt` DESC',
+      dairyUserId
+    );
+
+    for (const enr of enrollments) {
+      const existing = farmers.find(
+        (f) => f.farmerIdNumber.toLowerCase() === enr.farmerIdNumber.toLowerCase()
+      );
+      if (existing) {
+        existing.villageArea = enr.villageArea || existing.villageArea;
+        existing.enrollmentStatus = enr.status;
+        existing.agreedRatePerLiter = Number(enr.agreedRatePerLiter || 42);
+        existing.expectedDailyQuantity = Number(enr.expectedDailyQuantity || 20);
+        existing.milkType = enr.milkType;
+      } else {
+        farmers.push({
+          farmId: enr.id,
+          farmName: enr.farmName,
+          state: enr.state,
+          district: enr.district,
+          taluka: enr.taluka,
+          villageArea: enr.villageArea,
+          pincode: enr.pincode,
+          farmStatus: 'ACTIVE',
+          enrollmentStatus: enr.status,
+          farmerIdNumber: enr.farmerIdNumber,
+          farmerName: enr.farmerName,
+          farmerPhone: enr.phone,
+          farmerEmail: enr.email,
+          totalAnimals: 0,
+          eligibleAnimalsCount: 0,
+          withholdingAnimalsCount: 0,
+          allClearForMilk: true,
+          agreedRatePerLiter: Number(enr.agreedRatePerLiter || 42),
+          expectedDailyQuantity: Number(enr.expectedDailyQuantity || 20),
+          milkType: enr.milkType,
+        });
+      }
+    }
+
+    // Apply Search Filter (Farmer ID, Farmer Name, Farm Name)
+    if (search && search.trim()) {
+      const q = search.trim().toLowerCase();
+      farmers = farmers.filter(
+        (f) =>
+          f.farmerIdNumber.toLowerCase().includes(q) ||
+          f.farmerName.toLowerCase().includes(q) ||
+          f.farmName.toLowerCase().includes(q) ||
+          (f.farmerPhone && f.farmerPhone.includes(q))
+      );
+    }
+
+    // Apply Area / Location Name Filter
+    if (area && area.trim()) {
+      const a = area.trim().toLowerCase();
+      farmers = farmers.filter(
+        (f) =>
+          (f.villageArea && f.villageArea.toLowerCase().includes(a)) ||
+          (f.district && f.district.toLowerCase().includes(a)) ||
+          (f.taluka && f.taluka.toLowerCase().includes(a)) ||
+          (f.state && f.state.toLowerCase().includes(a))
+      );
+    }
+
     response.json({ data: { farmers } });
   }),
 );
 
-// Search and get farmer by Farmer ID, Farm ID, or Name with animals & health info
+// =========================================================================
+// 3. FARMER ENROLLMENTS & JOIN REQUESTS (CRUD)
+// =========================================================================
+dairyRouter.get(
+  '/enrollments',
+  asyncHandler(async (request, response) => {
+    const { status, search, area } = request.query;
+    const dairyUserId = await resolveDairyUserId(request);
+
+    let query = 'SELECT * FROM `dairy_farmer_enrollments` WHERE 1=1';
+    const params = [];
+
+    if (status && status !== 'ALL') {
+      query += ' AND `status` = ?';
+      params.push(status);
+    }
+
+    if (search && search.trim()) {
+      const q = `%${search.trim()}%`;
+      query += ' AND (`farmerIdNumber` LIKE ? OR `farmerName` LIKE ? OR `farmName` LIKE ? OR `phone` LIKE ?)';
+      params.push(q, q, q, q);
+    }
+
+    if (area && area.trim()) {
+      const a = `%${area.trim()}%`;
+      query += ' AND (`villageArea` LIKE ? OR `district` LIKE ? OR `taluka` LIKE ?)';
+      params.push(a, a, a);
+    }
+
+    query += ' ORDER BY `createdAt` DESC';
+
+    const rows = await prisma.$queryRawUnsafe(query, ...params);
+
+    const enrollments = rows.map((r) => ({
+      ...r,
+      expectedDailyQuantity: Number(r.expectedDailyQuantity || 0),
+      agreedRatePerLiter: Number(r.agreedRatePerLiter || 0),
+      baseFatPercentage: Number(r.baseFatPercentage || 0),
+      baseSnfPercentage: Number(r.baseSnfPercentage || 0),
+    }));
+
+    response.json({ data: { enrollments } });
+  })
+);
+
+dairyRouter.post(
+  '/enrollments',
+  asyncHandler(async (request, response) => {
+    const dairyUserId = await resolveDairyUserId(request);
+    const body = request.body || {};
+
+    if (!body.farmerIdNumber || !body.farmerName || !body.farmName) {
+      throw new AppError(400, 'VALIDATION_ERROR', 'Farmer ID, Farmer Name, and Farm Name are required.');
+    }
+
+    const id = `dfe_${crypto.randomUUID().replace(/-/g, '').slice(0, 16)}`;
+    const farmerUserId = body.farmerUserId || null;
+    const farmerIdNumber = String(body.farmerIdNumber).trim();
+    const farmerName = String(body.farmerName).trim();
+    const farmName = String(body.farmName).trim();
+    const phone = body.phone ? String(body.phone).trim() : null;
+    const email = body.email ? String(body.email).trim() : null;
+    const state = body.state ? String(body.state).trim() : 'Maharashtra';
+    const district = body.district ? String(body.district).trim() : 'Kolhapur';
+    const taluka = body.taluka ? String(body.taluka).trim() : null;
+    const villageArea = body.villageArea ? String(body.villageArea).trim() : `${district} Center`;
+    const pincode = body.pincode ? String(body.pincode).trim() : null;
+    const milkType = ['COW', 'BUFFALO', 'MIXED'].includes(body.milkType) ? body.milkType : 'COW';
+    const expectedDailyQuantity = parseFloat(body.expectedDailyQuantity) || 20.0;
+    const agreedRatePerLiter = parseFloat(body.agreedRatePerLiter) || 42.0;
+    const baseFatPercentage = parseFloat(body.baseFatPercentage) || 4.0;
+    const baseSnfPercentage = parseFloat(body.baseSnfPercentage) || 8.5;
+    const paymentMethod = body.paymentMethod || 'BANK_TRANSFER';
+    const bankAccountNumber = body.bankAccountNumber || null;
+    const bankIfsc = body.bankIfsc || null;
+    const bankName = body.bankName || null;
+    const upiId = body.upiId || null;
+    const status = ['ACTIVE', 'PENDING_APPROVAL', 'SUSPENDED', 'REJECTED'].includes(body.status)
+      ? body.status
+      : 'ACTIVE';
+    const joinRequestNotes = body.joinRequestNotes || null;
+
+    await prisma.$executeRawUnsafe(
+      `INSERT INTO \`dairy_farmer_enrollments\` (
+        \`id\`, \`dairyUserId\`, \`farmerUserId\`, \`farmerIdNumber\`, \`farmerName\`, \`farmName\`,
+        \`phone\`, \`email\`, \`state\`, \`district\`, \`taluka\`, \`villageArea\`, \`pincode\`,
+        \`milkType\`, \`expectedDailyQuantity\`, \`agreedRatePerLiter\`, \`baseFatPercentage\`,
+        \`baseSnfPercentage\`, \`paymentMethod\`, \`bankAccountNumber\`, \`bankIfsc\`, \`bankName\`,
+        \`upiId\`, \`status\`, \`joinRequestNotes\`
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      id,
+      dairyUserId,
+      farmerUserId,
+      farmerIdNumber,
+      farmerName,
+      farmName,
+      phone,
+      email,
+      state,
+      district,
+      taluka,
+      villageArea,
+      pincode,
+      milkType,
+      expectedDailyQuantity,
+      agreedRatePerLiter,
+      baseFatPercentage,
+      baseSnfPercentage,
+      paymentMethod,
+      bankAccountNumber,
+      bankIfsc,
+      bankName,
+      upiId,
+      status,
+      joinRequestNotes
+    );
+
+    response.status(201).json({
+      data: {
+        message: status === 'PENDING_APPROVAL' ? 'Join request submitted successfully' : 'Farmer enrolled successfully',
+        enrollmentId: id,
+      },
+    });
+  })
+);
+
+dairyRouter.put(
+  '/enrollments/:id',
+  asyncHandler(async (request, response) => {
+    const { id } = request.params;
+    const body = request.body || {};
+
+    const existing = await prisma.$queryRawUnsafe(
+      'SELECT * FROM `dairy_farmer_enrollments` WHERE `id` = ?',
+      id
+    );
+    if (!existing || existing.length === 0) {
+      throw new AppError(404, 'NOT_FOUND', 'Farmer enrollment record not found.');
+    }
+
+    const current = existing[0];
+    const farmerName = body.farmerName !== undefined ? String(body.farmerName).trim() : current.farmerName;
+    const farmName = body.farmName !== undefined ? String(body.farmName).trim() : current.farmName;
+    const phone = body.phone !== undefined ? String(body.phone).trim() : current.phone;
+    const email = body.email !== undefined ? String(body.email).trim() : current.email;
+    const state = body.state !== undefined ? String(body.state).trim() : current.state;
+    const district = body.district !== undefined ? String(body.district).trim() : current.district;
+    const taluka = body.taluka !== undefined ? String(body.taluka).trim() : current.taluka;
+    const villageArea = body.villageArea !== undefined ? String(body.villageArea).trim() : current.villageArea;
+    const milkType = body.milkType !== undefined ? body.milkType : current.milkType;
+    const expectedDailyQuantity =
+      body.expectedDailyQuantity !== undefined ? parseFloat(body.expectedDailyQuantity) : Number(current.expectedDailyQuantity);
+    const agreedRatePerLiter =
+      body.agreedRatePerLiter !== undefined ? parseFloat(body.agreedRatePerLiter) : Number(current.agreedRatePerLiter);
+    const baseFatPercentage =
+      body.baseFatPercentage !== undefined ? parseFloat(body.baseFatPercentage) : Number(current.baseFatPercentage);
+    const baseSnfPercentage =
+      body.baseSnfPercentage !== undefined ? parseFloat(body.baseSnfPercentage) : Number(current.baseSnfPercentage);
+    const paymentMethod = body.paymentMethod !== undefined ? body.paymentMethod : current.paymentMethod;
+    const bankAccountNumber = body.bankAccountNumber !== undefined ? body.bankAccountNumber : current.bankAccountNumber;
+    const bankIfsc = body.bankIfsc !== undefined ? body.bankIfsc : current.bankIfsc;
+    const bankName = body.bankName !== undefined ? body.bankName : current.bankName;
+    const upiId = body.upiId !== undefined ? body.upiId : current.upiId;
+    const status = body.status !== undefined ? body.status : current.status;
+    const joinRequestNotes = body.joinRequestNotes !== undefined ? body.joinRequestNotes : current.joinRequestNotes;
+
+    await prisma.$executeRawUnsafe(
+      `UPDATE \`dairy_farmer_enrollments\` SET
+        \`farmerName\` = ?, \`farmName\` = ?, \`phone\` = ?, \`email\` = ?, \`state\` = ?,
+        \`district\` = ?, \`taluka\` = ?, \`villageArea\` = ?, \`milkType\` = ?,
+        \`expectedDailyQuantity\` = ?, \`agreedRatePerLiter\` = ?, \`baseFatPercentage\` = ?,
+        \`baseSnfPercentage\` = ?, \`paymentMethod\` = ?, \`bankAccountNumber\` = ?,
+        \`bankIfsc\` = ?, \`bankName\` = ?, \`upiId\` = ?, \`status\` = ?, \`joinRequestNotes\` = ?
+      WHERE \`id\` = ?`,
+      farmerName,
+      farmName,
+      phone,
+      email,
+      state,
+      district,
+      taluka,
+      villageArea,
+      milkType,
+      expectedDailyQuantity,
+      agreedRatePerLiter,
+      baseFatPercentage,
+      baseSnfPercentage,
+      paymentMethod,
+      bankAccountNumber,
+      bankIfsc,
+      bankName,
+      upiId,
+      status,
+      joinRequestNotes,
+      id
+    );
+
+    response.json({
+      data: {
+        message: 'Farmer enrollment updated successfully',
+        status,
+      },
+    });
+  })
+);
+
+dairyRouter.delete(
+  '/enrollments/:id',
+  asyncHandler(async (request, response) => {
+    const { id } = request.params;
+    await prisma.$executeRawUnsafe('DELETE FROM `dairy_farmer_enrollments` WHERE `id` = ?', id);
+    response.json({ data: { message: 'Enrollment deleted successfully' } });
+  })
+);
+
+// =========================================================================
+// 4. INVENTORY MANAGEMENT: MILK INTAKES (COLLECTION PER FARMER)
+// =========================================================================
+dairyRouter.get(
+  '/inventory/intakes',
+  asyncHandler(async (request, response) => {
+    const { farmerIdNumber, area, date, shift, milkType } = request.query;
+    const dairyUserId = await resolveDairyUserId(request);
+
+    let query = 'SELECT * FROM `dairy_milk_intakes` WHERE 1=1';
+    const params = [];
+
+    if (farmerIdNumber && farmerIdNumber.trim()) {
+      query += ' AND `farmerIdNumber` = ?';
+      params.push(farmerIdNumber.trim());
+    }
+
+    if (area && area.trim()) {
+      query += ' AND `villageArea` LIKE ?';
+      params.push(`%${area.trim()}%`);
+    }
+
+    if (date) {
+      query += ' AND `collectionDate` = ?';
+      params.push(date);
+    }
+
+    if (shift && shift !== 'ALL') {
+      query += ' AND `shift` = ?';
+      params.push(shift);
+    }
+
+    if (milkType && milkType !== 'ALL') {
+      query += ' AND `milkType` = ?';
+      params.push(milkType);
+    }
+
+    query += ' ORDER BY `collectionDate` DESC, `createdAt` DESC LIMIT 200';
+
+    const rows = await prisma.$queryRawUnsafe(query, ...params);
+
+    const intakes = rows.map((r) => ({
+      ...r,
+      quantityLiters: Number(r.quantityLiters || 0),
+      fatPercentage: Number(r.fatPercentage || 0),
+      snfPercentage: Number(r.snfPercentage || 0),
+      ratePerLiter: Number(r.ratePerLiter || 0),
+      totalCost: Number(r.totalCost || 0),
+      collectionDate: r.collectionDate ? new Date(r.collectionDate).toISOString().split('T')[0] : null,
+    }));
+
+    response.json({ data: { intakes } });
+  })
+);
+
+dairyRouter.post(
+  '/inventory/intakes',
+  asyncHandler(async (request, response) => {
+    const dairyUserId = await resolveDairyUserId(request);
+    const body = request.body || {};
+
+    if (!body.farmerIdNumber || !body.quantityLiters || !body.ratePerLiter) {
+      throw new AppError(400, 'VALIDATION_ERROR', 'Farmer ID, Quantity (Liters), and Rate per Liter are required.');
+    }
+
+    const id = `intake_${crypto.randomUUID().replace(/-/g, '').slice(0, 16)}`;
+    const farmerIdNumber = String(body.farmerIdNumber).trim();
+    const farmerName = String(body.farmerName || 'Supplying Farmer').trim();
+    const farmName = body.farmName ? String(body.farmName).trim() : null;
+    const villageArea = body.villageArea ? String(body.villageArea).trim() : 'Local Route';
+    const collectionDate = body.collectionDate || new Date().toISOString().split('T')[0];
+    const shift = body.shift === 'EVENING' ? 'EVENING' : 'MORNING';
+    const milkType = ['COW', 'BUFFALO', 'MIXED'].includes(body.milkType) ? body.milkType : 'COW';
+    const quantityLiters = parseFloat(body.quantityLiters);
+    const fatPercentage = parseFloat(body.fatPercentage) || 4.2;
+    const snfPercentage = parseFloat(body.snfPercentage) || 8.6;
+    const ratePerLiter = parseFloat(body.ratePerLiter);
+    const totalCost = parseFloat((quantityLiters * ratePerLiter).toFixed(2));
+    const storageTank = body.storageTank || 'Silo-1 (Raw Cow)';
+    const qualityGrade = body.qualityGrade || (fatPercentage >= 4.2 && snfPercentage >= 8.5 ? 'GRADE_A' : 'GRADE_B');
+    const paymentStatus = body.paymentStatus === 'PAID' ? 'PAID' : 'PENDING';
+    const notes = body.notes || 'Recorded via dairy intake terminal.';
+
+    // Check withdrawal safety status against farmer's animals if available
+    let eligibilityStatus = 'CLEARED';
+    try {
+      const farmerProfile = await prisma.farmerProfile.findFirst({
+        where: { farmerIdNumber },
+        include: {
+          user: {
+            include: {
+              farmsCreated: {
+                include: {
+                  animals: {
+                    include: {
+                      treatments: {
+                        where: { status: { in: ['ACTIVE', 'COMPLETED'] } },
+                        take: 5,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+
+      if (farmerProfile?.user?.farmsCreated?.[0]?.animals) {
+        for (const a of farmerProfile.user.farmsCreated[0].animals) {
+          const st = calculateAnimalMilkStatus(a);
+          if (!st.isEligible) {
+            eligibilityStatus = 'CAUTION_ACTIVE_WITHDRAWAL';
+            break;
+          }
+        }
+      }
+    } catch {
+      // fallback
+    }
+
+    await prisma.$executeRawUnsafe(
+      `INSERT INTO \`dairy_milk_intakes\` (
+        \`id\`, \`dairyUserId\`, \`enrollmentId\`, \`farmerIdNumber\`, \`farmerName\`, \`farmName\`,
+        \`villageArea\`, \`collectionDate\`, \`shift\`, \`milkType\`, \`quantityLiters\`,
+        \`fatPercentage\`, \`snfPercentage\`, \`ratePerLiter\`, \`totalCost\`, \`storageTank\`,
+        \`eligibilityStatus\`, \`paymentStatus\`, \`qualityGrade\`, \`notes\`
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      id,
+      dairyUserId,
+      body.enrollmentId || null,
+      farmerIdNumber,
+      farmerName,
+      farmName,
+      villageArea,
+      collectionDate,
+      shift,
+      milkType,
+      quantityLiters,
+      fatPercentage,
+      snfPercentage,
+      ratePerLiter,
+      totalCost,
+      storageTank,
+      eligibilityStatus,
+      paymentStatus,
+      qualityGrade,
+      notes
+    );
+
+    response.status(201).json({
+      data: {
+        message: 'Milk collection intake logged successfully',
+        intakeId: id,
+        totalCost,
+        eligibilityStatus,
+      },
+    });
+  })
+);
+
+dairyRouter.delete(
+  '/inventory/intakes/:id',
+  asyncHandler(async (request, response) => {
+    const { id } = request.params;
+    await prisma.$executeRawUnsafe('DELETE FROM `dairy_milk_intakes` WHERE `id` = ?', id);
+    response.json({ data: { message: 'Intake record deleted successfully' } });
+  })
+);
+
+// =========================================================================
+// 5. INVENTORY MANAGEMENT: MILK SALES & OUTFLOW
+// =========================================================================
+dairyRouter.get(
+  '/inventory/sales',
+  asyncHandler(async (request, response) => {
+    const { buyerType, milkType, date } = request.query;
+    const dairyUserId = await resolveDairyUserId(request);
+
+    let query = 'SELECT * FROM `dairy_milk_sales` WHERE 1=1';
+    const params = [];
+
+    if (buyerType && buyerType !== 'ALL') {
+      query += ' AND \`buyerType\` = ?';
+      params.push(buyerType);
+    }
+
+    if (milkType && milkType !== 'ALL') {
+      query += ' AND \`milkType\` = ?';
+      params.push(milkType);
+    }
+
+    if (date) {
+      query += ' AND \`saleDate\` = ?';
+      params.push(date);
+    }
+
+    query += ' ORDER BY \`saleDate\` DESC, \`createdAt\` DESC LIMIT 200';
+
+    const rows = await prisma.$queryRawUnsafe(query, ...params);
+
+    const sales = rows.map((r) => ({
+      ...r,
+      quantityLiters: Number(r.quantityLiters || 0),
+      pricePerLiter: Number(r.pricePerLiter || 0),
+      totalAmount: Number(r.totalAmount || 0),
+      saleDate: r.saleDate ? new Date(r.saleDate).toISOString().split('T')[0] : null,
+    }));
+
+    response.json({ data: { sales } });
+  })
+);
+
+dairyRouter.post(
+  '/inventory/sales',
+  asyncHandler(async (request, response) => {
+    const dairyUserId = await resolveDairyUserId(request);
+    const body = request.body || {};
+
+    if (!body.buyerName || !body.quantityLiters || !body.pricePerLiter) {
+      throw new AppError(400, 'VALIDATION_ERROR', 'Buyer Name, Quantity (Liters), and Price per Liter are required.');
+    }
+
+    const id = `sale_${crypto.randomUUID().replace(/-/g, '').slice(0, 16)}`;
+    const saleDate = body.saleDate || new Date().toISOString().split('T')[0];
+    const invoiceNumber = body.invoiceNumber || `INV-${saleDate.replace(/-/g, '')}-${Math.floor(100 + Math.random() * 900)}`;
+    const buyerName = String(body.buyerName).trim();
+    const buyerType = ['RETAIL_CONSUMER', 'COMMERCIAL_SHOP', 'WHOLESALE_DISTRIBUTOR', 'PROCESSING_PLANT'].includes(body.buyerType)
+      ? body.buyerType
+      : 'RETAIL_CONSUMER';
+    const milkType = body.milkType || 'COW';
+    const quantityLiters = parseFloat(body.quantityLiters);
+    const pricePerLiter = parseFloat(body.pricePerLiter);
+    const totalAmount = parseFloat((quantityLiters * pricePerLiter).toFixed(2));
+    const dispensedFromTank = body.dispensedFromTank || 'Tank A (Chilled Bulk)';
+    const paymentStatus = body.paymentStatus === 'PENDING' ? 'PENDING' : 'PAID';
+    const paymentMethod = body.paymentMethod || 'UPI';
+    const notes = body.notes || 'Counter / delivery dispatch recorded.';
+
+    await prisma.$executeRawUnsafe(
+      `INSERT INTO \`dairy_milk_sales\` (
+        \`id\`, \`dairyUserId\`, \`saleDate\`, \`invoiceNumber\`, \`buyerName\`, \`buyerType\`,
+        \`milkType\`, \`quantityLiters\`, \`pricePerLiter\`, \`totalAmount\`, \`dispensedFromTank\`,
+        \`paymentStatus\`, \`paymentMethod\`, \`notes\`
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      id,
+      dairyUserId,
+      saleDate,
+      invoiceNumber,
+      buyerName,
+      buyerType,
+      milkType,
+      quantityLiters,
+      pricePerLiter,
+      totalAmount,
+      dispensedFromTank,
+      paymentStatus,
+      paymentMethod,
+      notes
+    );
+
+    response.status(201).json({
+      data: {
+        message: 'Milk sale recorded successfully',
+        saleId: id,
+        invoiceNumber,
+        totalAmount,
+      },
+    });
+  })
+);
+
+dairyRouter.delete(
+  '/inventory/sales/:id',
+  asyncHandler(async (request, response) => {
+    const { id } = request.params;
+    await prisma.$executeRawUnsafe('DELETE FROM \`dairy_milk_sales\` WHERE \`id\` = ?', id);
+    response.json({ data: { message: 'Sales record deleted successfully' } });
+  })
+);
+
+// =========================================================================
+// 6. INVENTORY MANAGEMENT: SILOS & COOLING TANKS STOCK
+// =========================================================================
+dairyRouter.get(
+  '/inventory/tanks',
+  asyncHandler(async (request, response) => {
+    const dairyUserId = await resolveDairyUserId(request);
+
+    // Sum total milk intake liters from current present database records
+    const intakeRows = await prisma.$queryRawUnsafe(
+      'SELECT `storageTank`, `milkType`, SUM(`quantityLiters`) as totalIn FROM `dairy_milk_intakes` GROUP BY `storageTank`, `milkType`'
+    );
+
+    // Sum total sales liters dispensed from current present database records
+    const salesRows = await prisma.$queryRawUnsafe(
+      'SELECT `dispensedFromTank`, SUM(`quantityLiters`) as totalOut FROM `dairy_milk_sales` GROUP BY `dispensedFromTank`'
+    );
+
+    const outMap = {};
+    for (const s of salesRows) {
+      outMap[s.dispensedFromTank] = Number(s.totalOut || 0);
+    }
+
+    const defaultTanks = [
+      { id: 'silo-1', name: 'Silo-1 (Raw Cow)', capacityLiters: 2000, temperatureC: 3.8, milkType: 'COW' },
+      { id: 'silo-2', name: 'Silo-2 (Buffalo)', capacityLiters: 1500, temperatureC: 4.0, milkType: 'BUFFALO' },
+      { id: 'tank-a', name: 'Tank A (Chilled Bulk)', capacityLiters: 1200, temperatureC: 3.5, milkType: 'COW' },
+      { id: 'tank-b', name: 'Tank B (Collection Buffer)', capacityLiters: 800, temperatureC: 4.2, milkType: 'MIXED' },
+    ];
+
+    let grandTotalIn = 0;
+    let grandTotalOut = 0;
+
+    const tanks = defaultTanks.map((tank) => {
+      const match = intakeRows.find((r) => r.storageTank === tank.name);
+      const totalIn = match ? Number(match.totalIn || 0) : 0;
+      const totalOut = outMap[tank.name] || 0;
+      grandTotalIn += totalIn;
+      grandTotalOut += totalOut;
+      const currentStockLiters = Math.max(0, parseFloat((totalIn - totalOut).toFixed(2)));
+      const utilizationPercent = Math.min(100, parseFloat(((currentStockLiters / tank.capacityLiters) * 100).toFixed(1)));
+
+      return {
+        ...tank,
+        totalInflowLiters: totalIn,
+        totalOutflowLiters: totalOut,
+        currentStockLiters,
+        utilizationPercent,
+      };
+    });
+
+    const netStockLiters = Math.max(0, parseFloat((grandTotalIn - grandTotalOut).toFixed(2)));
+
+    response.json({
+      data: {
+        tanks,
+        summary: {
+          totalCapacityLiters: defaultTanks.reduce((acc, t) => acc + t.capacityLiters, 0),
+          netStockLiters,
+          totalInflowLiters: grandTotalIn,
+          totalOutflowLiters: grandTotalOut,
+        },
+      },
+    });
+  })
+);
+
+// =========================================================================
+// 7. COMPREHENSIVE DAIRY OPERATOR ANALYTICS (DAILY, MONTHLY, METRICS)
+// =========================================================================
+dairyRouter.get(
+  '/analytics',
+  asyncHandler(async (request, response) => {
+    const dairyUserId = await resolveDairyUserId(request);
+    const { period = 'last7days', date } = request.query;
+
+    const toYMD = (val) => {
+      if (!val) return '';
+      if (typeof val === 'string') return val.split('T')[0];
+      if (val instanceof Date) return val.toISOString().split('T')[0];
+      return '';
+    };
+
+    const now = new Date();
+    const serverLocalDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const todayStr = (typeof date === 'string' && date.trim()) ? date.trim() : serverLocalDate;
+    const currentMonthPrefix = todayStr.slice(0, 7); // 'YYYY-MM'
+
+    // 1. All-time summary based purely on current present data in database
+    const allIntakes = await prisma.$queryRawUnsafe(
+      'SELECT `collectionDate`, `farmerIdNumber`, `farmerName`, `villageArea`, `quantityLiters`, `totalCost`, `fatPercentage`, `snfPercentage`, `shift`, `eligibilityStatus` FROM `dairy_milk_intakes` ORDER BY `collectionDate` ASC'
+    );
+
+    const allSales = await prisma.$queryRawUnsafe(
+      'SELECT `saleDate`, `invoiceNumber`, `buyerName`, `buyerType`, `quantityLiters`, `totalAmount`, `paymentStatus` FROM `dairy_milk_sales` ORDER BY `saleDate` ASC'
+    );
+
+    // Calculate Today's KPIs
+    const todayIntakes = allIntakes.filter((r) => toYMD(r.collectionDate) === todayStr);
+    const todaySales = allSales.filter((r) => toYMD(r.saleDate) === todayStr);
+
+    const todaySalesCount = todaySales.length;
+    const todaySalesLiters = todaySales.reduce((acc, r) => acc + Number(r.quantityLiters || 0), 0);
+    const todaySalesRevenue = todaySales.reduce((acc, r) => acc + Number(r.totalAmount || 0), 0);
+    const todayIntakeLiters = todayIntakes.reduce((acc, r) => acc + Number(r.quantityLiters || 0), 0);
+    const todayIntakeCost = todayIntakes.reduce((acc, r) => acc + Number(r.totalCost || 0), 0);
+    const todayNetProfit = todaySalesRevenue - todayIntakeCost;
+
+    // Calculate Monthly KPIs
+    const monthIntakes = allIntakes.filter((r) => toYMD(r.collectionDate).startsWith(currentMonthPrefix));
+    const monthSales = allSales.filter((r) => toYMD(r.saleDate).startsWith(currentMonthPrefix));
+
+    const monthSalesCount = monthSales.length;
+    const monthSalesLiters = monthSales.reduce((acc, r) => acc + Number(r.quantityLiters || 0), 0);
+    const monthSalesRevenue = monthSales.reduce((acc, r) => acc + Number(r.totalAmount || 0), 0);
+    const monthIntakeLiters = monthIntakes.reduce((acc, r) => acc + Number(r.quantityLiters || 0), 0);
+    const monthIntakeCost = monthIntakes.reduce((acc, r) => acc + Number(r.totalCost || 0), 0);
+    const monthNetProfit = monthSalesRevenue - monthIntakeCost;
+
+    // Overall metrics
+    const totalIntakeLitersAll = allIntakes.reduce((acc, r) => acc + Number(r.quantityLiters || 0), 0);
+    const totalIntakeCostAll = allIntakes.reduce((acc, r) => acc + Number(r.totalCost || 0), 0);
+    const totalSalesLitersAll = allSales.reduce((acc, r) => acc + Number(r.quantityLiters || 0), 0);
+    const totalSalesRevenueAll = allSales.reduce((acc, r) => acc + Number(r.totalAmount || 0), 0);
+    const currentStockLiters = Math.max(0, totalIntakeLitersAll - totalSalesLitersAll);
+
+    // Active farmers count
+    const uniqueFarmers = new Set(allIntakes.map((r) => r.farmerIdNumber));
+    const activeSupplyingFarmersCount = uniqueFarmers.size;
+
+    // AMU Clearance rate
+    const clearedIntakes = allIntakes.filter((r) => r.eligibilityStatus === 'CLEARED');
+    const amuComplianceRate =
+      allIntakes.length > 0 ? parseFloat(((clearedIntakes.length / allIntakes.length) * 100).toFixed(1)) : 100;
+
+    // Daily Time-series for charts based strictly on dates present in database
+    const presentDatesSet = new Set();
+    presentDatesSet.add(todayStr); // Always show today
+    for (const r of allIntakes) {
+      const d = toYMD(r.collectionDate);
+      if (d) presentDatesSet.add(d);
+    }
+    for (const s of allSales) {
+      const d = toYMD(s.saleDate);
+      if (d) presentDatesSet.add(d);
+    }
+
+    const sortedDates = Array.from(presentDatesSet).sort();
+    const dailyTrends = sortedDates.map((dateStr) => {
+      const dayIntakes = allIntakes.filter((r) => toYMD(r.collectionDate) === dateStr);
+      const daySales = allSales.filter((s) => toYMD(s.saleDate) === dateStr);
+
+      const intakeLiters = dayIntakes.reduce((acc, r) => acc + Number(r.quantityLiters || 0), 0);
+      const intakeCost = dayIntakes.reduce((acc, r) => acc + Number(r.totalCost || 0), 0);
+      const salesLiters = daySales.reduce((acc, s) => acc + Number(s.quantityLiters || 0), 0);
+      const salesRevenue = daySales.reduce((acc, s) => acc + Number(s.totalAmount || 0), 0);
+
+      return {
+        date: dateStr,
+        dayLabel: new Date(dateStr).toLocaleDateString('en-IN', { weekday: 'short', month: 'short', day: 'numeric' }),
+        intakeLiters: parseFloat(intakeLiters.toFixed(1)),
+        intakeCost: parseFloat(intakeCost.toFixed(2)),
+        salesLiters: parseFloat(salesLiters.toFixed(1)),
+        salesRevenue: parseFloat(salesRevenue.toFixed(2)),
+        netProfit: parseFloat((salesRevenue - intakeCost).toFixed(2)),
+      };
+    });
+
+    // Top Supplying Farmers Leaderboard
+    const farmerMap = {};
+    for (const r of allIntakes) {
+      const key = r.farmerIdNumber;
+      if (!farmerMap[key]) {
+        farmerMap[key] = {
+          farmerIdNumber: key,
+          farmerName: r.farmerName,
+          villageArea: r.villageArea || 'Area',
+          totalLiters: 0,
+          totalPayout: 0,
+          fatSum: 0,
+          snfSum: 0,
+          count: 0,
+        };
+      }
+      farmerMap[key].totalLiters += Number(r.quantityLiters || 0);
+      farmerMap[key].totalPayout += Number(r.totalCost || 0);
+      farmerMap[key].fatSum += Number(r.fatPercentage || 0);
+      farmerMap[key].snfSum += Number(r.snfPercentage || 0);
+      farmerMap[key].count += 1;
+    }
+
+    const topFarmers = Object.values(farmerMap)
+      .map((f) => ({
+        farmerIdNumber: f.farmerIdNumber,
+        farmerName: f.farmerName,
+        villageArea: f.villageArea,
+        totalLiters: parseFloat(f.totalLiters.toFixed(1)),
+        totalPayout: parseFloat(f.totalPayout.toFixed(2)),
+        avgFat: parseFloat((f.fatSum / f.count).toFixed(2)),
+        avgSnf: parseFloat((f.snfSum / f.count).toFixed(2)),
+        deliveriesCount: f.count,
+      }))
+      .sort((a, b) => b.totalLiters - a.totalLiters);
+
+    // Area Distribution
+    const areaMap = {};
+    for (const r of allIntakes) {
+      const area = r.villageArea || 'Unassigned Area';
+      if (!areaMap[area]) {
+        areaMap[area] = { area, totalLiters: 0, deliveries: 0 };
+      }
+      areaMap[area].totalLiters += Number(r.quantityLiters || 0);
+      areaMap[area].deliveries += 1;
+    }
+
+    const areaContributions = Object.values(areaMap)
+      .map((a) => ({
+        area: a.area,
+        totalLiters: parseFloat(a.totalLiters.toFixed(1)),
+        deliveries: a.deliveries,
+        percentage: totalIntakeLitersAll > 0 ? parseFloat(((a.totalLiters / totalIntakeLitersAll) * 100).toFixed(1)) : 0,
+      }))
+      .sort((a, b) => b.totalLiters - a.totalLiters);
+
+    // Buyer Type Distribution
+    const buyerMap = {};
+    for (const s of allSales) {
+      const bt = s.buyerType || 'RETAIL_CONSUMER';
+      if (!buyerMap[bt]) buyerMap[bt] = { type: bt, liters: 0, revenue: 0, count: 0 };
+      buyerMap[bt].liters += Number(s.quantityLiters || 0);
+      buyerMap[bt].revenue += Number(s.totalAmount || 0);
+      buyerMap[bt].count += 1;
+    }
+
+    response.json({
+      data: {
+        summary: {
+          today: {
+            salesCount: todaySalesCount,
+            salesLiters: parseFloat(todaySalesLiters.toFixed(1)),
+            salesRevenue: parseFloat(todaySalesRevenue.toFixed(2)),
+            intakeLiters: parseFloat(todayIntakeLiters.toFixed(1)),
+            intakeCost: parseFloat(todayIntakeCost.toFixed(2)),
+            netProfit: parseFloat(todayNetProfit.toFixed(2)),
+          },
+          month: {
+            salesCount: monthSalesCount,
+            salesLiters: parseFloat(monthSalesLiters.toFixed(1)),
+            salesRevenue: parseFloat(monthSalesRevenue.toFixed(2)),
+            intakeLiters: parseFloat(monthIntakeLiters.toFixed(1)),
+            intakeCost: parseFloat(monthIntakeCost.toFixed(2)),
+            netProfit: parseFloat(monthNetProfit.toFixed(2)),
+          },
+          allTime: {
+            totalSalesRevenue: parseFloat(totalSalesRevenueAll.toFixed(2)),
+            totalProcurementCost: parseFloat(totalIntakeCostAll.toFixed(2)),
+            currentStockLiters: parseFloat(currentStockLiters.toFixed(1)),
+            activeSupplyingFarmersCount,
+            amuComplianceRate,
+          },
+        },
+        dailyTrends,
+        topFarmers,
+        areaContributions,
+        buyerBreakdown: Object.values(buyerMap),
+      },
+    });
+  })
+);
+
+// =========================================================================
+// 8. SEARCH & INSPECT FARMER LIVESTOCK HEALTH
+// =========================================================================
 dairyRouter.get(
   '/farmers/:query',
   asyncHandler(async (request, response) => {
     const query = decodeURIComponent(request.params.query).trim();
 
-    // Try finding by farmerIdNumber
+    // Check farmer enrollment first
+    const dairyUserId = await resolveDairyUserId(request);
+    const enrollment = await prisma.$queryRawUnsafe(
+      'SELECT * FROM `dairy_farmer_enrollments` WHERE `dairyUserId` = ? AND (`farmerIdNumber` = ? OR `farmerIdNumber` LIKE ? OR `farmerName` LIKE ?) LIMIT 1',
+      dairyUserId,
+      query,
+      `%${query}%`,
+      `%${query}%`
+    );
+
     let farmerProfile = await prisma.farmerProfile.findFirst({
       where: {
         OR: [
@@ -222,7 +1131,6 @@ dairyRouter.get(
     }
 
     if (!farm) {
-      // Search by farm ID or farm name
       farm = await prisma.farm.findFirst({
         where: {
           OR: [
@@ -280,8 +1188,50 @@ dairyRouter.get(
       }
     }
 
-    if (!farm && !farmerProfile) {
+    if (!farm && !farmerProfile && (!enrollment || enrollment.length === 0)) {
       throw new AppError(404, 'FARMER_NOT_FOUND', `No farmer or farm found matching ID: ${query}`);
+    }
+
+    // If only enrolled in dairy but no farm entity in DFMS yet
+    if (!farm && enrollment && enrollment.length > 0) {
+      const enr = enrollment[0];
+      return response.json({
+        data: {
+          farmer: {
+            id: enr.id,
+            farmerIdNumber: enr.farmerIdNumber,
+            fullName: enr.farmerName,
+            phone: enr.phone,
+            email: enr.email,
+            verificationStatus: enr.status,
+            cattleCount: 0,
+            agreedRatePerLiter: Number(enr.agreedRatePerLiter || 42),
+            expectedDailyQuantity: Number(enr.expectedDailyQuantity || 20),
+            villageArea: enr.villageArea,
+          },
+          farm: {
+            id: enr.id,
+            name: enr.farmName,
+            state: enr.state,
+            district: enr.district,
+            taluka: enr.taluka,
+            villageArea: enr.villageArea,
+            pincode: enr.pincode,
+            status: enr.status,
+          },
+          summary: {
+            totalAnimals: 0,
+            eligibleAnimalsCount: 0,
+            withholdingAnimalsCount: 0,
+            underWithdrawalCount: 0,
+            underTreatmentCount: 0,
+            allClearForMilk: true,
+            canCollectEntireHerd: true,
+            recommendation: 'Enrolled dairy farmer. No registered individual cow tags found in platform database.',
+          },
+          animals: [],
+        },
+      });
     }
 
     if (!farm && farmerProfile) {
@@ -313,6 +1263,8 @@ dairyRouter.get(
             underWithdrawalCount: 0,
             underTreatmentCount: 0,
             allClearForMilk: true,
+            canCollectEntireHerd: true,
+            recommendation: 'Farmer verified. Animals can be added for live withdrawal monitoring.',
           },
           animals: [],
         },
@@ -365,6 +1317,12 @@ dairyRouter.get(
     const underTreatmentCount = animalsWithHealth.filter(
       (a) => a.milkEligibility.status === 'TREATMENT_ACTIVE',
     ).length;
+    const canCollectEntireHerd = animalsWithHealth.length > 0 && eligibleCount === animalsWithHealth.length;
+
+    let recommendation = 'All animals are clear for milk collection. No active withdrawal periods detected.';
+    if (underWithdrawalCount > 0 || underTreatmentCount > 0) {
+      recommendation = `WARNING: ${underWithdrawalCount + underTreatmentCount} animal(s) are currently under veterinary withdrawal or active treatment. Milk from withholding animals must NOT be commingled.`;
+    }
 
     response.json({
       data: {
@@ -390,11 +1348,13 @@ dairyRouter.get(
         summary: {
           totalAnimals: animalsWithHealth.length,
           eligibleAnimalsCount: eligibleCount,
+          eligibleForCollectionCount: eligibleCount,
           withholdingAnimalsCount: underWithdrawalCount + underTreatmentCount,
           underWithdrawalCount,
           underTreatmentCount,
-          allClearForMilk:
-            animalsWithHealth.length > 0 && eligibleCount === animalsWithHealth.length,
+          allClearForMilk: canCollectEntireHerd,
+          canCollectEntireHerd,
+          recommendation,
         },
         animals: animalsWithHealth,
       },
@@ -402,7 +1362,9 @@ dairyRouter.get(
   }),
 );
 
-// Animal health timeline for dairy operator audit inspection
+// =========================================================================
+// 9. AUDIT ANIMAL TIMELINE
+// =========================================================================
 dairyRouter.get(
   '/animals/:animalId/timeline',
   asyncHandler(async (request, response) => {

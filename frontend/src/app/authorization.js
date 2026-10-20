@@ -3,17 +3,22 @@ export const hasAnyRole = (roles = [], allowed = []) =>
 
 export function buildWorkspaces(user) {
   const workspaces = [];
-  if (user.platformRoles.includes('PLATFORM_ADMIN'))
+  if (user.platformRoles.includes('PLATFORM_ADMIN')) {
     workspaces.push({ id: 'admin', kind: 'ADMIN', label: 'Platform Administration' });
-  if (user.platformRoles.includes('DAIRY_OWNER') || user.dairyOwnerProfile?.exists)
-    workspaces.push({
-      id: 'dairy',
-      kind: 'DAIRY_OWNER',
-      label: user.dairyOwnerProfile?.dairyName
-        ? `${user.dairyOwnerProfile.dairyName} (Dairy)`
-        : 'Dairy Owner Workspace',
-      dairyStatus: user.dairyOwnerProfile?.status || 'VERIFIED',
-    });
+    workspaces.push({ id: 'dairy', kind: 'DAIRY_OWNER', label: 'Dairy Management & Inventory' });
+  }
+  if (user.platformRoles.includes('DAIRY_OWNER') || user.dairyOwnerProfile?.exists) {
+    if (!workspaces.some((w) => w.id === 'dairy')) {
+      workspaces.push({
+        id: 'dairy',
+        kind: 'DAIRY_OWNER',
+        label: user.dairyOwnerProfile?.dairyName
+          ? `${user.dairyOwnerProfile.dairyName} (Dairy)`
+          : 'Dairy Owner Workspace',
+        dairyStatus: user.dairyOwnerProfile?.status || 'VERIFIED',
+      });
+    }
+  }
   if (user.veterinarian?.exists || user.platformRoles.includes('VETERINARIAN'))
     workspaces.push({
       id: 'veterinarian',
@@ -52,6 +57,7 @@ export function navigationFor(workspace) {
   if (workspace.kind === 'ADMIN')
     return [
       ['dashboard', 'Platform Dashboard'],
+      ['dairy-dashboard', 'Dairy Operations'],
       ['admin', 'User Verifications'],
       ['core-engine', 'Organization Analytics'],
       ['certificates', 'Certificates'],
@@ -59,7 +65,9 @@ export function navigationFor(workspace) {
     ];
   if (workspace.kind === 'DAIRY_OWNER')
     return [
-      ['dairy-farmers', 'Farmer & Livestock Health'],
+      ['dairy-dashboard', 'Dairy Overview & Analytics'],
+      ['dairy-farmers', 'Farmer Directory & Requests'],
+      ['dairy-inventory', 'Milk Inventory & Sales'],
       ['core-engine', 'Procurement & AMU Analysis'],
       ['ai', 'AI Advisor'],
     ];

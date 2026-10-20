@@ -15,7 +15,7 @@ import {
 } from './authorization.js';
 import { VerificationPage } from './VerificationPage.jsx';
 import { AdminVerifications } from './AdminVerifications.jsx';
-import { DairyFarmerLookup } from './DairyFarmerLookup.jsx';
+import { DairyHub } from './DairyHub.jsx';
 const Field = ({ label, name, type = 'text', required = true, defaultValue }) => (
   <label>
     {label}
@@ -967,7 +967,7 @@ function VetStatus({ user, refreshContext }) {
 
 const initialPageFor = (workspace) => {
   if (workspace?.kind === 'ADMIN') return 'dashboard';
-  if (workspace?.kind === 'DAIRY_OWNER') return 'dairy-farmers';
+  if (workspace?.kind === 'DAIRY_OWNER') return 'dairy-dashboard';
   if (workspace?.kind === 'VETERINARIAN')
     return workspace.veterinarianStatus === 'VERIFIED' ? 'dashboard' : 'vet';
   if (workspace?.kind === 'FARM') return 'farm';
@@ -1343,7 +1343,9 @@ function Workspace({ user, setUser, logout }) {
     ai: '🤖',
     members: '👥',
     admin: '🛡️',
-    'dairy-farmers': '🥛',
+    'dairy-dashboard': '🥛',
+    'dairy-farmers': '🧑‍🌾',
+    'dairy-inventory': '📦',
   };
 
   return (
@@ -1641,7 +1643,19 @@ function Workspace({ user, setUser, logout }) {
           {page === 'ai' && (
             <AiLayer farms={activeFarm ? [activeFarm] : []} user={user} workspace={workspace} />
           )}
-          {page === 'dairy-farmers' && <DairyFarmerLookup />}
+          {['dairy-dashboard', 'dairy-farmers', 'dairy-inventory'].includes(page) && (
+            <DairyHub
+              initialTab={
+                page === 'dairy-farmers'
+                  ? 'farmers'
+                  : page === 'dairy-inventory'
+                    ? 'intake'
+                    : 'analytics'
+              }
+              user={user}
+              workspace={workspace}
+            />
+          )}
           {page === 'admin' && workspace?.kind === 'ADMIN' && (
             <>
               <AdminVerifications />
