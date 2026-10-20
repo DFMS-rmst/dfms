@@ -37,8 +37,4 @@ export default [
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
     },
   },
-  {
-    files: ['blockchain/**/*.cjs'],
-    languageOptions: { sourceType: 'commonjs', globals: { ...globals.node, ...globals.mocha } },
-  },
 ];
