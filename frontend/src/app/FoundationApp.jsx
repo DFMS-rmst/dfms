@@ -16,6 +16,7 @@ import {
 import { VerificationPage } from './VerificationPage.jsx';
 import { AdminVerifications } from './AdminVerifications.jsx';
 import { DairyHub } from './DairyHub.jsx';
+import { FarmerMilkSales } from './FarmerMilkSales.jsx';
 import { AnimalRiskReportModal } from './AnimalRiskPrediction.jsx';
 import { FarmerChatbot, FarmerChatbotModal } from './FarmerChatbot.jsx';
 const Field = ({ label, name, type = 'text', required = true, defaultValue }) => (
@@ -1343,6 +1344,7 @@ function Workspace({ user, setUser, logout }) {
     'core-engine': '🥛',
     certificates: '📜',
     'daily-clearance': '🥛',
+    'milk-sales': '🥛',
     'farmer-chatbot': '🌾',
     members: '👥',
     admin: '🛡️',
@@ -1667,6 +1669,9 @@ function Workspace({ user, setUser, logout }) {
             <div className="farmer-chatbot-page-wrapper">
               <FarmerChatbot user={user} farm={activeFarm} />
             </div>
+          )}
+          {page === 'milk-sales' && workspace?.kind === 'FARM' && (
+            <FarmerMilkSales farm={activeFarm} user={user} />
           )}
           {['dairy-dashboard', 'dairy-farmers', 'dairy-inventory'].includes(page) && (
             <DairyHub

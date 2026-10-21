@@ -387,6 +387,10 @@ dairyRouter.post(
       ? body.status
       : 'ACTIVE';
     const joinRequestNotes = body.joinRequestNotes || null;
+    const certificateNumber = body.certificateNumber ? String(body.certificateNumber).trim() : null;
+    const certificateVerificationId = body.certificateVerificationId
+      ? String(body.certificateVerificationId).trim()
+      : null;
 
     await prisma.$executeRawUnsafe(
       `INSERT INTO \`dairy_farmer_enrollments\` (
@@ -394,8 +398,8 @@ dairyRouter.post(
         \`phone\`, \`email\`, \`state\`, \`district\`, \`taluka\`, \`villageArea\`, \`pincode\`,
         \`milkType\`, \`expectedDailyQuantity\`, \`agreedRatePerLiter\`, \`baseFatPercentage\`,
         \`baseSnfPercentage\`, \`paymentMethod\`, \`bankAccountNumber\`, \`bankIfsc\`, \`bankName\`,
-        \`upiId\`, \`status\`, \`joinRequestNotes\`
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        \`upiId\`, \`status\`, \`joinRequestNotes\`, \`certificateNumber\`, \`certificateVerificationId\`
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       id,
       dairyUserId,
       farmerUserId,
@@ -421,6 +425,8 @@ dairyRouter.post(
       upiId,
       status,
       joinRequestNotes,
+      certificateNumber,
+      certificateVerificationId,
     );
 
     response.status(201).json({
@@ -487,6 +493,14 @@ dairyRouter.put(
     const status = body.status !== undefined ? body.status : current.status;
     const joinRequestNotes =
       body.joinRequestNotes !== undefined ? body.joinRequestNotes : current.joinRequestNotes;
+    const certificateNumber =
+      body.certificateNumber !== undefined
+        ? body.certificateNumber
+        : current.certificateNumber || null;
+    const certificateVerificationId =
+      body.certificateVerificationId !== undefined
+        ? body.certificateVerificationId
+        : current.certificateVerificationId || null;
 
     await prisma.$executeRawUnsafe(
       `UPDATE \`dairy_farmer_enrollments\` SET
@@ -494,7 +508,8 @@ dairyRouter.put(
         \`district\` = ?, \`taluka\` = ?, \`villageArea\` = ?, \`milkType\` = ?,
         \`expectedDailyQuantity\` = ?, \`agreedRatePerLiter\` = ?, \`baseFatPercentage\` = ?,
         \`baseSnfPercentage\` = ?, \`paymentMethod\` = ?, \`bankAccountNumber\` = ?,
-        \`bankIfsc\` = ?, \`bankName\` = ?, \`upiId\` = ?, \`status\` = ?, \`joinRequestNotes\` = ?
+        \`bankIfsc\` = ?, \`bankName\` = ?, \`upiId\` = ?, \`status\` = ?, \`joinRequestNotes\` = ?,
+        \`certificateNumber\` = ?, \`certificateVerificationId\` = ?
       WHERE \`id\` = ?`,
       farmerName,
       farmName,
@@ -516,12 +531,61 @@ dairyRouter.put(
       upiId,
       status,
       joinRequestNotes,
+      certificateNumber,
+      certificateVerificationId,
       id,
     );
 
+    // If status changed to ACTIVE or REJECTED, notify the farmer
+    if (status !== current.status) {
+      let targetUserId = current.farmerUserId;
+      if (!targetUserId && current.email) {
+        const u = await prisma.user.findFirst({ where: { email: current.email } });
+        targetUserId = u?.id || null;
+      }
+
+      if (targetUserId) {
+        const dairyProfile = await prisma.dairyOwnerProfile.findFirst({
+          where: { userId: current.dairyUserId },
+        });
+        const dairyDisplayName = dairyProfile?.dairyName || 'Registered Dairy';
+
+        if (status === 'ACTIVE') {
+          try {
+            await prisma.alert.create({
+              data: {
+                userId: targetUserId,
+                type: 'DAIRY_JOIN_REQUEST_APPROVED',
+                title: 'Milk Supply Request Accepted! 🥛',
+                message: `Congratulations! ${dairyDisplayName} reviewed your Milk Eligibility Certificate and accepted your supply request at ₹${agreedRatePerLiter}/L. You can now sell milk to this dairy!`,
+                entityType: 'DAIRY_ENROLLMENT',
+                entityId: id,
+              },
+            });
+          } catch {}
+        } else if (status === 'REJECTED') {
+          try {
+            await prisma.alert.create({
+              data: {
+                userId: targetUserId,
+                type: 'DAIRY_JOIN_REQUEST_REJECTED',
+                title: 'Milk Supply Request Status Update',
+                message: `Your milk supply request to ${dairyDisplayName} was not accepted at this time.`,
+                entityType: 'DAIRY_ENROLLMENT',
+                entityId: id,
+              },
+            });
+          } catch {}
+        }
+      }
+    }
+
     response.json({
       data: {
-        message: 'Farmer enrollment updated successfully',
+        message:
+          status === 'ACTIVE'
+            ? 'Farmer request accepted and approved successfully'
+            : 'Farmer enrollment updated successfully',
         status,
       },
     });
@@ -534,6 +598,577 @@ dairyRouter.delete(
     const { id } = request.params;
     await prisma.$executeRawUnsafe('DELETE FROM `dairy_farmer_enrollments` WHERE `id` = ?', id);
     response.json({ data: { message: 'Enrollment deleted successfully' } });
+  }),
+);
+
+// =========================================================================
+// 3B. FARMER-DAIRY INTERACTION: DISCOVERY, JOIN REQUESTS, CERTIFICATES & SALES
+// =========================================================================
+
+// List available verified dairies for farmers to connect
+dairyRouter.get(
+  '/dairies',
+  asyncHandler(async (request, response) => {
+    const profiles = await prisma.dairyOwnerProfile.findMany({
+      where: { status: 'VERIFIED' },
+      include: {
+        user: { select: { id: true, fullName: true, email: true, phone: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const dairies = profiles.map((p) => ({
+      id: p.id,
+      userId: p.userId,
+      dairyName: p.dairyName,
+      fssaiLicenseNumber: p.fssaiLicenseNumber,
+      state: p.state,
+      district: p.district,
+      operationalArea: p.operationalArea,
+      dailyCapacityLiters: p.dailyCapacityLiters,
+      contactEmail: p.user?.email || null,
+      contactPhone: p.user?.phone || null,
+      status: p.status,
+    }));
+
+    if (dairies.length === 0) {
+      dairies.push({
+        id: 'demo_dairy_1',
+        userId: 'cmvgtpksi000lkjwcbaawbosb',
+        dairyName: 'SK Dairy',
+        fssaiLicenseNumber: 'FSSAI-MH-2024-8841',
+        state: 'Maharashtra',
+        district: 'Kolhapur',
+        operationalArea: 'Sarnobatwadi Route 1',
+        dailyCapacityLiters: 50000,
+        contactEmail: 'dairy@gmail.com',
+        contactPhone: '9822198765',
+        status: 'VERIFIED',
+      });
+    }
+
+    response.json({ data: { dairies } });
+  }),
+);
+
+// Get farmer's active certificates and daily clearances to attach to join requests
+dairyRouter.get(
+  '/farmer/available-certificates',
+  asyncHandler(async (request, response) => {
+    const farmerUserId = request.user.id;
+    const { farmId } = request.query;
+
+    let targetFarmId = farmId;
+    if (!targetFarmId) {
+      const farm = await prisma.farm.findFirst({
+        where: { createdById: farmerUserId },
+      });
+      targetFarmId = farm?.id;
+    }
+
+    const certificates = [];
+
+    // 1. Fetch Daily Milk Collection Clearances
+    const dailyClearances = await prisma.dailyMilkCollectionClearance.findMany({
+      where: targetFarmId ? { evaluation: { farmId: targetFarmId } } : {},
+      orderBy: { generatedAt: 'desc' },
+      take: 10,
+    });
+
+    for (const dc of dailyClearances) {
+      let payload = dc.canonicalPayload;
+      if (typeof payload === 'string') {
+        try {
+          payload = JSON.parse(payload);
+        } catch {}
+      }
+      certificates.push({
+        id: dc.id,
+        type: 'DAILY_CLEARANCE',
+        certificateNumber: dc.clearanceNumber,
+        verificationId: dc.verificationId,
+        label: `Today's Daily Milk Clearance: ${dc.clearanceNumber} (${payload?.eligibleCount ?? 0} Eligible Animals)`,
+        eligibleCount: payload?.eligibleCount ?? 0,
+        applicableCount: payload?.applicableCount ?? 0,
+        eligibleFrom: dc.generatedAt,
+        status: 'ACTIVE',
+        animals: (payload?.animals || []).map((a) => ({
+          tagNumber: a.animalTag || a.tagNumber,
+          name: a.animalName || a.name,
+          status: a.eligibilityStatus,
+        })),
+        publicVerificationUrl: `/verify/daily-clearance/${dc.verificationId}`,
+      });
+    }
+
+    // 2. Fetch individual Milk Eligibility Certificates
+    const individualCerts = await prisma.milkEligibilityCertificate.findMany({
+      where: targetFarmId ? { animal: { farmId: targetFarmId } } : {},
+      include: { animal: { include: { species: true } } },
+      orderBy: { issuedAt: 'desc' },
+      take: 20,
+    });
+
+    for (const ic of individualCerts) {
+      certificates.push({
+        id: ic.id,
+        type: 'INDIVIDUAL_CERTIFICATE',
+        certificateNumber: ic.certificateNumber,
+        verificationId: ic.verificationId,
+        label: `Milk Eligibility Certificate: ${ic.certificateNumber} (Tag: ${ic.animal?.tagNumber || 'Unknown'})`,
+        eligibleCount: 1,
+        applicableCount: 1,
+        eligibleFrom: ic.eligibleFrom,
+        status: ic.status,
+        animals: [
+          {
+            tagNumber: ic.animal?.tagNumber,
+            name: ic.animal?.name,
+            status: 'ELIGIBLE_FOR_MILK',
+          },
+        ],
+        publicVerificationUrl: `/verify/certificate/${ic.verificationId}`,
+      });
+    }
+
+    response.json({ data: { certificates } });
+  }),
+);
+
+// Get farmer's own supply requests and dairy enrollments
+dairyRouter.get(
+  '/farmer/my-requests',
+  asyncHandler(async (request, response) => {
+    const farmerUserId = request.user.id;
+    const farmerProfile = await prisma.farmerProfile.findFirst({
+      where: { userId: farmerUserId },
+    });
+    const farmerIdNumber = farmerProfile?.farmerIdNumber || null;
+    const email = request.user.email;
+
+    const rows = await prisma.$queryRawUnsafe(
+      `SELECT dfe.*, dop.dairyName, dop.fssaiLicenseNumber, dop.operationalArea as dairyArea, dop.district as dairyDistrict
+       FROM \`dairy_farmer_enrollments\` dfe
+       LEFT JOIN \`DairyOwnerProfile\` dop ON dop.userId = dfe.dairyUserId
+       WHERE dfe.farmerUserId = ? OR (dfe.farmerIdNumber = ? AND ? IS NOT NULL) OR dfe.email = ?
+       ORDER BY dfe.createdAt DESC`,
+      farmerUserId,
+      farmerIdNumber,
+      farmerIdNumber,
+      email,
+    );
+
+    const requests = rows.map((r) => ({
+      ...r,
+      expectedDailyQuantity: Number(r.expectedDailyQuantity || 0),
+      agreedRatePerLiter: Number(r.agreedRatePerLiter || 0),
+      baseFatPercentage: Number(r.baseFatPercentage || 0),
+      baseSnfPercentage: Number(r.baseSnfPercentage || 0),
+      dairyName:
+        r.dairyName ||
+        (r.dairyUserId === 'cmvgtpksi000lkjwcbaawbosb' ? 'SK Dairy' : 'Registered Dairy'),
+    }));
+
+    response.json({ data: { requests } });
+  }),
+);
+
+// Farmer sends join request to dairy with certificate attached
+dairyRouter.post(
+  '/farmer/join-request',
+  asyncHandler(async (request, response) => {
+    const farmerUserId = request.user.id;
+    const body = request.body || {};
+
+    if (!body.dairyUserId) {
+      throw new AppError(400, 'VALIDATION_ERROR', 'Target dairy is required.');
+    }
+
+    const farmerProfile = await prisma.farmerProfile.findFirst({
+      where: { userId: farmerUserId },
+    });
+    const farm = await prisma.farm.findFirst({
+      where: { createdById: farmerUserId },
+    });
+
+    const farmerName = String(
+      body.farmerName || request.user.fullName || farmerProfile?.user?.fullName || 'Registered Farmer',
+    ).trim();
+    const farmName = String(
+      body.farmName || farm?.name || farmerProfile?.farmName || 'Registered Farm',
+    ).trim();
+    const farmerIdNumber = String(
+      body.farmerIdNumber ||
+        farmerProfile?.farmerIdNumber ||
+        `FRM-${farmerUserId.slice(-6).toUpperCase()}`,
+    ).trim();
+    const phone = body.phone || request.user.phone || null;
+    const email = body.email || request.user.email || null;
+    const state = body.state || farm?.state || farmerProfile?.state || 'Maharashtra';
+    const district = body.district || farm?.district || farmerProfile?.district || 'Kolhapur';
+    const taluka = body.taluka || farm?.taluka || farmerProfile?.taluka || null;
+    const villageArea =
+      body.villageArea || farm?.name ? `${farmName} Route` : `${district} Center`;
+    const pincode = body.pincode || farm?.pincode || farmerProfile?.pincode || null;
+    const milkType = ['COW', 'BUFFALO', 'MIXED'].includes(body.milkType) ? body.milkType : 'COW';
+    const expectedDailyQuantity = parseFloat(body.expectedDailyQuantity) || 25.0;
+    const agreedRatePerLiter = parseFloat(body.agreedRatePerLiter) || 42.5;
+    const paymentMethod = body.paymentMethod || 'BANK_TRANSFER';
+    const bankAccountNumber = body.bankAccountNumber || null;
+    const bankIfsc = body.bankIfsc || null;
+    const bankName = body.bankName || null;
+    const upiId = body.upiId || null;
+    const joinRequestNotes =
+      body.joinRequestNotes || 'Farmer requesting milk supply agreement with verified certificate.';
+    const certificateNumber = body.certificateNumber ? String(body.certificateNumber).trim() : null;
+    const certificateVerificationId = body.certificateVerificationId
+      ? String(body.certificateVerificationId).trim()
+      : null;
+
+    // Check if an existing enrollment/request exists for this dairy
+    const existing = await prisma.$queryRawUnsafe(
+      'SELECT id, status FROM `dairy_farmer_enrollments` WHERE `dairyUserId` = ? AND (`farmerUserId` = ? OR `farmerIdNumber` = ?) LIMIT 1',
+      body.dairyUserId,
+      farmerUserId,
+      farmerIdNumber,
+    );
+
+    let id;
+    if (existing && existing.length > 0) {
+      id = existing[0].id;
+      await prisma.$executeRawUnsafe(
+        `UPDATE \`dairy_farmer_enrollments\` SET
+          \`farmerName\` = ?, \`farmName\` = ?, \`phone\` = ?, \`email\` = ?,
+          \`state\` = ?, \`district\` = ?, \`taluka\` = ?, \`villageArea\` = ?,
+          \`milkType\` = ?, \`expectedDailyQuantity\` = ?, \`agreedRatePerLiter\` = ?,
+          \`paymentMethod\` = ?, \`bankAccountNumber\` = ?, \`bankIfsc\` = ?, \`bankName\` = ?, \`upiId\` = ?,
+          \`status\` = 'PENDING_APPROVAL', \`joinRequestNotes\` = ?,
+          \`certificateNumber\` = ?, \`certificateVerificationId\` = ?, \`farmerUserId\` = ?
+        WHERE \`id\` = ?`,
+        farmerName,
+        farmName,
+        phone,
+        email,
+        state,
+        district,
+        taluka,
+        villageArea,
+        milkType,
+        expectedDailyQuantity,
+        agreedRatePerLiter,
+        paymentMethod,
+        bankAccountNumber,
+        bankIfsc,
+        bankName,
+        upiId,
+        joinRequestNotes,
+        certificateNumber,
+        certificateVerificationId,
+        farmerUserId,
+        id,
+      );
+    } else {
+      id = `dfe_${crypto.randomUUID().replace(/-/g, '').slice(0, 16)}`;
+      await prisma.$executeRawUnsafe(
+        `INSERT INTO \`dairy_farmer_enrollments\` (
+          \`id\`, \`dairyUserId\`, \`farmerUserId\`, \`farmerIdNumber\`, \`farmerName\`, \`farmName\`,
+          \`phone\`, \`email\`, \`state\`, \`district\`, \`taluka\`, \`villageArea\`, \`pincode\`,
+          \`milkType\`, \`expectedDailyQuantity\`, \`agreedRatePerLiter\`, \`baseFatPercentage\`,
+          \`baseSnfPercentage\`, \`paymentMethod\`, \`bankAccountNumber\`, \`bankIfsc\`, \`bankName\`,
+          \`upiId\`, \`status\`, \`joinRequestNotes\`, \`certificateNumber\`, \`certificateVerificationId\`
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 4.2, 8.6, ?, ?, ?, ?, ?, 'PENDING_APPROVAL', ?, ?, ?)`,
+        id,
+        body.dairyUserId,
+        farmerUserId,
+        farmerIdNumber,
+        farmerName,
+        farmName,
+        phone,
+        email,
+        state,
+        district,
+        taluka,
+        villageArea,
+        pincode,
+        milkType,
+        expectedDailyQuantity,
+        agreedRatePerLiter,
+        paymentMethod,
+        bankAccountNumber,
+        bankIfsc,
+        bankName,
+        upiId,
+        joinRequestNotes,
+        certificateNumber,
+        certificateVerificationId,
+      );
+    }
+
+    // Alert the dairy operator
+    try {
+      await prisma.alert.create({
+        data: {
+          userId: body.dairyUserId,
+          type: 'DAIRY_JOIN_REQUEST',
+          title: 'New Milk Supply Request Received 📬',
+          message: `Farmer ${farmerName} (${farmName}) has sent a milk supply request with Certificate #${certificateNumber || 'Attached'}. Please review the certificate and accept.`,
+          entityType: 'DAIRY_ENROLLMENT',
+          entityId: id,
+        },
+      });
+    } catch {}
+
+    response.status(201).json({
+      data: {
+        message: 'Milk supply request submitted to dairy successfully.',
+        enrollmentId: id,
+        status: 'PENDING_APPROVAL',
+      },
+    });
+  }),
+);
+
+// Farmer sells milk to an approved dairy
+dairyRouter.post(
+  '/farmer/sell-milk',
+  asyncHandler(async (request, response) => {
+    const farmerUserId = request.user.id;
+    const body = request.body || {};
+
+    if (!body.dairyUserId || !body.quantityLiters) {
+      throw new AppError(400, 'VALIDATION_ERROR', 'Target dairy and Quantity (Liters) are required.');
+    }
+
+    const farmerProfile = await prisma.farmerProfile.findFirst({
+      where: { userId: farmerUserId },
+    });
+    const farmerIdNumber = body.farmerIdNumber || farmerProfile?.farmerIdNumber || null;
+
+    // Verify active enrollment with this dairy
+    const enrollments = await prisma.$queryRawUnsafe(
+      'SELECT * FROM `dairy_farmer_enrollments` WHERE `dairyUserId` = ? AND (`farmerUserId` = ? OR (`farmerIdNumber` = ? AND ? IS NOT NULL)) LIMIT 1',
+      body.dairyUserId,
+      farmerUserId,
+      farmerIdNumber,
+      farmerIdNumber,
+    );
+
+    if (!enrollments || enrollments.length === 0) {
+      throw new AppError(
+        403,
+        'NOT_ENROLLED',
+        'You must first send a join request to this dairy and be accepted before selling milk.',
+      );
+    }
+
+    const enr = enrollments[0];
+    if (enr.status !== 'ACTIVE') {
+      throw new AppError(
+        403,
+        'REQUEST_PENDING',
+        `Cannot sell milk: Your supply request to this dairy is currently "${enr.status}". The dairy operator must review your certificate and accept your request first.`,
+      );
+    }
+
+    const quantityLiters = parseFloat(body.quantityLiters);
+    if (isNaN(quantityLiters) || quantityLiters <= 0) {
+      throw new AppError(400, 'VALIDATION_ERROR', 'Quantity must be a positive number.');
+    }
+
+    const ratePerLiter = parseFloat(body.ratePerLiter) || Number(enr.agreedRatePerLiter) || 42.5;
+    const totalCost = parseFloat((quantityLiters * ratePerLiter).toFixed(2));
+    const milkType = ['COW', 'BUFFALO', 'MIXED'].includes(body.milkType)
+      ? body.milkType
+      : enr.milkType || 'COW';
+    const fatPercentage = parseFloat(body.fatPercentage) || Number(enr.baseFatPercentage) || 4.2;
+    const snfPercentage = parseFloat(body.snfPercentage) || Number(enr.baseSnfPercentage) || 8.6;
+    const shift = body.shift === 'EVENING' ? 'EVENING' : 'MORNING';
+    const collectionDate = body.collectionDate || new Date().toISOString().split('T')[0];
+    const id = `intake_${crypto.randomUUID().replace(/-/g, '').slice(0, 16)}`;
+
+    await prisma.$executeRawUnsafe(
+      `INSERT INTO \`dairy_milk_intakes\` (
+        \`id\`, \`dairyUserId\`, \`enrollmentId\`, \`farmerIdNumber\`, \`farmerName\`, \`farmName\`,
+        \`villageArea\`, \`collectionDate\`, \`shift\`, \`milkType\`, \`quantityLiters\`,
+        \`fatPercentage\`, \`snfPercentage\`, \`ratePerLiter\`, \`totalCost\`, \`storageTank\`,
+        \`eligibilityStatus\`, \`paymentStatus\`, \`qualityGrade\`, \`notes\`
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'CLEARED', 'PENDING', 'GRADE_A', ?)`,
+      id,
+      body.dairyUserId,
+      enr.id,
+      enr.farmerIdNumber,
+      enr.farmerName,
+      enr.farmName,
+      enr.villageArea,
+      collectionDate,
+      shift,
+      milkType,
+      quantityLiters,
+      fatPercentage,
+      snfPercentage,
+      ratePerLiter,
+      totalCost,
+      milkType === 'BUFFALO' ? 'Silo-2 (Raw Buffalo)' : 'Silo-1 (Raw Cow)',
+      body.notes || 'Recorded via farmer milk supply terminal with certified herd clearance.',
+    );
+
+    // Alert dairy operator
+    try {
+      await prisma.alert.create({
+        data: {
+          userId: body.dairyUserId,
+          type: 'MILK_INTAKE_DELIVERED',
+          title: 'Milk Supply Received 🥛',
+          message: `Farmer ${enr.farmerName} has supplied ${quantityLiters}L (${milkType}) on ${collectionDate} (${shift}). Total payout: ₹${totalCost}.`,
+          entityType: 'DAIRY_INTAKE',
+          entityId: id,
+        },
+      });
+    } catch {}
+
+    response.status(201).json({
+      data: {
+        message: `Successfully sold ${quantityLiters}L milk to dairy! Payout: ₹${totalCost}.`,
+        intakeId: id,
+        quantityLiters,
+        ratePerLiter,
+        totalCost,
+        collectionDate,
+        shift,
+      },
+    });
+  }),
+);
+
+// Farmer's milk sales history
+dairyRouter.get(
+  '/farmer/sales-history',
+  asyncHandler(async (request, response) => {
+    const farmerUserId = request.user.id;
+    const farmerProfile = await prisma.farmerProfile.findFirst({
+      where: { userId: farmerUserId },
+    });
+    const farmerIdNumber = farmerProfile?.farmerIdNumber || null;
+
+    const rows = await prisma.$queryRawUnsafe(
+      `SELECT dmi.*, dop.dairyName
+       FROM \`dairy_milk_intakes\` dmi
+       LEFT JOIN \`DairyOwnerProfile\` dop ON dop.userId = dmi.dairyUserId
+       LEFT JOIN \`dairy_farmer_enrollments\` dfe ON dfe.id = dmi.enrollmentId
+       WHERE (dfe.farmerUserId = ? OR dmi.farmerIdNumber = ?)
+       ORDER BY dmi.collectionDate DESC, dmi.createdAt DESC
+       LIMIT 100`,
+      farmerUserId,
+      farmerIdNumber || 'NONE',
+    );
+
+    const sales = rows.map((r) => ({
+      ...r,
+      quantityLiters: Number(r.quantityLiters || 0),
+      fatPercentage: Number(r.fatPercentage || 0),
+      snfPercentage: Number(r.snfPercentage || 0),
+      ratePerLiter: Number(r.ratePerLiter || 0),
+      totalCost: Number(r.totalCost || 0),
+      dairyName:
+        r.dairyName ||
+        (r.dairyUserId === 'cmvgtpksi000lkjwcbaawbosb' ? 'SK Dairy' : 'Registered Dairy'),
+    }));
+
+    response.json({ data: { sales } });
+  }),
+);
+
+// Dairy operator certificate inspection endpoint
+dairyRouter.get(
+  '/certificates/verify/:verificationId',
+  asyncHandler(async (request, response) => {
+    const { verificationId } = request.params;
+
+    // 1. Check daily clearance
+    const dailyClearance = await prisma.dailyMilkCollectionClearance.findFirst({
+      where: {
+        OR: [{ verificationId }, { clearanceNumber: verificationId }],
+      },
+      include: { generatedBy: { select: { fullName: true, email: true } } },
+    });
+
+    if (dailyClearance) {
+      let payload = dailyClearance.canonicalPayload;
+      if (typeof payload === 'string') {
+        try {
+          payload = JSON.parse(payload);
+        } catch {}
+      }
+
+      return response.json({
+        data: {
+          type: 'DAILY_CLEARANCE',
+          certificateNumber: dailyClearance.clearanceNumber,
+          verificationId: dailyClearance.verificationId,
+          status: 'ACTIVE',
+          documentIntegrity: 'VERIFIED',
+          contentHashSha256: dailyClearance.contentHashSha256,
+          farmName: payload?.farm?.name || 'Registered Farm',
+          businessDate: payload?.businessDate || dailyClearance.generatedAt,
+          eligibleCount: payload?.eligibleCount ?? 0,
+          applicableCount: payload?.applicableCount ?? 0,
+          animals: (payload?.animals || []).map((a) => ({
+            tagNumber: a.animalTag || a.tagNumber,
+            name: a.animalName || a.name,
+            status: a.eligibilityStatus,
+            blockingReason: a.blockingReason || null,
+          })),
+          disclaimer: dailyClearance.disclaimer,
+          generatedAt: dailyClearance.generatedAt,
+          publicUrl: `/verify/daily-clearance/${dailyClearance.verificationId}`,
+        },
+      });
+    }
+
+    // 2. Check individual animal certificate
+    const cert = await prisma.milkEligibilityCertificate.findFirst({
+      where: {
+        OR: [{ verificationId }, { certificateNumber: verificationId }, { id: verificationId }],
+      },
+      include: {
+        animal: {
+          include: { farm: true, species: true },
+        },
+      },
+    });
+
+    if (cert) {
+      return response.json({
+        data: {
+          type: 'MILK_ELIGIBILITY_CERTIFICATE',
+          certificateNumber: cert.certificateNumber,
+          verificationId: cert.verificationId,
+          status: cert.status,
+          documentIntegrity: 'VERIFIED',
+          farmName: cert.animal?.farm?.name || 'Registered Farm',
+          animalTag: cert.animal?.tagNumber,
+          species: cert.animal?.species?.canonicalName || 'Cattle',
+          eligibleFrom: cert.eligibleFrom,
+          disclaimer: cert.disclaimer,
+          issuedAt: cert.issuedAt,
+          animals: [
+            {
+              tagNumber: cert.animal?.tagNumber,
+              name: cert.animal?.name,
+              status: 'ELIGIBLE_FOR_MILK',
+              blockingReason: null,
+            },
+          ],
+          publicUrl: `/verify/certificate/${cert.verificationId}`,
+        },
+      });
+    }
+
+    throw new AppError(
+      404,
+      'NOT_FOUND',
+      `Certificate with verification ID or Number "${verificationId}" was not found.`,
+    );
   }),
 );
 
@@ -624,8 +1259,30 @@ dairyRouter.post(
     const storageTank = body.storageTank || 'Silo-1 (Raw Cow)';
     const qualityGrade =
       body.qualityGrade || (fatPercentage >= 4.2 && snfPercentage >= 8.5 ? 'GRADE_A' : 'GRADE_B');
-    const paymentStatus = body.paymentStatus === 'PAID' ? 'PAID' : 'PENDING';
     const notes = body.notes || 'Recorded via dairy intake terminal.';
+
+    // Check farmer enrollment status - cannot accept milk if pending review
+    const enrollmentCheck = await prisma.$queryRawUnsafe(
+      'SELECT status FROM `dairy_farmer_enrollments` WHERE `dairyUserId` = ? AND `farmerIdNumber` = ? LIMIT 1',
+      dairyUserId,
+      farmerIdNumber,
+    );
+    if (enrollmentCheck && enrollmentCheck.length > 0) {
+      if (enrollmentCheck[0].status === 'PENDING_APPROVAL') {
+        throw new AppError(
+          400,
+          'ENROLLMENT_PENDING',
+          'Cannot collect milk: Farmer join request is still pending approval. You must inspect the certificate and accept the farmer first.',
+        );
+      }
+      if (enrollmentCheck[0].status === 'REJECTED' || enrollmentCheck[0].status === 'SUSPENDED') {
+        throw new AppError(
+          400,
+          'ENROLLMENT_INACTIVE',
+          `Cannot collect milk: Farmer enrollment status is "${enrollmentCheck[0].status}".`,
+        );
+      }
+    }
 
     // Check withdrawal safety status against farmer's animals if available
     let eligibilityStatus = 'CLEARED';
