@@ -89,6 +89,7 @@ export function navigationFor(workspace) {
             ['core-engine', 'AMU & Milk Eligibility'],
             ['daily-clearance', "Today's Milk Eligibility"],
             ['certificates', 'Certificates'],
+            ['milk-sales', '🥛 Sell Milk to Dairy'],
             ['farmer-chatbot', '🌾 Kisan Mitra (AI)'],
           ]
         : []),

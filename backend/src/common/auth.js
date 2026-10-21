@@ -61,6 +61,7 @@ export const authenticate = asyncHandler(async (request, _response, next) => {
   if (!user || user.status !== 'ACTIVE')
     throw new AppError(401, 'ACCOUNT_UNAVAILABLE', 'Account is unavailable');
   request.principal = { user, platformRoles: user.platformRoles.map((item) => item.role) };
+  request.user = user;
   next();
 });
 
