@@ -87,13 +87,17 @@ dashboardsRouter.get(
           followUpCases: 0,
         },
       });
-    const cases = vet
-      ? await prisma.veterinaryCase.findMany({
-          where: { veterinarianId: vet.id },
-          select: { farmId: true },
-        })
-      : [];
-    const farmIds = [...new Set(cases.map((x) => x.farmId))];
+    const [caseFarms, requestFarms] = await Promise.all([
+      prisma.veterinaryCase.findMany({
+        where: { veterinarianId: vet.id },
+        select: { farmId: true },
+      }),
+      prisma.treatmentRequest.findMany({
+        where: { requestedVeterinarianId: vet.id },
+        select: { farmId: true },
+      }),
+    ]);
+    const farmIds = [...new Set([...caseFarms.map((x) => x.farmId), ...requestFarms.map((x) => x.farmId)])];
     const data = await common(farmIds);
     data.pendingRequests = vet
       ? await prisma.treatmentRequest.count({
@@ -105,6 +109,85 @@ dashboardsRouter.get(
           where: { veterinarianId: vet.id, status: 'FOLLOW_UP' },
         })
       : 0;
+
+    // Farm-wise traceability data for the veterinarian
+    data.authorizedFarms = await prisma.farm.findMany({
+      where: { id: { in: farmIds } },
+      select: {
+        id: true,
+        name: true,
+        state: true,
+        district: true,
+        taluka: true,
+        pincode: true,
+        status: true,
+        animals: {
+          where: { status: 'ACTIVE' },
+          select: {
+            id: true,
+            name: true,
+            tagNumber: true,
+            species: { select: { id: true, name: true } },
+            breed: { select: { id: true, name: true } },
+            status: true,
+            lactating: true,
+          },
+        },
+        treatments: {
+          select: {
+            id: true,
+            status: true,
+            startedAt: true,
+            completedAt: true,
+            expectedEndDate: true,
+            notes: true,
+            animal: {
+              select: { id: true, name: true, tagNumber: true },
+            },
+            case: {
+              select: {
+                id: true,
+                status: true,
+                createdAt: true,
+                diagnoses: {
+                  select: { id: true, clinicalNotes: true, diagnosisDate: true, disease: { select: { name: true } } },
+                },
+              },
+            },
+            prescription: {
+              select: {
+                id: true,
+                instructions: true,
+                items: {
+                  select: {
+                    id: true,
+                    doseValue: true,
+                    doseUnit: true,
+                    route: true,
+                    frequency: true,
+                    instructions: true,
+                    drug: { select: { name: true, activeIngredients: true, antimicrobialClass: { select: { name: true } } } },
+                  },
+                },
+              },
+            },
+          },
+          orderBy: { startedAt: 'desc' },
+        },
+        eligibilityChecks: {
+          where: { isCurrent: true },
+          select: {
+            animalId: true,
+            status: true,
+            withdrawalEndDate: true,
+            evaluatedAt: true,
+            blockingReason: true,
+          },
+        },
+      },
+      orderBy: { name: 'asc' },
+    });
+
     res.json({ data });
   }),
 );

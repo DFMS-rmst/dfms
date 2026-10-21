@@ -16,6 +16,7 @@ import {
 import { VerificationPage } from './VerificationPage.jsx';
 import { AdminVerifications } from './AdminVerifications.jsx';
 import { DairyHub } from './DairyHub.jsx';
+import { NotificationsPage } from './NotificationsPage.jsx';
 const Field = ({ label, name, type = 'text', required = true, defaultValue }) => (
   <label>
     {label}
@@ -1642,6 +1643,9 @@ function Workspace({ user, setUser, logout }) {
           )}
           {page === 'ai' && (
             <AiLayer farms={activeFarm ? [activeFarm] : []} user={user} workspace={workspace} />
+          )}
+          {page === 'notifications' && (
+            <NotificationsPage user={user} workspace={workspace} onNavigate={(dest) => setPage(dest)} />
           )}
           {['dairy-dashboard', 'dairy-farmers', 'dairy-inventory'].includes(page) && (
             <DairyHub

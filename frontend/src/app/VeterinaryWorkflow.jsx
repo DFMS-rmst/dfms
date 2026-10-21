@@ -573,6 +573,12 @@ function CaseWorkspace({ caseId, context, user, capabilities, close }) {
   const [workflowError, setWorkflowError] = useState('');
   const [prescriptionDrugId, setPrescriptionDrugId] = useState('');
   const [prescriptionProductId, setPrescriptionProductId] = useState('');
+  const [diagnoseSubmitting, setDiagnoseSubmitting] = useState(false);
+  const [diagnoseSuccess, setDiagnoseSuccess] = useState('');
+  const [diagnoseError, setDiagnoseError] = useState('');
+  const [prescribeSubmitting, setPrescribeSubmitting] = useState(false);
+  const [prescribeSuccess, setPrescribeSuccess] = useState('');
+  const [prescribeError, setPrescribeError] = useState('');
   async function load() {
     setItem((await api(`/veterinary-cases/${caseId}`)).case);
     setMessages((await api(`/veterinary-cases/${caseId}/messages`)).messages);
@@ -607,42 +613,68 @@ function CaseWorkspace({ caseId, context, user, capabilities, close }) {
   }
   async function diagnose(e) {
     e.preventDefault();
-    const v = Object.fromEntries(new FormData(e.currentTarget));
-    if (!v.diseaseId) v.diseaseId = null;
-    await api(`/veterinary-cases/${caseId}/diagnoses`, { method: 'POST', body: JSON.stringify(v) });
-    e.currentTarget.reset();
-    load();
+    if (diagnoseSubmitting) return;
+    setDiagnoseSubmitting(true);
+    setDiagnoseError('');
+    setDiagnoseSuccess('');
+    try {
+      const form = e.currentTarget;
+      const v = Object.fromEntries(new FormData(form));
+      if (!v.diseaseId) v.diseaseId = null;
+      const res = await api(`/veterinary-cases/${caseId}/diagnoses`, { method: 'POST', body: JSON.stringify(v) });
+      form.reset();
+      setDiagnoseSuccess(res?.data?.deduplicated ? 'Diagnosis recorded (deduplicated).' : 'Diagnosis recorded successfully.');
+      await load();
+      setTimeout(() => setDiagnoseSuccess(''), 5000);
+    } catch (err) {
+      setDiagnoseError(err.message || 'Failed to record diagnosis.');
+    } finally {
+      setDiagnoseSubmitting(false);
+    }
   }
   async function prescribe(e) {
     e.preventDefault();
-    const v = Object.fromEntries(new FormData(e.currentTarget));
-    const payload = {
-      diagnosisId: v.diagnosisId || null,
-      startDate: v.startDate,
-      expectedEndDate: v.expectedEndDate || null,
-      instructions: v.instructions,
-      items: [
-        {
-          drugId: v.drugId,
-          drugProductId: v.drugProductId || null,
-          doseValue: Number(v.doseValue),
-          doseUnit: v.doseUnit,
-          route: v.route,
-          frequency: v.frequency,
-          durationValue: Number(v.durationValue),
-          durationUnit: v.durationUnit,
-          startDate: v.startDate,
-          expectedEndDate: v.expectedEndDate || null,
-          instructions: v.itemInstructions,
-        },
-      ],
-    };
-    await api(`/veterinary-cases/${caseId}/prescriptions`, {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
-    e.currentTarget.reset();
-    load();
+    if (prescribeSubmitting) return;
+    setPrescribeSubmitting(true);
+    setPrescribeError('');
+    setPrescribeSuccess('');
+    try {
+      const form = e.currentTarget;
+      const v = Object.fromEntries(new FormData(form));
+      const payload = {
+        diagnosisId: v.diagnosisId || null,
+        startDate: v.startDate,
+        expectedEndDate: v.expectedEndDate || null,
+        instructions: v.instructions,
+        items: [
+          {
+            drugId: v.drugId,
+            drugProductId: v.drugProductId || null,
+            doseValue: Number(v.doseValue),
+            doseUnit: v.doseUnit,
+            route: v.route,
+            frequency: v.frequency,
+            durationValue: Number(v.durationValue),
+            durationUnit: v.durationUnit,
+            startDate: v.startDate,
+            expectedEndDate: v.expectedEndDate || null,
+            instructions: v.itemInstructions,
+          },
+        ],
+      };
+      const res = await api(`/veterinary-cases/${caseId}/prescriptions`, {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      form.reset();
+      setPrescribeSuccess(res?.data?.deduplicated ? 'Prescription issued (deduplicated).' : 'Prescription issued successfully.');
+      await load();
+      setTimeout(() => setPrescribeSuccess(''), 5000);
+    } catch (err) {
+      setPrescribeError(err.message || 'Failed to issue prescription.');
+    } finally {
+      setPrescribeSubmitting(false);
+    }
   }
   async function startTreatment(prescriptionId) {
     setWorkflowError('');
@@ -766,7 +798,19 @@ function CaseWorkspace({ caseId, context, user, capabilities, close }) {
                 Follow-up notes
                 <textarea name="followUpNotes" />
               </label>
-              <button>Record diagnosis</button>
+              {diagnoseSuccess && (
+                <div style={{ padding: '0.6rem 0.8rem', borderRadius: '6px', background: '#ecfdf5', color: '#065f46', border: '1px solid #a7f3d0', margin: '0.5rem 0', fontWeight: 500 }}>
+                  ✓ {diagnoseSuccess}
+                </div>
+              )}
+              {diagnoseError && (
+                <div style={{ padding: '0.6rem 0.8rem', borderRadius: '6px', background: '#fef2f2', color: '#991b1b', border: '1px solid #fecaca', margin: '0.5rem 0', fontWeight: 500 }}>
+                  ⚠️ {diagnoseError}
+                </div>
+              )}
+              <button disabled={diagnoseSubmitting}>
+                {diagnoseSubmitting ? 'Recording diagnosis…' : 'Record diagnosis'}
+              </button>
             </form>
           )}
         </section>
@@ -900,7 +944,19 @@ function CaseWorkspace({ caseId, context, user, capabilities, close }) {
             Item instructions
             <textarea name="itemInstructions" />
           </label>
-          <button>Issue prescription</button>
+          {prescribeSuccess && (
+            <div style={{ padding: '0.6rem 0.8rem', borderRadius: '6px', background: '#ecfdf5', color: '#065f46', border: '1px solid #a7f3d0', margin: '0.5rem 0', fontWeight: 500 }}>
+              ✓ {prescribeSuccess}
+            </div>
+          )}
+          {prescribeError && (
+            <div style={{ padding: '0.6rem 0.8rem', borderRadius: '6px', background: '#fef2f2', color: '#991b1b', border: '1px solid #fecaca', margin: '0.5rem 0', fontWeight: 500 }}>
+              ⚠️ {prescribeError}
+            </div>
+          )}
+          <button disabled={prescribeSubmitting}>
+            {prescribeSubmitting ? 'Issuing prescription…' : 'Issue prescription'}
+          </button>
         </form>
       )}
       {item.treatments.map((t) => (

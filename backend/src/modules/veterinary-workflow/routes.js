@@ -467,6 +467,19 @@ casesRouter.post(
       !(await prisma.disease.findUnique({ where: { id: req.body.diseaseId } }))
     )
       throw new AppError(400, 'DISEASE_NOT_FOUND', 'Disease reference not found');
+
+    // Deduplication guard against accidental rapid clicks
+    const recentDuplicate = await prisma.diagnosis.findFirst({
+      where: {
+        caseId: item.id,
+        diseaseId: req.body.diseaseId || null,
+        clinicalNotes: req.body.clinicalNotes,
+        createdAt: { gte: new Date(Date.now() - 60_000) },
+      },
+    });
+    if (recentDuplicate) {
+      return res.status(200).json({ data: { diagnosis: recentDuplicate, deduplicated: true } });
+    }
     const diagnosis = await prisma.$transaction(async (tx) => {
       const saved = await tx.diagnosis.create({
         data: {
@@ -538,6 +551,33 @@ casesRouter.post(
           'Selected product does not belong to the prescribed drug',
         );
     }
+    // Deduplication guard against rapid repeated clicks
+    const recentPrescriptions = await prisma.prescription.findMany({
+      where: {
+        caseId: item.id,
+        diagnosisId: req.body.diagnosisId || null,
+        instructions: req.body.instructions,
+        createdAt: { gte: new Date(Date.now() - 60_000) },
+      },
+      include: { items: true },
+    });
+    const duplicate = recentPrescriptions.find((p) => {
+      if (p.items.length !== req.body.items.length) return false;
+      return req.body.items.every((it) =>
+        p.items.some(
+          (pi) =>
+            pi.drugId === it.drugId &&
+            Number(pi.doseValue) === Number(it.doseValue) &&
+            pi.doseUnit === it.doseUnit &&
+            pi.route === it.route &&
+            pi.frequency === it.frequency,
+        ),
+      );
+    });
+    if (duplicate) {
+      return res.status(200).json({ data: { prescription: duplicate, deduplicated: true } });
+    }
+
     const { items, ...data } = req.body;
     const prescription = await prisma.$transaction(async (tx) => {
       const saved = await tx.prescription.create({
@@ -965,17 +1005,43 @@ export const alertsRouter = Router();
 alertsRouter.use(authenticate);
 alertsRouter.get(
   '/',
-  asyncHandler(async (req, res) =>
-    res.json({
-      data: {
-        alerts: await prisma.alert.findMany({
-          where: { userId: req.principal.user.id },
-          orderBy: { createdAt: 'desc' },
-          take: 100,
-        }),
-      },
-    }),
-  ),
+  asyncHandler(async (req, res) => {
+    const { status, type, from, to } = req.query;
+    const where = {
+      userId: req.principal.user.id,
+      ...(status && status !== 'ALL' ? { status } : {}),
+      ...(type && type !== 'ALL' ? { type } : {}),
+      ...(from || to
+        ? {
+            createdAt: {
+              ...(from ? { gte: new Date(from) } : {}),
+              ...(to ? { lte: new Date(to) } : {}),
+            },
+          }
+        : {}),
+    };
+    const [alerts, unreadCount] = await Promise.all([
+      prisma.alert.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        take: 100,
+      }),
+      prisma.alert.count({
+        where: { userId: req.principal.user.id, status: 'UNREAD' },
+      }),
+    ]);
+    res.json({ data: { alerts, unreadCount } });
+  }),
+);
+alertsRouter.patch(
+  '/read-all',
+  asyncHandler(async (req, res) => {
+    await prisma.alert.updateMany({
+      where: { userId: req.principal.user.id, status: 'UNREAD' },
+      data: { status: 'READ', readAt: new Date() },
+    });
+    res.status(204).send();
+  }),
 );
 alertsRouter.patch(
   '/:id/read',
