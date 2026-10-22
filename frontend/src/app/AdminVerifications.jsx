@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { api } from './api.js';
+import { toast } from './toast.js';
 
 export function AdminVerifications() {
   const [data, setData] = useState({ veterinarians: [], farmers: [], dairyOwners: [] });
@@ -35,9 +36,11 @@ export function AdminVerifications() {
         method: 'PATCH',
         body: JSON.stringify({ status }),
       });
+      toast.success(`Successfully marked applicant as ${status}`);
       setMessage(`Successfully marked applicant as ${status}`);
       await loadVerifications();
     } catch (err) {
+      toast.error(err.message || 'Review action failed');
       setError(err.message || 'Review action failed');
     }
   }

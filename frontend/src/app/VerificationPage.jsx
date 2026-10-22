@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { api } from './api.js';
+import { toast } from './toast.js';
 
 export function VerificationPage({
   pendingData,
@@ -108,8 +109,10 @@ export function VerificationPage({
       });
 
       setIsDone(true);
+      toast.success('Verification details submitted successfully!');
       handleDone?.();
     } catch (err) {
+      toast.error(err.message || 'Verification submission failed. Please try again.');
       setError(err.message || 'Verification submission failed. Please try again.');
     } finally {
       setSubmitting(false);

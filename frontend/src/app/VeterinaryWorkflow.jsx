@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { api, download } from './api.js';
 import { canCompleteTreatment, treatmentRequestIdFromResponse } from './workflowContracts.js';
 import { AnimalRiskReportModal } from './AnimalRiskPrediction.jsx';
+import { toast } from './toast.js';
 
 const Field = ({ label, name, type = 'text', required = true }) => (
   <label>
@@ -381,6 +382,7 @@ function RequestForm({ farms, veterinarians, refresh }) {
           console.warn('Optional attachment upload error:', fileErr);
         }
       }
+      toast.success('Treatment request submitted successfully! Veterinarian notified.');
       setSuccess(
         '✅ Treatment request sent successfully! Assigned veterinarian has been notified.',
       );
@@ -635,6 +637,7 @@ function CaseWorkspace({ caseId, context, user, capabilities, close }) {
     const v = Object.fromEntries(new FormData(e.currentTarget));
     if (!v.diseaseId) v.diseaseId = null;
     await api(`/veterinary-cases/${caseId}/diagnoses`, { method: 'POST', body: JSON.stringify(v) });
+    toast.success('Diagnosis recorded successfully!');
     e.currentTarget.reset();
     load();
   }
@@ -667,6 +670,7 @@ function CaseWorkspace({ caseId, context, user, capabilities, close }) {
       method: 'POST',
       body: JSON.stringify(payload),
     });
+    toast.success('Prescription created successfully!');
     e.currentTarget.reset();
     load();
   }
@@ -677,6 +681,7 @@ function CaseWorkspace({ caseId, context, user, capabilities, close }) {
         method: 'POST',
         body: JSON.stringify({ caseId, prescriptionId, startImmediately: true }),
       });
+      toast.success('Treatment course started successfully!');
       await load();
     } catch (error) {
       setWorkflowError(error.message || 'Unable to start treatment');
@@ -693,6 +698,7 @@ function CaseWorkspace({ caseId, context, user, capabilities, close }) {
         method: 'PATCH',
         body: JSON.stringify({ status: 'COMPLETED', notes: 'Completed by veterinarian' }),
       });
+      toast.success('Treatment course marked as completed!');
       await load();
     } catch (error) {
       setWorkflowError(error.message || 'Unable to complete treatment');
@@ -1042,6 +1048,7 @@ function CaseWorkspace({ caseId, context, user, capabilities, close }) {
                     method: 'POST',
                     body: JSON.stringify(v),
                   });
+                  toast.success('Treatment administration recorded successfully!');
                   load();
                 }}
               />
@@ -1350,6 +1357,13 @@ export function VeterinaryWorkflow({ farms, context, user, capabilities }) {
       method: 'PATCH',
       body: JSON.stringify({ status }),
     });
+    toast.success(
+      status === 'ACCEPTED'
+        ? 'Treatment request accepted! Case opened.'
+        : status === 'REJECTED'
+          ? 'Treatment request rejected.'
+          : 'Treatment request cancelled.',
+    );
     if (result.veterinaryCase) setSelectedCase(result.veterinaryCase.id);
     else load();
   }

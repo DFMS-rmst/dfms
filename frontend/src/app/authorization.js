@@ -60,7 +60,6 @@ export function navigationFor(workspace) {
       ['dairy-dashboard', 'Dairy Operations'],
       ['admin', 'User Verifications'],
       ['core-engine', 'Organization Analytics'],
-      ['certificates', 'Certificates'],
     ];
   if (workspace.kind === 'DAIRY_OWNER')
     return [
@@ -75,7 +74,6 @@ export function navigationFor(workspace) {
           ['dashboard', 'Veterinarian Dashboard'],
           ['veterinary-care', 'Assigned Care'],
           ['core-engine', 'Relevant AMU & Eligibility'],
-          ['certificates', 'Relevant Certificates'],
         ]
       : [['vet', 'Verification Status']];
   if (workspace.kind === 'FARM') {

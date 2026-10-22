@@ -3,7 +3,6 @@ import { api, download, hasAccessToken, setAccessToken } from './api.js';
 import { VeterinaryWorkflow } from './VeterinaryWorkflow.jsx';
 import { CoreEngine } from './CoreEngine.jsx';
 import { Certificates, DashboardReports, PublicVerification } from './TrustLayer.jsx';
-import { AmuRiskCard } from './AiLayer.jsx';
 import { DailyClearance, PublicDailyClearance } from './DailyClearance.jsx';
 import { PublicAnimalVerification } from './PublicAnimalVerification.jsx';
 import { formatTimelineDate, timelineEventLabel, timelineEventsFromResponse } from './timeline.js';
@@ -20,6 +19,8 @@ import { FarmerMilkSales } from './FarmerMilkSales.jsx';
 import { AnimalRiskReportModal } from './AnimalRiskPrediction.jsx';
 import { RiskBadge } from './RiskBadge.jsx';
 import { FarmerChatbot, FarmerChatbotModal } from './FarmerChatbot.jsx';
+import { ToastContainer } from './Toast.jsx';
+import { toast } from './toast.js';
 const Field = ({ label, name, type = 'text', required = true, defaultValue }) => (
   <label>
     {label}
@@ -49,6 +50,11 @@ function AuthPage({ mode, done, go, onRequireVerification }) {
         return;
       }
       setAccessToken(data.accessToken);
+      toast.success(
+        mode === 'register'
+          ? 'Account registered successfully!'
+          : 'Welcome back! Logged in successfully.',
+      );
       done(data.user);
     } catch (x) {
       if (x.data?.requiresVerification && x.data?.verificationToken) {
@@ -59,6 +65,7 @@ function AuthPage({ mode, done, go, onRequireVerification }) {
         });
         return;
       }
+      toast.error(x.message || 'Authentication failed');
       setError(x.message);
     }
   }
@@ -284,14 +291,12 @@ function FarmForm({ done }) {
       'taluka',
       'pincode',
     ]);
-    done(
-      (
-        await api('/farms', {
-          method: 'POST',
-          body: JSON.stringify(payload),
-        })
-      ).farm,
-    );
+    const res = await api('/farms', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    toast.success(`Farm "${res.farm.name}" registered successfully!`);
+    done(res.farm);
   }
   return (
     <form className="card form" onSubmit={submit}>
@@ -330,10 +335,12 @@ function AnimalForm({ farmId, species, done }) {
         method: 'POST',
         body: JSON.stringify(v),
       });
+      toast.success(`Animal "${res.animal.name || res.animal.tagNumber}" registered successfully!`);
       done(res.animal);
       e.currentTarget.reset();
       setSelectedSex('FEMALE');
     } catch (err) {
+      toast.error(err.message || 'Failed to add animal');
       setError(err.message || 'Failed to add animal');
     } finally {
       setSubmitting(false);
@@ -631,6 +638,7 @@ function AdminVets() {
       method: 'PATCH',
       body: JSON.stringify({ status }),
     });
+    toast.success(`Veterinarian verification marked as ${status}.`);
     setItems((all) => all.filter((v) => v.id !== id));
   }
   async function viewDocument(fileId) {
@@ -774,12 +782,14 @@ function AdminRulesManager() {
     const raw = Object.fromEntries(new FormData(e.currentTarget));
     try {
       await api('/withdrawal/rules', { method: 'POST', body: JSON.stringify(raw) });
+      toast.success('Withdrawal rule created and submitted for review!');
       setSuccess(
         'Reference submitted as REVIEW REQUIRED. It cannot drive eligibility until independently reviewed.',
       );
       e.currentTarget.reset();
       await load();
     } catch (err) {
+      toast.error(err.message || 'Failed to create withdrawal rule');
       setError(err.message);
     }
   }
@@ -927,11 +937,13 @@ function FarmMembers({ farmId, canAssign, onAuthorizationChanged }) {
         method: 'POST',
         body: JSON.stringify({ email: form.elements.email.value, roles }),
       });
+      toast.success('Farm member invited successfully!');
       form.reset();
       setError('');
       await load();
       await onAuthorizationChanged?.();
     } catch (problem) {
+      toast.error(problem.message || 'Failed to invite member');
       setError(problem.message);
     }
   }
@@ -1049,10 +1061,30 @@ function TimelineDetails({ details }) {
   );
 }
 
-export function HealthTimeline({ timeline, showAmuRisk = false, farmId, onClose }) {
+export function HealthTimeline({
+  timeline,
+  _showAmuRisk = false,
+  _farmId,
+  onClose,
+  treatmentOnly = false,
+}) {
   const animal = timeline?.animal || {};
-  const events = Array.isArray(timeline?.events) ? timeline.events : [];
+  const rawEvents = Array.isArray(timeline?.events) ? timeline.events : [];
   const animalLabel = animal.name || animal.tagNumber || 'Animal';
+
+  const TREATMENT_EVENT_TYPES = new Set([
+    'TREATMENT_ACTIVE',
+    'TREATMENT_COMPLETED',
+    'TREATMENT_ADMINISTERED',
+    'TREATMENT_CANCELLED',
+    'PRESCRIPTION_ISSUED',
+    'DIAGNOSIS_RECORDED',
+    'TREATMENT_REQUEST_CREATED',
+  ]);
+
+  const events = treatmentOnly
+    ? rawEvents.filter((e) => TREATMENT_EVENT_TYPES.has(e?.eventType))
+    : rawEvents;
 
   return (
     <section className="card" aria-label={`${animalLabel} health timeline`}>
@@ -1076,26 +1108,61 @@ export function HealthTimeline({ timeline, showAmuRisk = false, farmId, onClose 
           </button>
         )}
       </div>
-      {showAmuRisk && animal.id && (
-        <>
-          <h3>Animal AMU Pattern Risk</h3>
-          <AmuRiskCard farmId={farmId} animalId={animal.id} />
-        </>
-      )}
-      {timeline?.loading && <p>Loading health timeline…</p>}
+
+      <p
+        style={{ margin: '-0.5rem 0 1.25rem', fontSize: '0.88rem', color: 'var(--ag-text-muted)' }}
+      >
+        {treatmentOnly
+          ? 'Past Veterinary Treatments, Prescriptions & Medical Administration Records'
+          : 'Health & Medical Records'}
+      </p>
+
+      {timeline?.loading && <p>Loading past treatment history…</p>}
       {timeline?.error && <p className="error">{timeline.error}</p>}
       {!timeline?.loading && !timeline?.error && events.length === 0 && (
-        <p>No health timeline events are available yet.</p>
+        <div
+          style={{
+            padding: '2rem 1.5rem',
+            textAlign: 'center',
+            background: '#f8fafc',
+            borderRadius: '0.85rem',
+            border: '1px dashed #cbd5e1',
+            color: '#64748b',
+          }}
+        >
+          <span style={{ fontSize: '2rem', display: 'block', marginBottom: '0.5rem' }}>📋</span>
+          <strong>No past veterinary treatments recorded for this animal yet.</strong>
+          <p style={{ margin: '0.35rem 0 0', fontSize: '0.85rem' }}>
+            {treatmentOnly
+              ? 'When this animal receives clinical diagnoses, prescriptions, or medicine administrations, all past treatment details will appear here.'
+              : 'No health timeline events are available yet.'}
+          </p>
+        </div>
       )}
       {events.map((event, index) => (
         <article
           className="timeline-event"
           key={event?.id || `${event?.eventType || 'event'}-${index}`}
+          style={{
+            marginBottom: '0.85rem',
+            padding: '1rem',
+            border: '1px solid #e2e8f0',
+            borderRadius: '0.85rem',
+            background: '#ffffff',
+          }}
         >
-          <strong>{timelineEventLabel(event?.eventType)}</strong>
-          <p>{event?.summary || 'No additional summary was recorded.'}</p>
+          <div className="flex-between" style={{ alignItems: 'center', marginBottom: '0.4rem' }}>
+            <strong style={{ color: 'var(--ag-forest-dark)', fontSize: '0.95rem' }}>
+              {timelineEventLabel(event?.eventType)}
+            </strong>
+            <small style={{ color: '#64748b', fontWeight: 500 }}>
+              {formatTimelineDate(event?.createdAt)}
+            </small>
+          </div>
+          <p style={{ margin: '0.2rem 0 0.5rem', color: '#1e293b', fontSize: '0.9rem' }}>
+            {event?.summary || 'No additional summary was recorded.'}
+          </p>
           <TimelineDetails details={event?.details} />
-          <small>{formatTimelineDate(event?.createdAt)}</small>
         </article>
       ))}
     </section>
@@ -1132,7 +1199,9 @@ function AnimalTagModal({ animal, farm, onClose }) {
         `/farms/${farm.id}/animals/${animal.id}/tag-pdf`,
         `Animal-Tag-${animal.tagNumber}.pdf`,
       );
+      toast.success('Animal tag PDF downloaded successfully!');
     } catch (err) {
+      toast.error(err.message || 'Failed to download tag PDF');
       setError(err.message || 'Failed to download tag PDF');
     } finally {
       setDownloading(false);
@@ -1333,11 +1402,13 @@ function Workspace({ user, setUser, logout }) {
     }
     try {
       await api(`/farms/${farm.id}/animals/${animal.id}`, { method: 'DELETE' });
+      toast.success(`Animal "${animal.name || animal.tagNumber}" deleted successfully.`);
       setAnimals((all) => all.filter((x) => x.id !== animal.id));
       if (animalTimeline?.animal?.id === animal.id) {
         setAnimalTimeline(null);
       }
     } catch (err) {
+      toast.error(err.message || 'Failed to delete animal');
       alert(err.message || 'Failed to delete animal');
     }
   }
@@ -1525,12 +1596,6 @@ function Workspace({ user, setUser, logout }) {
               <p>
                 {farm.district}, {farm.state}
               </p>
-              {capabilities.canViewManagementAnalytics && (
-                <section className="card">
-                  <h2>Farm AMU Pattern Risk</h2>
-                  <AmuRiskCard farmId={farm.id} />
-                </section>
-              )}
               <h2>Animal List ({animals.length})</h2>
               <div className="grid">
                 {animals.length === 0 && (
@@ -1595,8 +1660,9 @@ function Workspace({ user, setUser, logout }) {
                         className="secondary"
                         style={{ fontSize: '0.8rem', padding: '0.45rem 0.2rem' }}
                         onClick={() => openTimeline(a)}
+                        title="View past treatment history"
                       >
-                        📜 Timeline
+                        📜 History
                       </button>
                       <button
                         type="button"
@@ -1619,12 +1685,25 @@ function Workspace({ user, setUser, logout }) {
                 ))}
               </div>
               {animalTimeline && (
-                <HealthTimeline
-                  timeline={animalTimeline}
-                  showAmuRisk={capabilities.canViewManagementAnalytics}
-                  farmId={farm.id}
-                  onClose={() => setAnimalTimeline(null)}
-                />
+                <div
+                  className="modal-backdrop"
+                  onClick={() => setAnimalTimeline(null)}
+                  role="dialog"
+                  aria-modal="true"
+                >
+                  <div
+                    className="modal"
+                    onClick={(e) => e.stopPropagation()}
+                    style={{ maxWidth: '680px', maxHeight: '88vh', overflowY: 'auto' }}
+                  >
+                    <HealthTimeline
+                      timeline={animalTimeline}
+                      treatmentOnly={true}
+                      farmId={farm.id}
+                      onClose={() => setAnimalTimeline(null)}
+                    />
+                  </div>
+                </div>
               )}
               {selectedTagAnimal && (
                 <AnimalTagModal
@@ -1754,45 +1833,51 @@ export function App() {
 
   async function logout() {
     await api('/auth/logout', { method: 'POST' });
+    toast.info('Logged out successfully.');
     setAccessToken(null);
     setUser(null);
   }
 
-  if (verificationId) return <PublicVerification verificationId={verificationId} />;
-  if (dailyVerificationId) return <PublicDailyClearance verificationId={dailyVerificationId} />;
-  if (animalVerificationId)
-    return <PublicAnimalVerification verificationId={animalVerificationId} />;
-  if (pendingVerification) {
-    return (
-      <VerificationPage
-        pendingData={pendingVerification}
-        pendingUser={pendingVerification?.user}
-        verificationToken={pendingVerification?.token || pendingVerification?.verificationToken}
-        onComplete={() => {
-          sessionStorage.removeItem('dfms_pending_verification');
-          setPendingVerification(null);
-          setMode('login');
-        }}
-        onBack={() => {
-          sessionStorage.removeItem('dfms_pending_verification');
-          setPendingVerification(null);
-          setMode('login');
-        }}
-      />
-    );
-  }
-
-  return user ? (
-    <Workspace user={user} setUser={setUser} logout={logout} />
-  ) : (
-    <AuthPage
-      mode={mode}
-      done={setUser}
-      go={setMode}
-      onRequireVerification={(verificationData) => {
-        sessionStorage.setItem('dfms_pending_verification', JSON.stringify(verificationData));
-        setPendingVerification(verificationData);
-      }}
-    />
+  return (
+    <>
+      <ToastContainer />
+      {verificationId && <PublicVerification verificationId={verificationId} />}
+      {dailyVerificationId && <PublicDailyClearance verificationId={dailyVerificationId} />}
+      {animalVerificationId && <PublicAnimalVerification verificationId={animalVerificationId} />}
+      {pendingVerification && (
+        <VerificationPage
+          pendingData={pendingVerification}
+          pendingUser={pendingVerification?.user}
+          verificationToken={pendingVerification?.token || pendingVerification?.verificationToken}
+          onComplete={() => {
+            sessionStorage.removeItem('dfms_pending_verification');
+            setPendingVerification(null);
+            setMode('login');
+          }}
+          onBack={() => {
+            sessionStorage.removeItem('dfms_pending_verification');
+            setPendingVerification(null);
+            setMode('login');
+          }}
+        />
+      )}
+      {!verificationId &&
+        !dailyVerificationId &&
+        !animalVerificationId &&
+        !pendingVerification &&
+        (user ? (
+          <Workspace user={user} setUser={setUser} logout={logout} />
+        ) : (
+          <AuthPage
+            mode={mode}
+            done={setUser}
+            go={setMode}
+            onRequireVerification={(verificationData) => {
+              sessionStorage.setItem('dfms_pending_verification', JSON.stringify(verificationData));
+              setPendingVerification(verificationData);
+            }}
+          />
+        ))}
+    </>
   );
 }

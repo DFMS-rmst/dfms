@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api, download, publicApi } from './api.js';
+import { toast } from './toast.js';
 
 const label = (x) => x?.replaceAll('_', ' ');
 export function Certificates({ farms, isAdmin, _canAnchor = false, canRevoke = false }) {
@@ -20,12 +21,17 @@ export function Certificates({ farms, isAdmin, _canAnchor = false, canRevoke = f
   async function revoke(id) {
     const reason = window.prompt('Administrative revocation reason');
     if (!reason) return;
-    await api(`/certificates/${id}/revoke`, {
-      method: 'POST',
-      body: JSON.stringify({ code: 'ADMINISTRATIVE_CORRECTION', reason }),
-    });
-    await open(id);
-    await load();
+    try {
+      await api(`/certificates/${id}/revoke`, {
+        method: 'POST',
+        body: JSON.stringify({ code: 'ADMINISTRATIVE_CORRECTION', reason }),
+      });
+      toast.success('Certificate revoked successfully.');
+      await open(id);
+      await load();
+    } catch (err) {
+      toast.error(err.message || 'Failed to revoke certificate');
+    }
   }
   return (
     <section>
@@ -146,14 +152,16 @@ export function DashboardReports({ farms, workspace }) {
     if (admin || vet || farmId) api(endpoint).then(setData);
   }, [endpoint, farmId, admin, vet]);
   const reports = admin
-    ? ['organization-amu', 'withdrawal-eligibility', 'certificates', 'veterinary-activity', 'audit']
-    : [
-        'farm-amu',
-        'animal-treatment-history',
-        'withdrawal-eligibility',
-        'certificates',
-        'veterinary-activity',
-      ];
+    ? ['organization-amu', 'withdrawal-eligibility', 'veterinary-activity', 'audit']
+    : vet
+      ? ['animal-treatment-history', 'withdrawal-eligibility', 'veterinary-activity']
+      : [
+          'farm-amu',
+          'animal-treatment-history',
+          'withdrawal-eligibility',
+          'certificates',
+          'veterinary-activity',
+        ];
   return (
     <section>
       <h1>{admin ? 'Platform' : vet ? 'Veterinarian' : 'Farm'} Dashboard & Reports</h1>
@@ -177,7 +185,7 @@ export function DashboardReports({ farms, workspace }) {
           <Tile n={data.activeTreatments} t="Treatments" />
           <Tile n={data.eligibility?.UNDER_WITHDRAWAL || 0} t="Under withdrawal" />
           <Tile n={data.eligibility?.ELIGIBLE_FOR_MILK || 0} t="Eligible animals" />
-          <Tile n={data.certificates?.ACTIVE || 0} t="Active certificates" />
+          {!admin && !vet && <Tile n={data.certificates?.ACTIVE || 0} t="Active certificates" />}
           <Tile n={data.amu?.totalAdministrations || 0} t="AMU administrations" />
         </div>
       )}

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from './api.js';
+import { toast } from './toast.js';
 
 export function FarmerMilkSales({ farm, user }) {
   const [dairies, setDairies] = useState([]);
@@ -168,6 +169,7 @@ export function FarmerMilkSales({ farm, user }) {
         }),
       });
 
+      toast.success('Supply request sent to dairy successfully!');
       setSuccessMessage(
         res.data?.message ||
           'Supply request sent to dairy! The dairy operator will verify your certificate and approve your request.',
@@ -175,6 +177,7 @@ export function FarmerMilkSales({ farm, user }) {
       setShowRequestModal(false);
       await loadData();
     } catch (err) {
+      toast.error(err.message || 'Failed to submit join request.');
       setError(err.message || 'Failed to submit join request.');
     } finally {
       setSubmitting(false);
@@ -201,6 +204,7 @@ export function FarmerMilkSales({ farm, user }) {
         }),
       });
 
+      toast.success(`Successfully recorded milk supply of ${qty}L!`);
       setSuccessMessage(
         res.data?.message ||
           `Successfully recorded milk supply of ${qty}L! Total payout: ₹${res.data?.totalCost || (qty * parseFloat(saleForm.ratePerLiter)).toFixed(2)}.`,
