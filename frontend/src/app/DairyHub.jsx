@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { api } from './api.js';
+import { toast } from './toast.js';
 
 // Shared solid, non-transparent modal styles ensuring crisp readability
 const modalBackdropStyle = {
@@ -221,6 +222,7 @@ export function DairyHub({ initialTab = 'analytics' }) {
 
   function showNotification(msg) {
     setSuccessMsg(msg);
+    toast.success(msg);
     setTimeout(() => setSuccessMsg(''), 4500);
   }
 

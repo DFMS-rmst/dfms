@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from './api.js';
+import { toast } from './toast.js';
 
 const statusLabel = (value) => value?.replaceAll('_', ' ');
 const ELIGIBILITY_COPY = {
@@ -185,14 +186,22 @@ export function CoreEngine({ farms, isAdmin, canIssue = false }) {
     load();
   }, [farmId, isAdmin]); // eslint-disable-line react-hooks/exhaustive-deps
   async function reevaluate(animalId) {
-    await api(`/eligibility/animals/${animalId}/evaluate`, { method: 'POST' });
-    await load();
+    try {
+      await api(`/eligibility/animals/${animalId}/evaluate`, { method: 'POST' });
+      toast.success('Milk eligibility re-evaluated successfully!');
+      await load();
+    } catch (err) {
+      toast.error(err.message || 'Evaluation failed');
+    }
   }
   async function issue(animalId) {
     try {
       await api(`/certificates/animals/${animalId}`, { method: 'POST' });
+      toast.success('Milk eligibility certificate issued successfully!');
       setError('Certificate issued. Open Certificates to view its PDF, QR, and proof status.');
+      await load();
     } catch (x) {
+      toast.error(x.message || 'Failed to issue certificate');
       setError(x.message);
     }
   }

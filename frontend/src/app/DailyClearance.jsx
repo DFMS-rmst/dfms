@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api, download, publicApi } from './api.js';
+import { toast } from './toast.js';
 
 const display = (value) => value?.replaceAll('_', ' ') || 'Not available';
 const reason = (item) =>
@@ -47,8 +48,10 @@ export function DailyClearance({ farm, canRun = false }) {
         method: 'POST',
         body: JSON.stringify({ farmId: farm.id }),
       });
+      toast.success('Today’s milk eligibility evaluated successfully!');
       await load();
     } catch (cause) {
+      toast.error(cause.message || 'Evaluation failed');
       setError(cause.message);
     } finally {
       setRunning(false);

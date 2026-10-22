@@ -36,6 +36,7 @@ describe('authorization context helpers', () => {
   it('provides role-aware admin, owner, worker, pending-vet and verified-vet navigation', () => {
     expect(labels({ kind: 'ADMIN' })).toContain('User Verifications');
     expect(labels({ kind: 'ADMIN' })).not.toContain('Veterinarian Onboarding');
+    expect(labels({ kind: 'ADMIN' })).not.toContain('Certificates');
     const owner = { kind: 'FARM', roles: ['FARM_OWNER', 'FARM_MANAGER'] };
     expect(labels(owner)).toEqual(
       expect.arrayContaining(['Farm Dashboard', 'Farm Members', 'Certificates']),
@@ -52,6 +53,9 @@ describe('authorization context helpers', () => {
     ]);
     expect(labels({ kind: 'VETERINARIAN', veterinarianStatus: 'VERIFIED' })).toContain(
       'Assigned Care',
+    );
+    expect(labels({ kind: 'VETERINARIAN', veterinarianStatus: 'VERIFIED' })).not.toContain(
+      'Relevant Certificates',
     );
   });
 });
