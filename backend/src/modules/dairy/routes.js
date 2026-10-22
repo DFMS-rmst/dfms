@@ -33,10 +33,9 @@ function extractTreatmentDetails(treatment) {
   const adminItem = treatment.administrations?.[0];
   const rxItem = treatment.prescription?.items?.[0];
   const drugName =
-    adminItem?.drug?.canonicalName ||
-    rxItem?.drug?.canonicalName ||
-    adminItem?.drug?.name ||
-    rxItem?.drug?.name ||
+    adminItem?.medicine?.medicineName ||
+    rxItem?.medicine?.medicineName ||
+    adminItem?.medicineName ||
     'Veterinary Medication';
   const route = adminItem?.route || rxItem?.route || 'Intramuscular';
   const dose = adminItem?.amount
@@ -173,14 +172,14 @@ dairyRouter.get(
               where: { status: { in: ['ACTIVE', 'COMPLETED'] } },
               include: {
                 administrations: {
-                  include: { drug: { select: { canonicalName: true, name: true } } },
+                  include: { medicine: true },
                   take: 1,
                   orderBy: { administeredAt: 'desc' },
                 },
                 prescription: {
                   include: {
                     items: {
-                      include: { drug: { select: { canonicalName: true, name: true } } },
+                      include: { medicine: true },
                       take: 1,
                     },
                   },
@@ -562,7 +561,9 @@ dairyRouter.put(
                 entityId: id,
               },
             });
-          } catch {}
+          } catch {
+            /* ignore notification failures */
+          }
         } else if (status === 'REJECTED') {
           try {
             await prisma.alert.create({
@@ -575,7 +576,9 @@ dairyRouter.put(
                 entityId: id,
               },
             });
-          } catch {}
+          } catch {
+            /* ignore notification failures */
+          }
         }
       }
     }
@@ -680,7 +683,9 @@ dairyRouter.get(
       if (typeof payload === 'string') {
         try {
           payload = JSON.parse(payload);
-        } catch {}
+        } catch {
+          /* ignore json parse fallback */
+        }
       }
       certificates.push({
         id: dc.id,
@@ -792,7 +797,10 @@ dairyRouter.post(
     });
 
     const farmerName = String(
-      body.farmerName || request.user.fullName || farmerProfile?.user?.fullName || 'Registered Farmer',
+      body.farmerName ||
+        request.user.fullName ||
+        farmerProfile?.user?.fullName ||
+        'Registered Farmer',
     ).trim();
     const farmName = String(
       body.farmName || farm?.name || farmerProfile?.farmName || 'Registered Farm',
@@ -807,8 +815,7 @@ dairyRouter.post(
     const state = body.state || farm?.state || farmerProfile?.state || 'Maharashtra';
     const district = body.district || farm?.district || farmerProfile?.district || 'Kolhapur';
     const taluka = body.taluka || farm?.taluka || farmerProfile?.taluka || null;
-    const villageArea =
-      body.villageArea || farm?.name ? `${farmName} Route` : `${district} Center`;
+    const villageArea = body.villageArea || farm?.name ? `${farmName} Route` : `${district} Center`;
     const pincode = body.pincode || farm?.pincode || farmerProfile?.pincode || null;
     const milkType = ['COW', 'BUFFALO', 'MIXED'].includes(body.milkType) ? body.milkType : 'COW';
     const expectedDailyQuantity = parseFloat(body.expectedDailyQuantity) || 25.0;
@@ -916,7 +923,9 @@ dairyRouter.post(
           entityId: id,
         },
       });
-    } catch {}
+    } catch {
+      /* ignore alert creation failures */
+    }
 
     response.status(201).json({
       data: {
@@ -936,7 +945,11 @@ dairyRouter.post(
     const body = request.body || {};
 
     if (!body.dairyUserId || !body.quantityLiters) {
-      throw new AppError(400, 'VALIDATION_ERROR', 'Target dairy and Quantity (Liters) are required.');
+      throw new AppError(
+        400,
+        'VALIDATION_ERROR',
+        'Target dairy and Quantity (Liters) are required.',
+      );
     }
 
     const farmerProfile = await prisma.farmerProfile.findFirst({
@@ -1024,7 +1037,9 @@ dairyRouter.post(
           entityId: id,
         },
       });
-    } catch {}
+    } catch {
+      /* ignore alert creation failures */
+    }
 
     response.status(201).json({
       data: {
@@ -1097,7 +1112,9 @@ dairyRouter.get(
       if (typeof payload === 'string') {
         try {
           payload = JSON.parse(payload);
-        } catch {}
+        } catch {
+          /* ignore json parse fallback */
+        }
       }
 
       return response.json({
@@ -1259,6 +1276,9 @@ dairyRouter.post(
     const storageTank = body.storageTank || 'Silo-1 (Raw Cow)';
     const qualityGrade =
       body.qualityGrade || (fatPercentage >= 4.2 && snfPercentage >= 8.5 ? 'GRADE_A' : 'GRADE_B');
+    const paymentStatus = ['PAID', 'PENDING'].includes(body.paymentStatus)
+      ? body.paymentStatus
+      : 'PENDING';
     const notes = body.notes || 'Recorded via dairy intake terminal.';
 
     // Check farmer enrollment status - cannot accept milk if pending review
@@ -1856,14 +1876,14 @@ dairyRouter.get(
                 where: { status: { in: ['ACTIVE', 'COMPLETED'] } },
                 include: {
                   administrations: {
-                    include: { drug: true },
+                    include: { medicine: true },
                     take: 1,
                     orderBy: { administeredAt: 'desc' },
                   },
                   prescription: {
                     include: {
                       items: {
-                        include: { drug: true },
+                        include: { medicine: true },
                         take: 1,
                       },
                     },
@@ -1907,14 +1927,14 @@ dairyRouter.get(
                 where: { status: { in: ['ACTIVE', 'COMPLETED'] } },
                 include: {
                   administrations: {
-                    include: { drug: true },
+                    include: { medicine: true },
                     take: 1,
                     orderBy: { administeredAt: 'desc' },
                   },
                   prescription: {
                     include: {
                       items: {
-                        include: { drug: true },
+                        include: { medicine: true },
                         take: 1,
                       },
                     },
@@ -2132,7 +2152,7 @@ dairyRouter.get(
           include: {
             administrations: {
               include: {
-                drug: true,
+                medicine: true,
                 administeredBy: { select: { fullName: true } },
               },
               orderBy: { administeredAt: 'desc' },
@@ -2140,7 +2160,7 @@ dairyRouter.get(
             prescription: {
               include: {
                 items: {
-                  include: { drug: true },
+                  include: { medicine: true },
                 },
               },
             },
@@ -2207,7 +2227,7 @@ dairyRouter.get(
       });
 
       for (const adm of t.administrations || []) {
-        const admDrug = adm.drug?.canonicalName || adm.drug?.name || drugName;
+        const admDrug = adm.medicine?.medicineName || adm.medicineName || drugName;
         timelineEvents.push({
           id: `adm-${adm.id}`,
           eventType: 'ADMINISTRATION',

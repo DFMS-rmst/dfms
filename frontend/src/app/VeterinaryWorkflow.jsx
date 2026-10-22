@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { api, download } from './api.js';
 import { canCompleteTreatment, treatmentRequestIdFromResponse } from './workflowContracts.js';
-import { AnimalRiskAssessmentModal, AnimalRiskReportModal } from './AnimalRiskPrediction.jsx';
+import { AnimalRiskReportModal } from './AnimalRiskPrediction.jsx';
 
 const Field = ({ label, name, type = 'text', required = true }) => (
   <label>
@@ -585,20 +585,8 @@ function CaseWorkspace({ caseId, context, user, capabilities, close }) {
   const [drugs, setDrugs] = useState([]);
   const [workflowError, setWorkflowError] = useState('');
   const [prescriptionDrugId, setPrescriptionDrugId] = useState('');
-  const [prescriptionProductId, setPrescriptionProductId] = useState('');
-  const [showRiskModal, setShowRiskModal] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [caseRisk, setCaseRisk] = useState(null);
-
-  async function loadRisk() {
-    if (!item?.animal?.id) return;
-    try {
-      const res = await api(`/ml/animals/${item.animal.id}/latest-risk`);
-      setCaseRisk(res?.assessment || res?.data?.assessment || null);
-    } catch {
-      // ignore
-    }
-  }
 
   async function load() {
     const caseData = (await api(`/veterinary-cases/${caseId}`)).case;
@@ -616,10 +604,11 @@ function CaseWorkspace({ caseId, context, user, capabilities, close }) {
   // Reload when the selected case changes; load intentionally closes over that case id.
   useEffect(() => {
     load();
-    api('/reference-data/diseases').then((d) => setDiseases(d.diseases));
-    api('/reference-data/drugs').then((d) => {
-      setDrugs(d.drugs);
-      setPrescriptionDrugId((current) => current || d.drugs[0]?.id || '');
+    api('/reference-data/diseases').then((d) => setDiseases(d.diseases || []));
+    api('/medicines').then((d) => {
+      const list = d?.medicines || d?.data?.medicines || d?.drugs || [];
+      setDrugs(list);
+      setPrescriptionDrugId((current) => current || list[0]?.id || '');
     });
     const timer = setInterval(load, 15000);
     return () => clearInterval(timer);
@@ -652,6 +641,7 @@ function CaseWorkspace({ caseId, context, user, capabilities, close }) {
   async function prescribe(e) {
     e.preventDefault();
     const v = Object.fromEntries(new FormData(e.currentTarget));
+    const medId = v.medicineId || v.drugId || prescriptionDrugId;
     const payload = {
       diagnosisId: v.diagnosisId || null,
       startDate: v.startDate,
@@ -659,8 +649,8 @@ function CaseWorkspace({ caseId, context, user, capabilities, close }) {
       instructions: v.instructions,
       items: [
         {
-          drugId: v.drugId,
-          drugProductId: v.drugProductId || null,
+          medicineId: medId,
+          drugId: medId,
           doseValue: Number(v.doseValue),
           doseUnit: v.doseUnit,
           route: v.route,
@@ -819,15 +809,6 @@ function CaseWorkspace({ caseId, context, user, capabilities, close }) {
                   📊 View Risk Report
                 </button>
               )}
-              {assignedVerifiedVeterinarian && (
-                <button
-                  type="button"
-                  style={{ fontSize: '0.82rem', padding: '0.4rem 0.75rem' }}
-                  onClick={() => setShowRiskModal(true)}
-                >
-                  🧠 {caseRisk ? 'Re-evaluate Risk' : 'Animal Risk Assessment'}
-                </button>
-              )}
             </div>
           </div>
         </div>
@@ -901,10 +882,16 @@ function CaseWorkspace({ caseId, context, user, capabilities, close }) {
           </div>
           {p.items.map((x) => (
             <p key={x.id}>
-              {x.drug.canonicalName}: {x.doseValue} {x.doseUnit}, {x.route}, {x.frequency},{' '}
-              {x.durationValue} {x.durationUnit}
+              {x.medicine?.medicineName || x.medicineName || x.drug?.canonicalName || 'Medicine'}:{' '}
+              {x.doseValue} {x.doseUnit}, {x.route}, {x.frequency}, {x.durationValue}{' '}
+              {x.durationUnit}
               <br />
-              <small>Product: {x.drugProduct?.productName || 'Not specified'}</small>
+              <small>
+                Class:{' '}
+                {x.medicine?.antimicrobialClass ||
+                  x.drug?.antimicrobialClass?.canonicalName ||
+                  'Standard'}
+              </small>
             </p>
           ))}
           {assignedVerifiedVeterinarian &&
@@ -928,39 +915,23 @@ function CaseWorkspace({ caseId, context, user, capabilities, close }) {
             </select>
           </label>
           <label>
-            Drug / active ingredient
+            Select Drug
             <select
-              name="drugId"
+              name="medicineId"
               value={prescriptionDrugId}
               onChange={(event) => {
                 setPrescriptionDrugId(event.target.value);
-                setPrescriptionProductId('');
               }}
             >
               {drugs.map((d) => (
                 <option key={d.id} value={d.id}>
-                  {d.canonicalName}
+                  {d.medicineName || d.canonicalName} ({d.antimicrobialClass || 'Medicine'}) —
+                  Withdrawal: {d.milkWithdrawalDays ?? 0} days
                 </option>
               ))}
             </select>
           </label>
-          <label>
-            Approved product (optional)
-            <select
-              name="drugProductId"
-              value={prescriptionProductId}
-              onChange={(event) => setPrescriptionProductId(event.target.value)}
-            >
-              <option value="">Product not specified / no approved product available</option>
-              {(drugs.find((drug) => drug.id === prescriptionDrugId)?.products || []).map(
-                (product) => (
-                  <option key={product.id} value={product.id}>
-                    {product.productName} — {product.formulation} ({product.route})
-                  </option>
-                ),
-              )}
-            </select>
-          </label>
+          <input type="hidden" name="drugId" value={prescriptionDrugId} />
           <Field label="Dose value (veterinarian entered)" name="doseValue" type="number" />
           <label>
             Dose unit
@@ -1028,8 +999,14 @@ function CaseWorkspace({ caseId, context, user, capabilities, close }) {
           {t.administrations.map((a, index) => (
             <article className="card compact" key={a.id}>
               <strong>Administration #{t.administrations.length - index}</strong>
-              <p>Medicine: {a.drug.canonicalName}</p>
-              <p>Product: {a.drugProduct?.productName || 'Not specified'}</p>
+              <p>
+                Medicine:{' '}
+                {a.medicineName ||
+                  a.medicine?.medicineName ||
+                  a.drug?.canonicalName ||
+                  'Administered Medicine'}
+              </p>
+              {a.medicine?.antimicrobialClass && <p>Class: {a.medicine.antimicrobialClass}</p>}
               <p>
                 Actual amount: {a.amount} {a.amountUnit}
               </p>
@@ -1097,33 +1074,11 @@ function CaseWorkspace({ caseId, context, user, capabilities, close }) {
           )}
         </article>
       ))}
-      {showRiskModal && (
-        <AnimalRiskAssessmentModal
-          animalId={item.animal.id}
-          caseId={caseId}
-          animalInfo={item.animal}
-          onClose={() => setShowRiskModal(false)}
-          onSaved={(newAssessment) => {
-            setCaseRisk(newAssessment);
-            load();
-            loadRisk();
-          }}
-        />
-      )}
-
       {showReportModal && (
         <AnimalRiskReportModal
           animal={item.animal}
           farmId={item.farmId}
           onClose={() => setShowReportModal(false)}
-          onOpenAssessment={
-            assignedVerifiedVeterinarian
-              ? () => {
-                  setShowReportModal(false);
-                  setShowRiskModal(true);
-                }
-              : null
-          }
         />
       )}
     </section>
@@ -1221,16 +1176,22 @@ export function AdministrationForm({ treatment, caseItem, onAdminister }) {
         <select value={selectedItemId} onChange={(e) => setSelectedItemId(e.target.value)}>
           {items.map((x) => (
             <option key={x.id} value={x.id}>
-              {x.drug.canonicalName} — {x.doseValue} {x.doseUnit} ({x.route}, {x.frequency})
+              {x.medicine?.medicineName || x.medicineName || x.drug?.canonicalName || 'Medicine'} —{' '}
+              {x.doseValue} {x.doseUnit} ({x.route}, {x.frequency})
             </option>
           ))}
         </select>
       </label>
       {selectedItem && (
         <div className="notice">
-          <strong>Prescription:</strong> {selectedItem.drug.canonicalName}
-          {' · '}
-          {selectedItem.drugProduct?.productName || 'Product not specified'}
+          <strong>Prescription:</strong>{' '}
+          {selectedItem.medicine?.medicineName ||
+            selectedItem.medicineName ||
+            selectedItem.drug?.canonicalName ||
+            'Medicine'}
+          {selectedItem.drugProduct?.productName
+            ? ` · ${selectedItem.drugProduct.productName}`
+            : ''}
           {' · '}
           {selectedItem.doseValue} {selectedItem.doseUnit}
           {' · '}

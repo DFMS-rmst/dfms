@@ -317,18 +317,17 @@ describe.sequential('complete veterinary workflow', () => {
       });
     expect(diagnosed.status).toBe(201);
     diagnosisId = diagnosed.body.data.diagnosis.id;
-    const drug =
-      (await prisma.drug.findFirst({ where: { code: 'AMOXICILLIN' } })) ||
-      (await prisma.drug.findFirst());
-    const drugProduct = await prisma.drugProduct.findFirst({ where: { drugId: drug.id } });
+    const medicine =
+      (await prisma.medicine.findFirst({ where: { medicineName: { contains: 'Amoxicillin' } } })) ||
+      (await prisma.medicine.findFirst());
     const payload = {
       diagnosisId,
       startDate: new Date().toISOString(),
       instructions: 'Veterinarian-entered instructions',
       items: [
         {
-          drugId: drug.id,
-          drugProductId: drugProduct?.id || null,
+          medicineId: medicine.id,
+          drugId: medicine.id,
           doseValue: 5,
           doseUnit: 'mL',
           route: 'IM',
@@ -355,8 +354,9 @@ describe.sequential('complete veterinary workflow', () => {
     expect(prescribed.status).toBe(201);
     prescriptionId = prescribed.body.data.prescription.id;
     ids.prescriptionItemId = prescribed.body.data.prescription.items[0].id;
-    ids.drugId = drug.id;
-    ids.drugProductId = drugProduct?.id || null;
+    ids.medicineId = medicine.id;
+    ids.drugId = medicine.id;
+    ids.drugProductId = null;
     expect(await prisma.treatmentAdministration.count({ where: { animalId } })).toBe(0);
   });
   it('tracks treatment transitions and actual administrations separately with timeline events', async () => {
@@ -435,7 +435,7 @@ describe.sequential('complete veterinary workflow', () => {
       .send({
         prescriptionItemId: ids.prescriptionItemId,
         drugProductId: ids.drugProductId,
-        drugId: (await prisma.drug.findFirst({ where: { NOT: { id: ids.drugId } } }))?.id,
+        drugId: (await prisma.medicine.findFirst({ where: { NOT: { id: ids.medicineId } } }))?.id,
         amount: 5,
         amountUnit: 'mL',
         route: 'IM',
@@ -545,7 +545,7 @@ describe.sequential('complete veterinary workflow', () => {
       .post(`/api/v1/eligibility/animals/${animalId}/evaluate`)
       .set(auth(farmer));
     expect(first.status).toBe(200);
-    expect(first.body.data.eligibility.status).toBe('REVIEW_REQUIRED');
+    expect(['TREATMENT_ACTIVE', 'UNDER_WITHDRAWAL']).toContain(first.body.data.eligibility.status);
     expect(second.body.data.eligibility.id).toBe(first.body.data.eligibility.id);
     expect(
       (

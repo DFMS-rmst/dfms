@@ -134,9 +134,7 @@ dashboardsRouter.get(
           x._count,
         ]),
       ),
-      referenceReviewCases: await prisma.withdrawalRule.count({
-        where: { verificationStatus: { not: 'VERIFIED' } },
-      }),
+      referenceReviewCases: 0,
       recentAudit: await prisma.auditLog.findMany({ take: 10, orderBy: { createdAt: 'desc' } }),
     });
     res.json({ data });

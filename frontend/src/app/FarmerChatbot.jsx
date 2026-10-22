@@ -130,9 +130,7 @@ const getEnvVar = (viteKey, reactAppKey, defaultValue = '') => {
   return defaultValue;
 };
 
-const API_KEY = (
-  getEnvVar('VITE_GROQ_API_KEY', 'REACT_APP_GROQ_API_KEY') || ''
-).trim();
+const API_KEY = (getEnvVar('VITE_GROQ_API_KEY', 'REACT_APP_GROQ_API_KEY') || '').trim();
 
 const API_ENDPOINT = (
   getEnvVar('VITE_GROQ_API_ENDPOINT', 'REACT_APP_GROQ_API_ENDPOINT') ||

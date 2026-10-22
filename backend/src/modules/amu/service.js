@@ -8,10 +8,10 @@ export async function getAmuDataset({ farmIds, start, end }, client = prisma) {
     where: {
       treatment: { farmId: { in: farmIds } },
       administeredAt: { ...(start ? { gte: start } : {}), ...(end ? { lte: end } : {}) },
-      drug: { antimicrobialClassId: { not: null } },
+      medicine: { isAntibiotic: true },
     },
     include: {
-      drug: { include: { antimicrobialClass: true } },
+      medicine: true,
       animal: { include: { species: true } },
       treatment: {
         include: {
@@ -89,8 +89,23 @@ export function aggregateAmu(rows, animalCount) {
 export function groupAmu(rows, dimension) {
   const groups = new Map();
   const dimensions = {
-    drug: (x) => [x.drug.id, x.drug.canonicalName],
-    class: (x) => [x.drug.antimicrobialClass.id, x.drug.antimicrobialClass.canonicalName],
+    medicine: (x) => [
+      x.medicine?.id || x.medicineId || x.drug?.id || 'UNKNOWN',
+      x.medicine?.medicineName || x.drug?.canonicalName || 'Unknown Medicine',
+    ],
+    drug: (x) => [
+      x.medicine?.id || x.medicineId || x.drug?.id || 'UNKNOWN',
+      x.medicine?.medicineName || x.drug?.canonicalName || 'Unknown Medicine',
+    ],
+    class: (x) => [
+      x.medicine?.antimicrobialClass ||
+        x.drug?.antimicrobialClass?.canonicalName ||
+        x.drug?.antimicrobialClass?.id ||
+        'UNKNOWN',
+      x.medicine?.antimicrobialClass ||
+        x.drug?.antimicrobialClass?.canonicalName ||
+        'Unknown Class',
+    ],
     species: (x) => [x.animal.species.id, x.animal.species.canonicalName],
     disease: (x) => {
       const d = x.treatment.case.diagnoses[0]?.disease;

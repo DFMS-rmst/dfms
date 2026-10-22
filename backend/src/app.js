@@ -8,7 +8,13 @@ import { env } from './config/env.js';
 import { healthRouter } from './modules/health/routes.js';
 import { authRouter } from './modules/auth/index.js';
 import { farmsRouter } from './modules/farms/index.js';
-import { animalsRouter, publicAnimalsRouter, speciesRouter } from './modules/animals/index.js';
+import {
+  animalsRouter,
+  getAnimalRiskController,
+  publicAnimalsRouter,
+  speciesRouter,
+} from './modules/animals/index.js';
+import { prisma } from './infrastructure/prisma/client.js';
 import { filesRouter } from './modules/files/index.js';
 import { adminVeterinariansRouter, veterinariansRouter } from './modules/veterinarians/index.js';
 import {
@@ -31,6 +37,7 @@ import {
 } from './modules/daily-clearance/index.js';
 import { adminVerificationsRouter } from './modules/admin/verifications.js';
 import { dairyRouter } from './modules/dairy/routes.js';
+import { asyncHandler } from './common/errors.js';
 
 export function createApp() {
   const app = express();
@@ -60,6 +67,18 @@ export function createApp() {
   app.use('/api/v1/veterinary-cases', casesRouter);
   app.use('/api/v1/treatments', treatmentsRouter);
   app.use('/api/v1/reference-data', referenceClinicalRouter);
+  const medicinesHandler = asyncHandler(async (_req, res) => {
+    const medicines = await prisma.medicine.findMany({
+      orderBy: { medicineName: 'asc' },
+    });
+    res.json({ data: { medicines }, medicines });
+  });
+  app.get('/api/v1/medicines', medicinesHandler);
+  app.get('/api/medicines', medicinesHandler);
+  app.get('/api/animals/:id/risk', asyncHandler(getAnimalRiskController));
+  app.get('/api/animals/:animalId/risk', asyncHandler(getAnimalRiskController));
+  app.get('/api/v1/animals/:id/risk', asyncHandler(getAnimalRiskController));
+  app.get('/api/v1/animals/:animalId/risk', asyncHandler(getAnimalRiskController));
   app.use('/api/v1/alerts', alertsRouter);
   app.use('/api/v1/amu', amuRouter);
   app.use('/api/v1/withdrawal', withdrawalRouter);

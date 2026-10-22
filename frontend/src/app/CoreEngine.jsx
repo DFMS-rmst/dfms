@@ -84,8 +84,16 @@ export function EligibilityCard({ check, canIssue = false, onReevaluate, onIssue
       </p>
       {(check.treatmentEvaluations || []).map((item) => (
         <section className="notice" key={item.id}>
-          <strong>{item.drug?.canonicalName || 'Treatment status'}</strong>
-          <p>Product: {item.drugProduct?.productName || 'Product not identified'}</p>
+          <strong>
+            {item.medicineName ||
+              item.medicine?.medicineName ||
+              item.drug?.canonicalName ||
+              'Treatment status'}
+          </strong>
+          {item.drugProduct !== undefined && (
+            <p>Product: {item.drugProduct?.productName || 'Product not identified'}</p>
+          )}
+          {item.medicine?.antimicrobialClass && <p>Class: {item.medicine.antimicrobialClass}</p>}
           <p>Actual route: {item.route || 'Not available'}</p>
           <p>
             Last administration:{' '}
@@ -106,14 +114,21 @@ export function EligibilityCard({ check, canIssue = false, onReevaluate, onIssue
           {item.blockerCode && <p>Reason: {blockerText(item.blockerCode)}</p>}
           {item.withdrawalRule && (
             <p>
-              Reference: {item.withdrawalRule.source.organization} —{' '}
-              {item.withdrawalRule.source.title}
+              Reference: {item.withdrawalRule.source?.organization} —{' '}
+              {item.withdrawalRule.source?.title}
               {' · '}
               {item.withdrawalRule.jurisdiction}
               {' · '}
-              {item.withdrawalRule.verificationStatus.replaceAll('_', ' ')}
+              {item.withdrawalRule.verificationStatus?.replaceAll('_', ' ')}
               {' · '}
               {item.withdrawalRule.durationValue} {item.withdrawalRule.durationUnit}
+            </p>
+          )}
+          {item.ruleSnapshot && (
+            <p>
+              Withdrawal reference:{' '}
+              {item.ruleSnapshot.medicineName || item.medicineName || 'Medicine'} (
+              {item.ruleSnapshot.milkWithdrawalDays ?? 0} days)
             </p>
           )}
         </section>
@@ -283,14 +298,14 @@ export function CoreEngine({ farms, isAdmin, canIssue = false }) {
         and do not determine eligibility.
       </p>
       <DataTable
-        headings={['Drug', 'Species scope', 'Product', 'MRL', 'Jurisdiction', 'Source']}
+        headings={['Drug / Medicine', 'Species scope', 'Product', 'MRL', 'Jurisdiction', 'Source']}
         rows={mrl.map((x) => [
-          x.drug.canonicalName,
+          x.medicineName || x.drug?.canonicalName || 'Medicine',
           x.species?.canonicalName || x.speciesScope || 'As specified by source',
-          x.foodProduct,
+          x.foodProduct || 'Milk',
           `${x.value} ${x.unit}`,
           x.jurisdiction,
-          x.source.organization,
+          x.source?.organization || 'Official Reference',
         ])}
       />
     </section>

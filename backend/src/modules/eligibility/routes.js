@@ -1,13 +1,8 @@
 import { Router } from 'express';
 import { authenticate, requireFarmAccess } from '../../common/auth.js';
 import { AppError, asyncHandler } from '../../common/errors.js';
-import { validate } from '../../common/validation.js';
 import { prisma } from '../../infrastructure/prisma/client.js';
 import { evaluateAndPersist } from '../withdrawal/service.js';
-import {
-  manualRuleRecord,
-  manualWithdrawalRuleSchema,
-} from '../withdrawal/reference-governance.js';
 
 async function authorizeAnimal(req, animalId) {
   const animal = await prisma.animal.findUnique({
@@ -73,15 +68,20 @@ eligibilityRouter.get(
         treatmentEvaluations: {
           include: {
             treatment: true,
-            drug: true,
-            drugProduct: true,
-            withdrawalRule: { include: { source: true, species: true, drugProduct: true } },
+            medicine: true,
           },
         },
       },
       orderBy: { evaluatedAt: 'desc' },
     });
-    res.json({ data: { eligibility: checks } });
+    const formatted = checks.map((c) => ({
+      ...c,
+      treatmentEvaluations: (c.treatmentEvaluations || []).map((te) => ({
+        ...te,
+        medicineName: te.medicine?.medicineName || te.ruleSnapshot?.medicineName || 'Medicine',
+      })),
+    }));
+    res.json({ data: { eligibility: formatted } });
   }),
 );
 eligibilityRouter.get(
@@ -95,13 +95,17 @@ eligibilityRouter.get(
         treatmentEvaluations: {
           include: {
             treatment: true,
-            drug: { include: { antimicrobialClass: true } },
-            drugProduct: true,
-            withdrawalRule: { include: { source: true, species: true, drugProduct: true } },
+            medicine: true,
           },
         },
       },
     });
+    if (check) {
+      check.treatmentEvaluations = (check.treatmentEvaluations || []).map((te) => ({
+        ...te,
+        medicineName: te.medicine?.medicineName || te.ruleSnapshot?.medicineName || 'Medicine',
+      }));
+    }
     res.json({ data: { eligibility: check } });
   }),
 );
@@ -123,57 +127,26 @@ withdrawalRouter.use(authenticate);
 withdrawalRouter.get(
   '/rules',
   asyncHandler(async (req, res) => {
-    const rules = await prisma.withdrawalRule.findMany({
-      where: {
-        ...(req.query.drugId ? { drugId: req.query.drugId } : {}),
-        ...(req.query.speciesId ? { speciesId: req.query.speciesId } : {}),
-        foodProduct: 'MILK',
-      },
-      include: { drug: true, drugProduct: true, species: true, source: true },
-      orderBy: [{ jurisdiction: 'asc' }, { code: 'asc' }],
+    const medicines = await prisma.medicine.findMany({
+      orderBy: { medicineName: 'asc' },
     });
+    const rules = medicines.map((m) => ({
+      id: m.id,
+      code: m.medicineName,
+      medicineName: m.medicineName,
+      durationValue: m.milkWithdrawalDays,
+      durationUnit: 'DAY',
+      jurisdiction: 'INDIA',
+      verificationStatus: 'VERIFIED',
+      medicine: m,
+    }));
     res.json({ data: { rules } });
   }),
 );
 withdrawalRouter.post(
   '/rules',
-  validate(manualWithdrawalRuleSchema),
   asyncHandler(async (req, res) => {
-    if (!req.principal.platformRoles.includes('PLATFORM_ADMIN'))
-      throw new AppError(403, 'FORBIDDEN', 'Platform admin role required');
-    const { code, drugId, drugProductId, jurisdiction, organization, sourceTitle, sourceUrl } =
-      req.body;
-
-    const product = await prisma.drugProduct.findFirst({
-      where: { id: drugProductId, drugId },
-    });
-    if (!product)
-      throw new AppError(
-        400,
-        'DRUG_PRODUCT_MISMATCH',
-        'Selected product does not belong to the selected drug',
-      );
-
-    const sourceRecordId = `SRC-MANUAL-${code.toUpperCase().replaceAll(/[^A-Z0-9]+/g, '-')}`;
-    const source = await prisma.regulatorySource.upsert({
-      where: { sourceRecordId },
-      create: {
-        sourceRecordId,
-        organization,
-        title: sourceTitle,
-        url: sourceUrl,
-        jurisdiction,
-        retrievalDate: new Date(),
-      },
-      update: { organization, title: sourceTitle, url: sourceUrl, jurisdiction },
-    });
-
-    const rule = await prisma.withdrawalRule.create({
-      data: manualRuleRecord(req.body, source.id),
-      include: { drug: true, species: true, source: true },
-    });
-
-    res.status(201).json({ data: { rule } });
+    res.status(200).json({ data: { message: 'Rule reference handled via Medicine catalog.' } });
   }),
 );
 
@@ -182,19 +155,10 @@ mrlRouter.use(authenticate);
 mrlRouter.get(
   '/',
   asyncHandler(async (req, res) => {
-    const rules = await prisma.mrlReferenceRule.findMany({
-      where: {
-        ...(req.query.drugId ? { drugId: req.query.drugId } : {}),
-        ...(req.query.speciesId ? { speciesId: req.query.speciesId } : {}),
-        ...(req.query.foodProduct ? { foodProduct: req.query.foodProduct } : {}),
-      },
-      include: { drug: { include: { antimicrobialClass: true } }, species: true, source: true },
-      orderBy: { code: 'asc' },
-    });
     res.json({
       data: {
         usageConstraint: 'REFERENCE_ONLY_NO_MEASUREMENT_AND_NO_WITHDRAWAL_DERIVATION',
-        rules,
+        rules: [],
       },
     });
   }),

@@ -529,73 +529,13 @@ CREATE TABLE `Diagnosis` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
-CREATE TABLE `AntimicrobialClass` (
+CREATE TABLE `Medicine` (
     `id` VARCHAR(191) NOT NULL,
-    `code` VARCHAR(80) NOT NULL,
-    `canonicalName` VARCHAR(160) NOT NULL,
-    `sourceRecordId` VARCHAR(100) NULL,
+    `medicineName` VARCHAR(255) NOT NULL,
+    `antimicrobialClass` VARCHAR(120) NOT NULL,
+    `isAntibiotic` BOOLEAN NOT NULL DEFAULT FALSE,
+    `milkWithdrawalDays` INT NOT NULL DEFAULT 0,
 
-    UNIQUE INDEX `AntimicrobialClass_code_key`(`code`),
-    UNIQUE INDEX `AntimicrobialClass_canonicalName_key`(`canonicalName`),
-    PRIMARY KEY (`id`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
--- CreateTable
-CREATE TABLE `Drug` (
-    `id` VARCHAR(191) NOT NULL,
-    `code` VARCHAR(80) NOT NULL,
-    `canonicalName` VARCHAR(160) NOT NULL,
-    `antimicrobialClassId` VARCHAR(191) NULL,
-    `aliases` JSON NULL,
-    `sourceRecordId` VARCHAR(100) NULL,
-
-    UNIQUE INDEX `Drug_code_key`(`code`),
-    UNIQUE INDEX `Drug_canonicalName_key`(`canonicalName`),
-    PRIMARY KEY (`id`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
--- CreateTable
-CREATE TABLE `DrugSpecies` (
-    `id` VARCHAR(191) NOT NULL,
-    `drugId` VARCHAR(191) NOT NULL,
-    `speciesId` VARCHAR(191) NOT NULL,
-    `status` VARCHAR(100) NOT NULL,
-
-    UNIQUE INDEX `DrugSpecies_drugId_speciesId_key`(`drugId`, `speciesId`),
-    PRIMARY KEY (`id`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
--- CreateTable
-CREATE TABLE `DrugProduct` (
-    `id` VARCHAR(191) NOT NULL,
-    `drugId` VARCHAR(191) NOT NULL,
-    `productName` VARCHAR(255) NOT NULL,
-    `authorizationNumber` VARCHAR(120) NULL,
-    `jurisdiction` VARCHAR(100) NOT NULL,
-    `formulation` VARCHAR(160) NOT NULL,
-    `concentration` DECIMAL(18, 6) NULL,
-    `concentrationUnit` VARCHAR(60) NULL,
-    `route` VARCHAR(100) NOT NULL,
-    `labelVersion` VARCHAR(80) NULL,
-    `sourceRecordId` VARCHAR(100) NULL,
-
-    INDEX `DrugProduct_drugId_jurisdiction_idx`(`drugId`, `jurisdiction`),
-    PRIMARY KEY (`id`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
--- CreateTable
-CREATE TABLE `RegulatorySource` (
-    `id` VARCHAR(191) NOT NULL,
-    `sourceRecordId` VARCHAR(100) NOT NULL,
-    `organization` VARCHAR(255) NOT NULL,
-    `title` VARCHAR(512) NOT NULL,
-    `url` VARCHAR(1024) NOT NULL,
-    `jurisdiction` VARCHAR(100) NOT NULL,
-    `publicationDate` DATETIME(3) NULL,
-    `effectiveDate` DATETIME(3) NULL,
-    `retrievalDate` DATETIME(3) NOT NULL,
-
-    UNIQUE INDEX `RegulatorySource_sourceRecordId_key`(`sourceRecordId`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -634,8 +574,7 @@ CREATE TABLE `Prescription` (
 CREATE TABLE `PrescriptionItem` (
     `id` VARCHAR(191) NOT NULL,
     `prescriptionId` VARCHAR(191) NOT NULL,
-    `drugId` VARCHAR(191) NOT NULL,
-    `drugProductId` VARCHAR(191) NULL,
+    `medicineId` VARCHAR(191) NOT NULL,
     `doseValue` DECIMAL(18, 6) NOT NULL,
     `doseUnit` VARCHAR(60) NOT NULL,
     `doseBasis` VARCHAR(60) NULL,
@@ -676,8 +615,7 @@ CREATE TABLE `TreatmentAdministration` (
     `treatmentId` VARCHAR(191) NOT NULL,
     `prescriptionItemId` VARCHAR(191) NULL,
     `animalId` VARCHAR(191) NOT NULL,
-    `drugId` VARCHAR(191) NOT NULL,
-    `drugProductId` VARCHAR(191) NULL,
+    `medicineId` VARCHAR(191) NOT NULL,
     `administeredById` VARCHAR(191) NOT NULL,
     `performedByUserId` VARCHAR(191) NULL,
     `performedByName` VARCHAR(160) NULL,
@@ -694,58 +632,8 @@ CREATE TABLE `TreatmentAdministration` (
     `deviationReason` TEXT NULL,
 
     INDEX `TreatmentAdministration_animalId_administeredAt_idx`(`animalId`, `administeredAt`),
-    INDEX `TreatmentAdministration_drugId_administeredAt_idx`(`drugId`, `administeredAt`),
+    INDEX `TreatmentAdministration_medicineId_administeredAt_idx`(`medicineId`, `administeredAt`),
     INDEX `TreatmentAdministration_performedByUserId_idx`(`performedByUserId`),
-    PRIMARY KEY (`id`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
--- CreateTable
-CREATE TABLE `WithdrawalRule` (
-    `id` VARCHAR(191) NOT NULL,
-    `code` VARCHAR(120) NOT NULL,
-    `version` INTEGER NOT NULL DEFAULT 1,
-    `drugId` VARCHAR(191) NULL,
-    `drugProductId` VARCHAR(191) NULL,
-    `speciesId` VARCHAR(191) NOT NULL,
-    `foodProduct` VARCHAR(60) NOT NULL,
-    `route` VARCHAR(100) NOT NULL,
-    `formulation` VARCHAR(160) NULL,
-    `useConditions` JSON NULL,
-    `durationValue` DECIMAL(12, 3) NOT NULL,
-    `durationUnit` VARCHAR(40) NOT NULL,
-    `durationQualifier` VARCHAR(60) NOT NULL,
-    `jurisdiction` VARCHAR(100) NOT NULL,
-    `sourceId` VARCHAR(191) NOT NULL,
-    `sourceSection` VARCHAR(255) NULL,
-    `effectiveFrom` DATETIME(3) NULL,
-    `effectiveTo` DATETIME(3) NULL,
-    `verificationStatus` ENUM('VERIFIED', 'NOT_AVAILABLE', 'RULE_NOT_FOUND', 'CONFLICTING_SOURCE', 'REVIEW_REQUIRED', 'EXAMPLE_ONLY') NOT NULL,
-    `reviewedById` VARCHAR(191) NULL,
-    `reviewedAt` DATETIME(3) NULL,
-    `ruleType` VARCHAR(80) NOT NULL,
-    `certificateUse` VARCHAR(255) NULL,
-
-    INDEX `WithdrawalRule_drugId_speciesId_foodProduct_jurisdiction_ver_idx`(`drugId`, `speciesId`, `foodProduct`, `jurisdiction`, `verificationStatus`),
-    UNIQUE INDEX `WithdrawalRule_code_version_key`(`code`, `version`),
-    PRIMARY KEY (`id`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
--- CreateTable
-CREATE TABLE `MrlReferenceRule` (
-    `id` VARCHAR(191) NOT NULL,
-    `code` VARCHAR(120) NOT NULL,
-    `drugId` VARCHAR(191) NOT NULL,
-    `speciesId` VARCHAR(191) NULL,
-    `speciesScope` VARCHAR(160) NULL,
-    `foodProduct` VARCHAR(80) NOT NULL,
-    `value` DECIMAL(18, 6) NOT NULL,
-    `unit` VARCHAR(40) NOT NULL,
-    `jurisdiction` VARCHAR(100) NOT NULL,
-    `sourceId` VARCHAR(191) NOT NULL,
-    `verificationStatus` ENUM('VERIFIED', 'NOT_AVAILABLE', 'RULE_NOT_FOUND', 'CONFLICTING_SOURCE', 'REVIEW_REQUIRED', 'EXAMPLE_ONLY') NOT NULL,
-
-    UNIQUE INDEX `MrlReferenceRule_code_key`(`code`),
-    INDEX `MrlReferenceRule_drugId_foodProduct_jurisdiction_idx`(`drugId`, `foodProduct`, `jurisdiction`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -861,11 +749,9 @@ CREATE TABLE `EligibilityTreatmentEvaluation` (
     `eligibilityCheckId` VARCHAR(191) NOT NULL,
     `evidenceScopeHash` CHAR(64) NOT NULL,
     `treatmentId` VARCHAR(191) NOT NULL,
-    `drugId` VARCHAR(191) NULL,
-    `drugProductId` VARCHAR(191) NULL,
+    `medicineId` VARCHAR(191) NULL,
     `route` VARCHAR(100) NULL,
     `lastAdministrationAt` DATETIME(3) NULL,
-    `withdrawalRuleId` VARCHAR(191) NULL,
     `status` ENUM('TREATMENT_ACTIVE', 'UNDER_WITHDRAWAL', 'ELIGIBLE_FOR_MILK', 'RULE_NOT_FOUND', 'REVIEW_REQUIRED') NOT NULL,
     `treatmentCompletedAt` DATETIME(3) NULL,
     `withdrawalEndsAt` DATETIME(3) NULL,
@@ -1141,37 +1027,8 @@ ALTER TABLE `Diagnosis` ADD CONSTRAINT `Diagnosis_veterinarianId_fkey` FOREIGN K
 ALTER TABLE `Diagnosis` ADD CONSTRAINT `Diagnosis_diseaseId_fkey` FOREIGN KEY (`diseaseId`) REFERENCES `Disease`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `Drug` ADD CONSTRAINT `Drug_antimicrobialClassId_fkey` FOREIGN KEY (`antimicrobialClassId`) REFERENCES `AntimicrobialClass`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
-
 -- AddForeignKey
-ALTER TABLE `DrugSpecies` ADD CONSTRAINT `DrugSpecies_drugId_fkey` FOREIGN KEY (`drugId`) REFERENCES `Drug`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE `DrugSpecies` ADD CONSTRAINT `DrugSpecies_speciesId_fkey` FOREIGN KEY (`speciesId`) REFERENCES `Species`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE `DrugProduct` ADD CONSTRAINT `DrugProduct_drugId_fkey` FOREIGN KEY (`drugId`) REFERENCES `Drug`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE `Prescription` ADD CONSTRAINT `Prescription_caseId_fkey` FOREIGN KEY (`caseId`) REFERENCES `VeterinaryCase`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE `Prescription` ADD CONSTRAINT `Prescription_animalId_fkey` FOREIGN KEY (`animalId`) REFERENCES `Animal`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE `Prescription` ADD CONSTRAINT `Prescription_veterinarianId_fkey` FOREIGN KEY (`veterinarianId`) REFERENCES `VeterinarianProfile`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE `Prescription` ADD CONSTRAINT `Prescription_diagnosisId_fkey` FOREIGN KEY (`diagnosisId`) REFERENCES `Diagnosis`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE `PrescriptionItem` ADD CONSTRAINT `PrescriptionItem_prescriptionId_fkey` FOREIGN KEY (`prescriptionId`) REFERENCES `Prescription`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE `PrescriptionItem` ADD CONSTRAINT `PrescriptionItem_drugId_fkey` FOREIGN KEY (`drugId`) REFERENCES `Drug`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE `PrescriptionItem` ADD CONSTRAINT `PrescriptionItem_drugProductId_fkey` FOREIGN KEY (`drugProductId`) REFERENCES `DrugProduct`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE `PrescriptionItem` ADD CONSTRAINT `PrescriptionItem_medicineId_fkey` FOREIGN KEY (`medicineId`) REFERENCES `Medicine`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `Treatment` ADD CONSTRAINT `Treatment_caseId_fkey` FOREIGN KEY (`caseId`) REFERENCES `VeterinaryCase`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -1204,31 +1061,7 @@ ALTER TABLE `TreatmentAdministration` ADD CONSTRAINT `TreatmentAdministration_pe
 ALTER TABLE `TreatmentAdministration` ADD CONSTRAINT `TreatmentAdministration_prescriptionItemId_fkey` FOREIGN KEY (`prescriptionItemId`) REFERENCES `PrescriptionItem`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `TreatmentAdministration` ADD CONSTRAINT `TreatmentAdministration_drugId_fkey` FOREIGN KEY (`drugId`) REFERENCES `Drug`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE `TreatmentAdministration` ADD CONSTRAINT `TreatmentAdministration_drugProductId_fkey` FOREIGN KEY (`drugProductId`) REFERENCES `DrugProduct`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE `WithdrawalRule` ADD CONSTRAINT `WithdrawalRule_drugId_fkey` FOREIGN KEY (`drugId`) REFERENCES `Drug`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE `WithdrawalRule` ADD CONSTRAINT `WithdrawalRule_drugProductId_fkey` FOREIGN KEY (`drugProductId`) REFERENCES `DrugProduct`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE `WithdrawalRule` ADD CONSTRAINT `WithdrawalRule_speciesId_fkey` FOREIGN KEY (`speciesId`) REFERENCES `Species`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE `WithdrawalRule` ADD CONSTRAINT `WithdrawalRule_sourceId_fkey` FOREIGN KEY (`sourceId`) REFERENCES `RegulatorySource`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE `MrlReferenceRule` ADD CONSTRAINT `MrlReferenceRule_drugId_fkey` FOREIGN KEY (`drugId`) REFERENCES `Drug`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE `MrlReferenceRule` ADD CONSTRAINT `MrlReferenceRule_speciesId_fkey` FOREIGN KEY (`speciesId`) REFERENCES `Species`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE `MrlReferenceRule` ADD CONSTRAINT `MrlReferenceRule_sourceId_fkey` FOREIGN KEY (`sourceId`) REFERENCES `RegulatorySource`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE `TreatmentAdministration` ADD CONSTRAINT `TreatmentAdministration_medicineId_fkey` FOREIGN KEY (`medicineId`) REFERENCES `Medicine`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `MilkEligibilityCheck` ADD CONSTRAINT `MilkEligibilityCheck_animalId_fkey` FOREIGN KEY (`animalId`) REFERENCES `Animal`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -1267,13 +1100,7 @@ ALTER TABLE `EligibilityTreatmentEvaluation` ADD CONSTRAINT `EligibilityTreatmen
 ALTER TABLE `EligibilityTreatmentEvaluation` ADD CONSTRAINT `EligibilityTreatmentEvaluation_treatmentId_fkey` FOREIGN KEY (`treatmentId`) REFERENCES `Treatment`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `EligibilityTreatmentEvaluation` ADD CONSTRAINT `EligibilityTreatmentEvaluation_drugId_fkey` FOREIGN KEY (`drugId`) REFERENCES `Drug`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE `EligibilityTreatmentEvaluation` ADD CONSTRAINT `EligibilityTreatmentEvaluation_drugProductId_fkey` FOREIGN KEY (`drugProductId`) REFERENCES `DrugProduct`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE `EligibilityTreatmentEvaluation` ADD CONSTRAINT `EligibilityTreatmentEvaluation_withdrawalRuleId_fkey` FOREIGN KEY (`withdrawalRuleId`) REFERENCES `WithdrawalRule`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE `EligibilityTreatmentEvaluation` ADD CONSTRAINT `EligibilityTreatmentEvaluation_medicineId_fkey` FOREIGN KEY (`medicineId`) REFERENCES `Medicine`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `MilkEligibilityCertificate` ADD CONSTRAINT `MilkEligibilityCertificate_animalId_fkey` FOREIGN KEY (`animalId`) REFERENCES `Animal`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;

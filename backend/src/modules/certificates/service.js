@@ -13,28 +13,23 @@ import {
 const evidence = {
   animal: { include: { farm: true, species: true } },
   treatmentEvaluations: {
-    include: { treatment: true, drug: true, withdrawalRule: { include: { source: true } } },
+    include: { treatment: true, medicine: true },
   },
 };
 function snapshot(check, certificateNumber, issuedAt) {
-  const demonstrationReference = check.treatmentEvaluations.some(
-    (item) => item.ruleSnapshot?.demonstrationReference,
-  );
-  const disclaimer = demonstrationReference
-    ? `${CERTIFICATE_DISCLAIMER} DEMONSTRATION REFERENCE — NOT AN INDIAN REGULATORY RULE`
-    : CERTIFICATE_DISCLAIMER;
+  const disclaimer = CERTIFICATE_DISCLAIMER;
   return {
     schema: CANONICALIZATION_VERSION,
     certificateNumber,
     issuedAt: issuedAt.toISOString(),
-    animal: { tagNumber: check.animal.tagNumber, species: check.animal.species.canonicalName },
+    animal: {
+      tagNumber: check.animal.tagNumber,
+      species: check.animal.species?.canonicalName || 'Livestock',
+    },
     farm: { name: check.animal.farm.name },
     regulatoryContext: {
       jurisdiction: check.animal.farm.regulatoryJurisdiction,
       demonstrationMode: check.animal.farm.demonstrationMode,
-      ...(demonstrationReference
-        ? { warning: 'DEMONSTRATION REFERENCE — NOT AN INDIAN REGULATORY RULE' }
-        : {}),
     },
     eligibility: {
       evaluationId: check.id,
@@ -43,7 +38,8 @@ function snapshot(check, certificateNumber, issuedAt) {
       methodologyVersion: check.methodologyVersion,
       treatments: check.treatmentEvaluations.map((item) => ({
         treatmentId: item.treatmentId,
-        drug: item.drug?.canonicalName || null,
+        drug: item.medicine?.medicineName || item.medicineName || null,
+        medicineName: item.medicine?.medicineName || item.medicineName || null,
         treatmentCompletedAt: item.treatmentCompletedAt?.toISOString() || null,
         withdrawalEndsAt: item.withdrawalEndsAt?.toISOString() || null,
         rule: item.ruleSnapshot || null,
