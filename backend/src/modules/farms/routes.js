@@ -5,6 +5,7 @@ import { AppError, asyncHandler } from '../../common/errors.js';
 import { validate } from '../../common/validation.js';
 import { prisma } from '../../infrastructure/prisma/client.js';
 import { appendAudit } from '../audit/index.js';
+import { getToday } from '../daily-clearance/service.js';
 
 const farmSchema = z.object({
   name: z.string().trim().min(2).max(191),
@@ -171,5 +172,36 @@ farmsRouter.post(
       return tx.farmMember.findUnique({ where: { id: saved.id }, include: { roles: true } });
     });
     response.status(201).json({ data: { member } });
+  }),
+);
+
+farmsRouter.get(
+  '/:farmId/eligibility/today',
+  asyncHandler(async (request, response) => {
+    await requireFarmAccess(request.principal.user.id, request.params.farmId);
+    const evaluation = await getToday(request.params.farmId, {
+      actorUserId: request.principal.user.id,
+      trigger: 'API_READ',
+    });
+    if (!evaluation) throw new AppError(404, 'FARM_NOT_FOUND', 'Farm evaluation not found');
+    const clearance = evaluation.clearance || null;
+    const payload = {
+      status: evaluation.status,
+      clearanceNumber: clearance?.clearanceNumber || null,
+      verificationId: clearance?.verificationId || null,
+      evaluationId: evaluation.id,
+      applicableCount: evaluation.applicableCount,
+      eligibleCount: evaluation.eligibleCount,
+      blockedCount: evaluation.blockedCount,
+      businessDate: evaluation.businessDate,
+      evaluation,
+      clearance,
+    };
+    response.json({
+      data: payload,
+      status: evaluation.status,
+      clearanceNumber: clearance?.clearanceNumber || null,
+      verificationId: clearance?.verificationId || null,
+    });
   }),
 );

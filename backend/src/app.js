@@ -16,7 +16,9 @@ import {
 } from './modules/animals/index.js';
 import { prisma } from './infrastructure/prisma/client.js';
 import { filesRouter } from './modules/files/index.js';
-import { adminVeterinariansRouter, veterinariansRouter } from './modules/veterinarians/index.js';
+import { adminVeterinariansRouter, getVetAnalyticsController, veterinariansRouter } from './modules/veterinarians/index.js';
+import { authenticate, requireFarmAccess } from './common/auth.js';
+import { getToday } from './modules/daily-clearance/service.js';
 import {
   alertsRouter,
   casesRouter,
@@ -36,6 +38,7 @@ import {
   publicDailyClearanceRouter,
 } from './modules/daily-clearance/index.js';
 import { adminVerificationsRouter } from './modules/admin/verifications.js';
+import { getAdminDashboardStatsController } from './modules/admin/dashboard-stats.js';
 import { dairyRouter } from './modules/dairy/routes.js';
 import { asyncHandler } from './common/errors.js';
 
@@ -79,6 +82,43 @@ export function createApp() {
   app.get('/api/animals/:animalId/risk', asyncHandler(getAnimalRiskController));
   app.get('/api/v1/animals/:id/risk', asyncHandler(getAnimalRiskController));
   app.get('/api/v1/animals/:animalId/risk', asyncHandler(getAnimalRiskController));
+  const farmEligibilityTodayHandler = asyncHandler(async (request, response) => {
+    await requireFarmAccess(request.principal.user.id, request.params.farmId);
+    const evaluation = await getToday(request.params.farmId, {
+      actorUserId: request.principal.user.id,
+      trigger: 'API_READ',
+    });
+    if (!evaluation) {
+      return response.status(404).json({
+        error: { code: 'FARM_NOT_FOUND', message: 'Farm evaluation not found' },
+      });
+    }
+    const clearance = evaluation.clearance || null;
+    const payload = {
+      status: evaluation.status,
+      clearanceNumber: clearance?.clearanceNumber || null,
+      verificationId: clearance?.verificationId || null,
+      evaluationId: evaluation.id,
+      applicableCount: evaluation.applicableCount,
+      eligibleCount: evaluation.eligibleCount,
+      blockedCount: evaluation.blockedCount,
+      businessDate: evaluation.businessDate,
+      evaluation,
+      clearance,
+    };
+    response.json({
+      data: payload,
+      status: evaluation.status,
+      clearanceNumber: clearance?.clearanceNumber || null,
+      verificationId: clearance?.verificationId || null,
+    });
+  });
+  app.get('/api/farms/:farmId/eligibility/today', authenticate, farmEligibilityTodayHandler);
+  app.get('/api/v1/farms/:farmId/eligibility/today', authenticate, farmEligibilityTodayHandler);
+  app.get('/api/vet/analytics', authenticate, getVetAnalyticsController);
+  app.get('/api/v1/vet/analytics', authenticate, getVetAnalyticsController);
+  app.get('/api/admin/dashboard-stats', authenticate, getAdminDashboardStatsController);
+  app.get('/api/v1/admin/dashboard-stats', authenticate, getAdminDashboardStatsController);
   app.use('/api/v1/alerts', alertsRouter);
   app.use('/api/v1/amu', amuRouter);
   app.use('/api/v1/withdrawal', withdrawalRouter);

@@ -59,7 +59,7 @@ export function navigationFor(workspace) {
       ['dashboard', 'Platform Dashboard'],
       ['dairy-dashboard', 'Dairy Operations'],
       ['admin', 'User Verifications'],
-      ['core-engine', 'Organization Analytics'],
+      ['organization-analytics', 'Organization wide Analytics'],
     ];
   if (workspace.kind === 'DAIRY_OWNER')
     return [
@@ -73,7 +73,6 @@ export function navigationFor(workspace) {
       ? [
           ['dashboard', 'Veterinarian Dashboard'],
           ['veterinary-care', 'Assigned Care'],
-          ['core-engine', 'Relevant AMU & Eligibility'],
         ]
       : [['vet', 'Verification Status']];
   if (workspace.kind === 'FARM') {
@@ -86,7 +85,7 @@ export function navigationFor(workspace) {
             ['dashboard', 'Farm Dashboard'],
             ['core-engine', 'AMU & Milk Eligibility'],
             ['daily-clearance', "Today's Milk Eligibility"],
-            ['certificates', 'Certificates'],
+            ['certificates', "Today's Clearance QR"],
             ['milk-sales', '🥛 Sell Milk to Dairy'],
             ['farmer-chatbot', '🌾 Kisan Mitra (AI)'],
           ]
