@@ -18,6 +18,7 @@ import { AdminVerifications } from './AdminVerifications.jsx';
 import { DairyHub } from './DairyHub.jsx';
 import { FarmerMilkSales } from './FarmerMilkSales.jsx';
 import { AnimalRiskReportModal } from './AnimalRiskPrediction.jsx';
+import { RiskBadge } from './RiskBadge.jsx';
 import { FarmerChatbot, FarmerChatbotModal } from './FarmerChatbot.jsx';
 const Field = ({ label, name, type = 'text', required = true, defaultValue }) => (
   <label>
@@ -307,13 +308,23 @@ function FarmForm({ done }) {
 function AnimalForm({ farmId, species, done }) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [selectedSex, setSelectedSex] = useState('FEMALE');
+
+  // Restrict to Cow and Buffalo species only
+  const allowedSpecies = (species || []).filter((s) => {
+    const name = (s.canonicalName || s.name || '').toLowerCase();
+    return name.includes('cow') || name.includes('cattle') || name.includes('buffalo');
+  });
+  const displayedSpecies = allowedSpecies.length > 0 ? allowedSpecies : species;
+
+  const isFemale = selectedSex === 'FEMALE' || selectedSex === 'INTACT_FEMALE';
 
   async function submit(e) {
     e.preventDefault();
     setSubmitting(true);
     setError('');
     const v = Object.fromEntries(new FormData(e.currentTarget));
-    v.lactating = v.lactating === 'on';
+    v.lactating = isFemale && v.lactating === 'on';
     try {
       const res = await api(`/farms/${farmId}/animals`, {
         method: 'POST',
@@ -321,6 +332,7 @@ function AnimalForm({ farmId, species, done }) {
       });
       done(res.animal);
       e.currentTarget.reset();
+      setSelectedSex('FEMALE');
     } catch (err) {
       setError(err.message || 'Failed to add animal');
     } finally {
@@ -335,9 +347,9 @@ function AnimalForm({ farmId, species, done }) {
       <Field label="Tag number" name="tagNumber" required />
       <Field label="Name" name="name" required={false} />
       <label>
-        Species Category
-        <select name="speciesId" required defaultValue={species[0]?.id || ''}>
-          {species.map((s) => (
+        Species Category (Cattle &amp; Buffalo)
+        <select name="speciesId" required defaultValue={displayedSpecies[0]?.id || ''}>
+          {displayedSpecies.map((s) => (
             <option key={s.id} value={s.id}>
               {s.canonicalName} {s.scientificName ? `(${s.scientificName})` : ''}
             </option>
@@ -346,20 +358,21 @@ function AnimalForm({ farmId, species, done }) {
       </label>
       <label>
         Sex Category
-        <select name="sex" defaultValue="FEMALE">
-          <option value="FEMALE">Female (Cow / Ewe / Doe / Sow / Mare)</option>
-          <option value="MALE">Male</option>
+        <select name="sex" value={selectedSex} onChange={(e) => setSelectedSex(e.target.value)}>
+          <option value="FEMALE">Female (Cow / Buffalo Heifer)</option>
+          <option value="MALE">Male (Bull / Steer)</option>
           <option value="INTACT_FEMALE">Intact Female</option>
-          <option value="INTACT_MALE">Intact Male (Bull / Ram / Buck / Stallion / Boar)</option>
-          <option value="NEUTERED">Neutered (Steer / Wether / Gelding / Barrow)</option>
+          <option value="INTACT_MALE">Intact Male (Bull)</option>
+          <option value="NEUTERED">Neutered (Steer)</option>
           <option value="CASTRATED">Castrated</option>
-          <option value="HERMAPHRODITE">Intersex / Hermaphrodite</option>
-          <option value="UNKNOWN">Unknown / Unspecified</option>
         </select>
       </label>
-      <label className="check">
-        <input name="lactating" type="checkbox" /> <span>Lactating (Currently Producing Milk)</span>
-      </label>
+      {isFemale && (
+        <label className="check" style={{ marginTop: '0.4rem' }}>
+          <input name="lactating" type="checkbox" />{' '}
+          <span>🥛 Lactating (Currently Producing Milk)</span>
+        </label>
+      )}
       <button disabled={submitting}>{submitting ? 'Adding animal...' : 'Add Animal'}</button>
     </form>
   );
@@ -738,12 +751,13 @@ function AdminRulesManager() {
       const [r, s, d] = await Promise.all([
         api('/withdrawal/rules'),
         api('/species'),
-        api('/reference-data/drugs'),
+        api('/medicines'),
       ]);
-      setRules(r.rules);
-      setSpeciesList(s.species);
-      setDrugsList(d.drugs);
-      setSelectedDrugId((current) => current || d.drugs[0]?.id || '');
+      setRules(r.rules || []);
+      setSpeciesList(s.species || []);
+      const meds = d?.medicines || d?.data?.medicines || d?.drugs || [];
+      setDrugsList(meds);
+      setSelectedDrugId((current) => current || meds[0]?.id || '');
     } catch (err) {
       setError(err.message);
     }
@@ -800,7 +814,7 @@ function AdminRulesManager() {
           >
             {drugsList.map((d) => (
               <option key={d.id} value={d.id}>
-                {d.canonicalName}
+                {d.medicineName || d.canonicalName}
               </option>
             ))}
           </select>
@@ -876,8 +890,8 @@ function AdminRulesManager() {
                 <td>
                   <strong>{r.code}</strong>
                 </td>
-                <td>{r.species?.canonicalName}</td>
-                <td>{r.drug?.canonicalName || 'All'}</td>
+                <td>{r.species?.canonicalName || 'All'}</td>
+                <td>{r.medicineName || r.drug?.canonicalName || 'All'}</td>
                 <td>{r.route}</td>
                 <td>
                   {r.durationValue} {r.durationUnit}s
@@ -1042,8 +1056,14 @@ export function HealthTimeline({ timeline, showAmuRisk = false, farmId, onClose 
 
   return (
     <section className="card" aria-label={`${animalLabel} health timeline`}>
-      <div className="flex-between" style={{ marginBottom: '1.25rem' }}>
-        <h2 style={{ margin: 0 }}>{animalLabel} History</h2>
+      <div
+        className="flex-between"
+        style={{ marginBottom: '1.25rem', alignItems: 'center', flexWrap: 'wrap', gap: '0.65rem' }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
+          <h2 style={{ margin: 0 }}>{animalLabel} History</h2>
+          {animal.id && <RiskBadge animalId={animal.id} />}
+        </div>
         {onClose && (
           <button
             type="button"
@@ -1269,7 +1289,7 @@ function Workspace({ user, setUser, logout }) {
     return () => {
       active = false;
     };
-  }, [workspaceId]);
+  }, [workspaceId, workspace?.farmId, workspace?.kind]);
 
   async function refreshContext() {
     const next = (await api('/auth/me')).user;
@@ -1524,7 +1544,17 @@ function Workspace({ user, setUser, logout }) {
                       className="flex-between"
                       style={{ alignItems: 'flex-start', gap: '0.5rem', marginBottom: '0.4rem' }}
                     >
-                      <h3 style={{ margin: 0, fontSize: '1.15rem' }}>{a.name || a.tagNumber}</h3>
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.5rem',
+                          flexWrap: 'wrap',
+                        }}
+                      >
+                        <h3 style={{ margin: 0, fontSize: '1.15rem' }}>{a.name || a.tagNumber}</h3>
+                        <RiskBadge animalId={a.id} />
+                      </div>
                       {capabilities.canEditAnimals && (
                         <button
                           type="button"

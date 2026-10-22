@@ -7,6 +7,7 @@ import { validate } from '../../common/validation.js';
 import { prisma } from '../../infrastructure/prisma/client.js';
 import { appendAudit } from '../audit/index.js';
 import { animalQrDataUrl, animalVerificationUrl, renderAnimalTagPdf } from './pdf.js';
+import { getAnimalRiskController } from './risk-controller.js';
 
 const animalSchema = z.object({
   speciesId: z.string().min(1),
@@ -267,6 +268,14 @@ animalsRouter.patch(
     response.json({ data: { animal } });
   }),
 );
+animalsRouter.get(
+  '/:animalId/risk',
+  asyncHandler(async (request, response) => {
+    await requireFarmAccess(request.principal.user.id, request.params.farmId);
+    return getAnimalRiskController(request, response);
+  }),
+);
+
 animalsRouter.get(
   '/:animalId/timeline',
   asyncHandler(async (request, response) => {

@@ -8,10 +8,10 @@ export async function animalAmuFeatures(animalId, now = new Date(), client = pri
     where: {
       animalId,
       administeredAt: { gte: since(now, 90), lte: now },
-      drug: { antimicrobialClassId: { not: null } },
+      medicine: { isAntibiotic: true },
     },
     include: {
-      drug: true,
+      medicine: true,
       treatment: { include: { case: { include: { diagnoses: true } } } },
     },
     orderBy: { administeredAt: 'asc' },
@@ -20,8 +20,12 @@ export async function animalAmuFeatures(animalId, now = new Date(), client = pri
   const treatments = [...treatmentMap.values()];
   const recent30 = rows.filter((row) => row.administeredAt >= since(now, 30));
   const treatments30 = new Set(recent30.map((row) => row.treatmentId));
-  const drugs = new Set(rows.map((row) => row.drugId));
-  const classes = new Set(rows.map((row) => row.drug.antimicrobialClassId));
+  const drugs = new Set(rows.map((row) => row.medicineId || row.drugId));
+  const classes = new Set(
+    rows
+      .map((row) => row.medicine?.antimicrobialClass || row.drug?.antimicrobialClassId)
+      .filter(Boolean),
+  );
   const completed = treatments.filter((item) => item.startedAt && item.completedAt);
   const durations = completed.map((item) => (item.completedAt - item.startedAt) / DAY);
   const diagnoses = treatments.map((item) => item.case.diagnoses[0]?.diseaseId).filter(Boolean);

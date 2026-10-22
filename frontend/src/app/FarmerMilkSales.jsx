@@ -13,7 +13,6 @@ export function FarmerMilkSales({ farm, user }) {
   // Modals state
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [showSellMilkModal, setShowSellMilkModal] = useState(false);
-  const [selectedDairyForRequest, setSelectedDairyForRequest] = useState(null);
   const [selectedDairyForSale, setSelectedDairyForSale] = useState(null);
 
   // Form states - Request
@@ -107,11 +106,11 @@ export function FarmerMilkSales({ farm, user }) {
     setError('');
     setSuccessMessage('');
     const targetUserId = dairy ? dairy.userId : dairies[0]?.userId || '';
-    setSelectedDairyForRequest(dairy);
     setRequestForm((prev) => ({
       ...prev,
       dairyUserId: targetUserId,
-      certificateNumber: prev.certificateNumber || availableCertificates[0]?.certificateNumber || '',
+      certificateNumber:
+        prev.certificateNumber || availableCertificates[0]?.certificateNumber || '',
       certificateVerificationId:
         prev.certificateVerificationId || availableCertificates[0]?.verificationId || '',
     }));
@@ -230,7 +229,10 @@ export function FarmerMilkSales({ farm, user }) {
           boxShadow: '0 10px 25px -5px rgba(5, 150, 105, 0.3)',
         }}
       >
-        <div className="flex-between" style={{ alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
+        <div
+          className="flex-between"
+          style={{ alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}
+        >
           <div>
             <div
               style={{
@@ -250,9 +252,17 @@ export function FarmerMilkSales({ farm, user }) {
             <h1 style={{ color: '#ffffff', margin: '0 0 0.5rem 0', fontSize: '1.85rem' }}>
               Sell Milk to Verified Dairies
             </h1>
-            <p style={{ margin: 0, color: 'rgba(255,255,255,0.9)', maxWidth: '680px', fontSize: '0.95rem' }}>
-              Connect your farm with local cooperatives and commercial dairies. Submit your certified
-              withdrawal-free Milk Eligibility Certificate, get accepted, and record daily milk supplies.
+            <p
+              style={{
+                margin: 0,
+                color: 'rgba(255,255,255,0.9)',
+                maxWidth: '680px',
+                fontSize: '0.95rem',
+              }}
+            >
+              Connect your farm with local cooperatives and commercial dairies. Submit your
+              certified withdrawal-free Milk Eligibility Certificate, get accepted, and record daily
+              milk supplies.
             </p>
           </div>
 
@@ -304,22 +314,32 @@ export function FarmerMilkSales({ farm, user }) {
           }}
         >
           <div>
-            <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.8)' }}>AUTHORIZED DAIRIES</div>
+            <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.8)' }}>
+              AUTHORIZED DAIRIES
+            </div>
             <div style={{ fontSize: '1.75rem', fontWeight: 800 }}>{activeEnrollments.length}</div>
             <small style={{ color: 'rgba(255,255,255,0.7)' }}>Active supply partners</small>
           </div>
           <div>
-            <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.8)' }}>PENDING REQUESTS</div>
+            <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.8)' }}>
+              PENDING REQUESTS
+            </div>
             <div style={{ fontSize: '1.75rem', fontWeight: 800 }}>{pendingEnrollments.length}</div>
             <small style={{ color: 'rgba(255,255,255,0.7)' }}>Awaiting certificate review</small>
           </div>
           <div>
-            <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.8)' }}>TOTAL MILK DELIVERED</div>
-            <div style={{ fontSize: '1.75rem', fontWeight: 800 }}>{totalLitersSold.toFixed(1)} L</div>
+            <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.8)' }}>
+              TOTAL MILK DELIVERED
+            </div>
+            <div style={{ fontSize: '1.75rem', fontWeight: 800 }}>
+              {totalLitersSold.toFixed(1)} L
+            </div>
             <small style={{ color: 'rgba(255,255,255,0.7)' }}>To verified dairies</small>
           </div>
           <div>
-            <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.8)' }}>TOTAL PAYOUT DUE</div>
+            <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.8)' }}>
+              TOTAL PAYOUT DUE
+            </div>
             <div style={{ fontSize: '1.75rem', fontWeight: 800 }}>₹{totalPayout.toFixed(2)}</div>
             <small style={{ color: 'rgba(255,255,255,0.7)' }}>Cumulative earnings</small>
           </div>
@@ -399,7 +419,8 @@ export function FarmerMilkSales({ farm, user }) {
               My Dairy Connections &amp; Applications
             </h2>
             <p style={{ color: '#64748b', fontSize: '0.9rem', margin: '0 0 1rem 0' }}>
-              Track whether your milk supply request has been reviewed and accepted by the dairy operator.
+              Track whether your milk supply request has been reviewed and accepted by the dairy
+              operator.
             </p>
 
             {myRequests.length === 0 && !loading && (
@@ -415,8 +436,9 @@ export function FarmerMilkSales({ farm, user }) {
                 <span style={{ fontSize: '2.5rem' }}>🏢</span>
                 <h3 style={{ margin: '0.75rem 0 0.25rem 0' }}>No Dairy Supply Agreements Yet</h3>
                 <p style={{ color: '#64748b', maxWidth: '500px', margin: '0 auto 1.25rem auto' }}>
-                  You have not submitted a supply request to any dairy yet. Choose a verified dairy below
-                  and send a request with your Milk Eligibility Certificate to start selling milk.
+                  You have not submitted a supply request to any dairy yet. Choose a verified dairy
+                  below and send a request with your Milk Eligibility Certificate to start selling
+                  milk.
                 </p>
                 <button type="button" className="primary" onClick={() => openRequestModal()}>
                   ➕ Send Request to a Dairy Now
@@ -424,7 +446,13 @@ export function FarmerMilkSales({ farm, user }) {
               </div>
             )}
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1rem' }}>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+                gap: '1rem',
+              }}
+            >
               {myRequests.map((req) => {
                 const isActive = req.status === 'ACTIVE';
                 const isPending = req.status === 'PENDING_APPROVAL';
@@ -447,7 +475,10 @@ export function FarmerMilkSales({ farm, user }) {
                     }}
                   >
                     <div>
-                      <div className="flex-between" style={{ alignItems: 'flex-start', marginBottom: '0.5rem' }}>
+                      <div
+                        className="flex-between"
+                        style={{ alignItems: 'flex-start', marginBottom: '0.5rem' }}
+                      >
                         <div>
                           <span
                             style={{
@@ -456,16 +487,8 @@ export function FarmerMilkSales({ farm, user }) {
                               borderRadius: '999px',
                               fontSize: '0.75rem',
                               fontWeight: 800,
-                              background: isActive
-                                ? '#dcfce7'
-                                : isPending
-                                  ? '#fef3c7'
-                                  : '#fee2e2',
-                              color: isActive
-                                ? '#166534'
-                                : isPending
-                                  ? '#92400e'
-                                  : '#991b1b',
+                              background: isActive ? '#dcfce7' : isPending ? '#fef3c7' : '#fee2e2',
+                              color: isActive ? '#166534' : isPending ? '#92400e' : '#991b1b',
                               marginBottom: '0.35rem',
                             }}
                           >
@@ -538,9 +561,9 @@ export function FarmerMilkSales({ farm, user }) {
                             borderRadius: '0.35rem',
                           }}
                         >
-                          ⏳ <strong>Review in progress:</strong> The dairy operator is reviewing your
-                          attached Milk Eligibility Certificate. Once verified and accepted, you will be
-                          able to sell milk immediately.
+                          ⏳ <strong>Review in progress:</strong> The dairy operator is reviewing
+                          your attached Milk Eligibility Certificate. Once verified and accepted,
+                          you will be able to sell milk immediately.
                         </p>
                       )}
 
@@ -555,8 +578,9 @@ export function FarmerMilkSales({ farm, user }) {
                             borderRadius: '0.35rem',
                           }}
                         >
-                          🎉 <strong>Agreement Active:</strong> Your certificate was accepted! You are
-                          authorized to deliver milk at the agreed rate of ₹{req.agreedRatePerLiter}/L.
+                          🎉 <strong>Agreement Active:</strong> Your certificate was accepted! You
+                          are authorized to deliver milk at the agreed rate of ₹
+                          {req.agreedRatePerLiter}/L.
                         </p>
                       )}
                     </div>
@@ -606,7 +630,13 @@ export function FarmerMilkSales({ farm, user }) {
               Select a dairy operating in your district to apply for a daily collection agreement.
             </p>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1rem' }}>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+                gap: '1rem',
+              }}
+            >
               {dairies.map((dairy) => {
                 const existingReq = myRequests.find((r) => r.dairyUserId === dairy.userId);
                 return (
@@ -623,9 +653,14 @@ export function FarmerMilkSales({ farm, user }) {
                     }}
                   >
                     <div>
-                      <div className="flex-between" style={{ alignItems: 'flex-start', marginBottom: '0.5rem' }}>
+                      <div
+                        className="flex-between"
+                        style={{ alignItems: 'flex-start', marginBottom: '0.5rem' }}
+                      >
                         <div>
-                          <h3 style={{ margin: '0 0 0.2rem 0', color: '#0f172a' }}>{dairy.dairyName}</h3>
+                          <h3 style={{ margin: '0 0 0.2rem 0', color: '#0f172a' }}>
+                            {dairy.dairyName}
+                          </h3>
                           <div style={{ fontSize: '0.8rem', color: '#64748b' }}>
                             FSSAI: {dairy.fssaiLicenseNumber}
                           </div>
@@ -725,10 +760,12 @@ export function FarmerMilkSales({ farm, user }) {
 
           {salesHistory.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '2.5rem 1rem', color: '#64748b' }}>
-              <p style={{ fontSize: '1.1rem', margin: '0 0 0.5rem 0' }}>No milk sales recorded yet.</p>
+              <p style={{ fontSize: '1.1rem', margin: '0 0 0.5rem 0' }}>
+                No milk sales recorded yet.
+              </p>
               <p style={{ fontSize: '0.85rem', maxWidth: '400px', margin: '0 auto 1rem auto' }}>
-                Once your request is approved by a dairy, use the &quot;Sell Milk Now&quot; button to log your
-                daily milk supply.
+                Once your request is approved by a dairy, use the &quot;Sell Milk Now&quot; button
+                to log your daily milk supply.
               </p>
               {activeEnrollments.length > 0 && (
                 <button type="button" className="primary" onClick={() => openSellMilkModal()}>
@@ -740,7 +777,13 @@ export function FarmerMilkSales({ farm, user }) {
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
                 <thead>
-                  <tr style={{ borderBottom: '2px solid #e2e8f0', color: '#64748b', textAlign: 'left' }}>
+                  <tr
+                    style={{
+                      borderBottom: '2px solid #e2e8f0',
+                      color: '#64748b',
+                      textAlign: 'left',
+                    }}
+                  >
                     <th style={{ padding: '0.75rem 0.5rem' }}>Date &amp; Shift</th>
                     <th style={{ padding: '0.75rem 0.5rem' }}>Dairy Partner</th>
                     <th style={{ padding: '0.75rem 0.5rem' }}>Milk Type</th>
@@ -776,7 +819,9 @@ export function FarmerMilkSales({ farm, user }) {
                           {s.milkType}
                         </span>
                       </td>
-                      <td style={{ padding: '0.75rem 0.5rem', fontWeight: 700, fontSize: '0.95rem' }}>
+                      <td
+                        style={{ padding: '0.75rem 0.5rem', fontWeight: 700, fontSize: '0.95rem' }}
+                      >
                         {s.quantityLiters} Liters
                       </td>
                       <td style={{ padding: '0.75rem 0.5rem', fontSize: '0.85rem' }}>
@@ -786,7 +831,12 @@ export function FarmerMilkSales({ farm, user }) {
                         ₹{s.ratePerLiter}/L
                       </td>
                       <td
-                        style={{ padding: '0.75rem 0.5rem', fontWeight: 800, color: '#059669', fontSize: '0.95rem' }}
+                        style={{
+                          padding: '0.75rem 0.5rem',
+                          fontWeight: 800,
+                          color: '#059669',
+                          fontSize: '0.95rem',
+                        }}
                       >
                         ₹{s.totalCost.toFixed(2)}
                       </td>
@@ -861,7 +911,14 @@ export function FarmerMilkSales({ farm, user }) {
             <form onSubmit={handleSendJoinRequest}>
               {/* Select Dairy */}
               <div style={{ marginBottom: '1rem' }}>
-                <label style={{ fontWeight: 700, fontSize: '0.85rem', display: 'block', marginBottom: '0.3rem' }}>
+                <label
+                  style={{
+                    fontWeight: 700,
+                    fontSize: '0.85rem',
+                    display: 'block',
+                    marginBottom: '0.3rem',
+                  }}
+                >
                   SELECT TARGET DAIRY
                 </label>
                 <select
@@ -901,21 +958,23 @@ export function FarmerMilkSales({ farm, user }) {
                   📜 ATTACH MILK ELIGIBILITY CERTIFICATE (REQUIRED)
                 </label>
                 <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.8rem', color: '#166534' }}>
-                  The dairy operator requires an active statutory Milk Eligibility Certificate or Today&apos;s
-                  Daily Clearance to confirm zero antibiotic withdrawal violations before accepting your
-                  request.
+                  The dairy operator requires an active statutory Milk Eligibility Certificate or
+                  Today&apos;s Daily Clearance to confirm zero antibiotic withdrawal violations
+                  before accepting your request.
                 </p>
 
                 {availableCertificates.length === 0 ? (
                   <div style={{ color: '#b91c1c', fontSize: '0.85rem' }}>
-                    ⚠️ No active certificates found for this farm. Please run today&apos;s milk eligibility
-                    clearance or generate a certificate first!
+                    ⚠️ No active certificates found for this farm. Please run today&apos;s milk
+                    eligibility clearance or generate a certificate first!
                   </div>
                 ) : (
                   <select
                     value={requestForm.certificateVerificationId}
                     onChange={(e) => {
-                      const selected = availableCertificates.find((c) => c.verificationId === e.target.value);
+                      const selected = availableCertificates.find(
+                        (c) => c.verificationId === e.target.value,
+                      );
                       setRequestForm({
                         ...requestForm,
                         certificateVerificationId: e.target.value,
@@ -935,9 +994,23 @@ export function FarmerMilkSales({ farm, user }) {
               </div>
 
               {/* Milk Type and Quota */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1rem' }}>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr',
+                  gap: '0.75rem',
+                  marginBottom: '1rem',
+                }}
+              >
                 <div>
-                  <label style={{ fontWeight: 700, fontSize: '0.85rem', display: 'block', marginBottom: '0.3rem' }}>
+                  <label
+                    style={{
+                      fontWeight: 700,
+                      fontSize: '0.85rem',
+                      display: 'block',
+                      marginBottom: '0.3rem',
+                    }}
+                  >
                     MILK TYPE
                   </label>
                   <select
@@ -951,7 +1024,14 @@ export function FarmerMilkSales({ farm, user }) {
                   </select>
                 </div>
                 <div>
-                  <label style={{ fontWeight: 700, fontSize: '0.85rem', display: 'block', marginBottom: '0.3rem' }}>
+                  <label
+                    style={{
+                      fontWeight: 700,
+                      fontSize: '0.85rem',
+                      display: 'block',
+                      marginBottom: '0.3rem',
+                    }}
+                  >
                     DAILY QUOTA (L/DAY)
                   </label>
                   <input
@@ -968,9 +1048,23 @@ export function FarmerMilkSales({ farm, user }) {
               </div>
 
               {/* Rate and Payment */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1rem' }}>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr',
+                  gap: '0.75rem',
+                  marginBottom: '1rem',
+                }}
+              >
                 <div>
-                  <label style={{ fontWeight: 700, fontSize: '0.85rem', display: 'block', marginBottom: '0.3rem' }}>
+                  <label
+                    style={{
+                      fontWeight: 700,
+                      fontSize: '0.85rem',
+                      display: 'block',
+                      marginBottom: '0.3rem',
+                    }}
+                  >
                     PROPOSED RATE (₹/L)
                   </label>
                   <input
@@ -985,12 +1079,21 @@ export function FarmerMilkSales({ farm, user }) {
                   />
                 </div>
                 <div>
-                  <label style={{ fontWeight: 700, fontSize: '0.85rem', display: 'block', marginBottom: '0.3rem' }}>
+                  <label
+                    style={{
+                      fontWeight: 700,
+                      fontSize: '0.85rem',
+                      display: 'block',
+                      marginBottom: '0.3rem',
+                    }}
+                  >
                     PAYMENT PREFERENCE
                   </label>
                   <select
                     value={requestForm.paymentMethod}
-                    onChange={(e) => setRequestForm({ ...requestForm, paymentMethod: e.target.value })}
+                    onChange={(e) =>
+                      setRequestForm({ ...requestForm, paymentMethod: e.target.value })
+                    }
                     style={{ width: '100%', padding: '0.65rem' }}
                   >
                     <option value="BANK_TRANSFER">Bank Account (NEFT/IMPS)</option>
@@ -1002,7 +1105,14 @@ export function FarmerMilkSales({ farm, user }) {
               {/* Payment Details */}
               {requestForm.paymentMethod === 'UPI' ? (
                 <div style={{ marginBottom: '1rem' }}>
-                  <label style={{ fontWeight: 700, fontSize: '0.85rem', display: 'block', marginBottom: '0.3rem' }}>
+                  <label
+                    style={{
+                      fontWeight: 700,
+                      fontSize: '0.85rem',
+                      display: 'block',
+                      marginBottom: '0.3rem',
+                    }}
+                  >
                     UPI ID
                   </label>
                   <input
@@ -1014,9 +1124,23 @@ export function FarmerMilkSales({ farm, user }) {
                   />
                 </div>
               ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1rem' }}>
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1fr',
+                    gap: '0.75rem',
+                    marginBottom: '1rem',
+                  }}
+                >
                   <div>
-                    <label style={{ fontWeight: 700, fontSize: '0.85rem', display: 'block', marginBottom: '0.3rem' }}>
+                    <label
+                      style={{
+                        fontWeight: 700,
+                        fontSize: '0.85rem',
+                        display: 'block',
+                        marginBottom: '0.3rem',
+                      }}
+                    >
                       BANK ACCOUNT NUMBER
                     </label>
                     <input
@@ -1030,7 +1154,14 @@ export function FarmerMilkSales({ farm, user }) {
                     />
                   </div>
                   <div>
-                    <label style={{ fontWeight: 700, fontSize: '0.85rem', display: 'block', marginBottom: '0.3rem' }}>
+                    <label
+                      style={{
+                        fontWeight: 700,
+                        fontSize: '0.85rem',
+                        display: 'block',
+                        marginBottom: '0.3rem',
+                      }}
+                    >
                       BANK IFSC CODE
                     </label>
                     <input
@@ -1046,7 +1177,14 @@ export function FarmerMilkSales({ farm, user }) {
 
               {/* Notes */}
               <div style={{ marginBottom: '1.25rem' }}>
-                <label style={{ fontWeight: 700, fontSize: '0.85rem', display: 'block', marginBottom: '0.3rem' }}>
+                <label
+                  style={{
+                    fontWeight: 700,
+                    fontSize: '0.85rem',
+                    display: 'block',
+                    marginBottom: '0.3rem',
+                  }}
+                >
                   APPLICATION NOTES FOR DAIRY OPERATOR
                 </label>
                 <textarea
@@ -1147,9 +1285,23 @@ export function FarmerMilkSales({ farm, user }) {
               </div>
 
               {/* Date and Shift */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1rem' }}>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr',
+                  gap: '0.75rem',
+                  marginBottom: '1rem',
+                }}
+              >
                 <div>
-                  <label style={{ fontWeight: 700, fontSize: '0.85rem', display: 'block', marginBottom: '0.3rem' }}>
+                  <label
+                    style={{
+                      fontWeight: 700,
+                      fontSize: '0.85rem',
+                      display: 'block',
+                      marginBottom: '0.3rem',
+                    }}
+                  >
                     COLLECTION DATE
                   </label>
                   <input
@@ -1161,7 +1313,14 @@ export function FarmerMilkSales({ farm, user }) {
                   />
                 </div>
                 <div>
-                  <label style={{ fontWeight: 700, fontSize: '0.85rem', display: 'block', marginBottom: '0.3rem' }}>
+                  <label
+                    style={{
+                      fontWeight: 700,
+                      fontSize: '0.85rem',
+                      display: 'block',
+                      marginBottom: '0.3rem',
+                    }}
+                  >
                     COLLECTION SHIFT
                   </label>
                   <select
@@ -1176,9 +1335,23 @@ export function FarmerMilkSales({ farm, user }) {
               </div>
 
               {/* Milk Type and Quantity */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1rem' }}>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr',
+                  gap: '0.75rem',
+                  marginBottom: '1rem',
+                }}
+              >
                 <div>
-                  <label style={{ fontWeight: 700, fontSize: '0.85rem', display: 'block', marginBottom: '0.3rem' }}>
+                  <label
+                    style={{
+                      fontWeight: 700,
+                      fontSize: '0.85rem',
+                      display: 'block',
+                      marginBottom: '0.3rem',
+                    }}
+                  >
                     MILK TYPE
                   </label>
                   <select
@@ -1192,7 +1365,14 @@ export function FarmerMilkSales({ farm, user }) {
                   </select>
                 </div>
                 <div>
-                  <label style={{ fontWeight: 700, fontSize: '0.85rem', display: 'block', marginBottom: '0.3rem' }}>
+                  <label
+                    style={{
+                      fontWeight: 700,
+                      fontSize: '0.85rem',
+                      display: 'block',
+                      marginBottom: '0.3rem',
+                    }}
+                  >
                     QUANTITY (LITERS)
                   </label>
                   <input
@@ -1208,9 +1388,23 @@ export function FarmerMilkSales({ farm, user }) {
               </div>
 
               {/* Quality Fat & SNF */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1rem' }}>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr',
+                  gap: '0.75rem',
+                  marginBottom: '1rem',
+                }}
+              >
                 <div>
-                  <label style={{ fontWeight: 700, fontSize: '0.85rem', display: 'block', marginBottom: '0.3rem' }}>
+                  <label
+                    style={{
+                      fontWeight: 700,
+                      fontSize: '0.85rem',
+                      display: 'block',
+                      marginBottom: '0.3rem',
+                    }}
+                  >
                     FAT %
                   </label>
                   <input
@@ -1222,7 +1416,14 @@ export function FarmerMilkSales({ farm, user }) {
                   />
                 </div>
                 <div>
-                  <label style={{ fontWeight: 700, fontSize: '0.85rem', display: 'block', marginBottom: '0.3rem' }}>
+                  <label
+                    style={{
+                      fontWeight: 700,
+                      fontSize: '0.85rem',
+                      display: 'block',
+                      marginBottom: '0.3rem',
+                    }}
+                  >
                     SNF %
                   </label>
                   <input
@@ -1259,7 +1460,8 @@ export function FarmerMilkSales({ farm, user }) {
                 <div style={{ fontSize: '1.65rem', fontWeight: 800, color: '#047857' }}>
                   ₹
                   {(
-                    (parseFloat(saleForm.quantityLiters) || 0) * (parseFloat(saleForm.ratePerLiter) || 0)
+                    (parseFloat(saleForm.quantityLiters) || 0) *
+                    (parseFloat(saleForm.ratePerLiter) || 0)
                   ).toFixed(2)}
                 </div>
               </div>

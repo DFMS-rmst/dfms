@@ -16,6 +16,12 @@ const row = (id, animalId, drugName, className, at, mg = null) => ({
   animalId,
   administeredAt: new Date(at),
   activeIngredientMg: mg,
+  medicine: {
+    id: drugName,
+    medicineName: drugName,
+    antimicrobialClass: className,
+    isAntibiotic: true,
+  },
   drug: {
     id: drugName,
     canonicalName: drugName,

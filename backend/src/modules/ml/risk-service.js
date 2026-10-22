@@ -68,7 +68,7 @@ export async function computeAnimalRiskDefaults(animalId, now = new Date(), clie
       administeredAt: { gte: daysAgo(now, 90), lte: now },
     },
     include: {
-      drug: { include: { antimicrobialClass: true } },
+      medicine: true,
       treatment: true,
     },
     orderBy: { administeredAt: 'asc' },
@@ -97,7 +97,7 @@ export async function computeAnimalRiskDefaults(animalId, now = new Date(), clie
   }
 
   // Antimicrobial classes
-  const classes90 = administrations.map((a) => a.drug?.antimicrobialClassId).filter(Boolean);
+  const classes90 = administrations.map((a) => a.medicine?.antimicrobialClass).filter(Boolean);
   const uniqueClassesCount = new Set(classes90).size;
 
   // Max repeated class count

@@ -35,7 +35,8 @@ const diagnosisSchema = z.object({
   diagnosedAt: z.coerce.date().optional(),
 });
 const itemSchema = z.object({
-  drugId: z.string(),
+  medicineId: z.string().optional(),
+  drugId: z.string().optional(),
   drugProductId: z.string().optional().nullable(),
   doseValue: z.number().positive(),
   doseUnit: z.string().trim().min(1).max(60),
@@ -85,7 +86,7 @@ const caseInclude = {
   veterinarian: { include: { user: { select: { id: true, fullName: true } } } },
   diagnoses: { include: { disease: true }, orderBy: { diagnosedAt: 'desc' } },
   prescriptions: {
-    include: { items: { include: { drug: { include: { products: true } }, drugProduct: true } } },
+    include: { items: { include: { medicine: true } } },
     orderBy: { prescribedAt: 'desc' },
   },
   treatments: {
@@ -93,11 +94,10 @@ const caseInclude = {
       administrations: {
         orderBy: { administeredAt: 'desc' },
         include: {
-          drug: true,
-          drugProduct: true,
+          medicine: true,
           administeredBy: { select: { id: true, fullName: true } },
           performedBy: { select: { id: true, fullName: true } },
-          prescriptionItem: true,
+          prescriptionItem: { include: { medicine: true } },
         },
       },
     },
@@ -511,34 +511,27 @@ casesRouter.post(
       !(await prisma.diagnosis.findFirst({ where: { id: req.body.diagnosisId, caseId: item.id } }))
     )
       throw new AppError(400, 'DIAGNOSIS_CASE_MISMATCH', 'Diagnosis does not belong to case');
-    const drugs = await prisma.drug.count({
-      where: { id: { in: req.body.items.map((x) => x.drugId) } },
+    const medIds = req.body.items.map((x) => x.medicineId || x.drugId);
+    const medicines = await prisma.medicine.findMany({
+      where: { id: { in: medIds } },
     });
-    if (drugs !== new Set(req.body.items.map((x) => x.drugId)).size)
-      throw new AppError(400, 'DRUG_NOT_FOUND', 'Drug reference not found');
-    const productIds = req.body.items.map((x) => x.drugProductId).filter(Boolean);
-    if (productIds.length) {
-      const products = await prisma.drugProduct.findMany({
-        where: { id: { in: productIds } },
-        select: { id: true, drugId: true },
-      });
-      if (
-        products.length !== new Set(productIds).size ||
-        req.body.items.some(
-          (entry) =>
-            entry.drugProductId &&
-            !products.some(
-              (product) => product.id === entry.drugProductId && product.drugId === entry.drugId,
-            ),
-        )
-      )
-        throw new AppError(
-          400,
-          'DRUG_PRODUCT_MISMATCH',
-          'Selected product does not belong to the prescribed drug',
-        );
-    }
+    if (medicines.length !== new Set(medIds).size)
+      throw new AppError(400, 'MEDICINE_NOT_FOUND', 'Prescribed medicine reference not found');
+
     const { items, ...data } = req.body;
+    const itemsToCreate = items.map((x) => ({
+      medicineId: x.medicineId || x.drugId,
+      doseValue: x.doseValue,
+      doseUnit: x.doseUnit,
+      doseBasis: x.doseBasis,
+      route: x.route,
+      frequency: x.frequency,
+      durationValue: x.durationValue,
+      durationUnit: x.durationUnit,
+      startDate: x.startDate,
+      expectedEndDate: x.expectedEndDate,
+      instructions: x.instructions,
+    }));
     const prescription = await prisma.$transaction(async (tx) => {
       const saved = await tx.prescription.create({
         data: {
@@ -546,9 +539,9 @@ casesRouter.post(
           caseId: item.id,
           animalId: item.animalId,
           veterinarianId: item.veterinarianId,
-          items: { create: items },
+          items: { create: itemsToCreate },
         },
-        include: { items: { include: { drug: true, drugProduct: true } } },
+        include: { items: { include: { medicine: true } } },
       });
       await tx.animalProfileEvent.create({
         data: {
@@ -601,7 +594,7 @@ casesRouter.get(
         case: { include: { farm: true } },
         veterinarian: { include: { user: true } },
         diagnosis: { include: { disease: true } },
-        items: { include: { drug: true } },
+        items: { include: { medicine: true } },
       },
     });
     if (!prescription) throw new AppError(404, 'PRESCRIPTION_NOT_FOUND', 'Prescription not found');
@@ -858,35 +851,27 @@ treatmentsRouter.post(
       (entry) => entry.id === req.body.prescriptionItemId,
     );
     validateAdministrationEvidence(prescriptionItem, req.body);
-    if (req.body.drugProductId) {
-      const product = await prisma.drugProduct.findFirst({
-        where: { id: req.body.drugProductId, drugId: prescriptionItem.drugId },
-      });
-      if (!product)
-        throw new AppError(
-          400,
-          'DRUG_PRODUCT_MISMATCH',
-          'Actual product does not belong to the prescribed drug',
-        );
-    }
     const administrationData = { ...req.body };
     const performedByName = administrationData.performedByName;
     delete administrationData.drugId;
+    delete administrationData.drugProductId;
+    delete administrationData.medicineId;
     delete administrationData.performedByName;
+    const medicineId = prescriptionItem.medicineId;
+
     const administration = await prisma.$transaction(async (tx) => {
       const saved = await tx.treatmentAdministration.create({
         data: {
           ...administrationData,
           treatmentId: treatment.id,
           animalId: treatment.animalId,
-          drugId: prescriptionItem.drugId,
+          medicineId,
           administeredById: req.principal.user.id,
           performedByUserId: performedByName ? null : req.principal.user.id,
           performedByName: performedByName || null,
         },
         include: {
-          drug: true,
-          drugProduct: true,
+          medicine: true,
           administeredBy: { select: { id: true, fullName: true } },
           performedBy: { select: { id: true, fullName: true } },
         },
@@ -896,12 +881,12 @@ treatmentsRouter.post(
           animalId: treatment.animalId,
           actorUserId: req.principal.user.id,
           eventType: 'TREATMENT_ADMINISTERED',
-          summary: `Actual administration recorded for ${saved.drug.canonicalName}`,
+          summary: `Actual administration recorded for ${saved.medicine.medicineName}`,
           details: {
             administrationId: saved.id,
             treatmentId: treatment.id,
-            medicine: saved.drug.canonicalName,
-            product: saved.drugProduct?.productName || null,
+            medicine: saved.medicine.medicineName,
+            medicineName: saved.medicine.medicineName,
             actualAmount: String(saved.amount),
             amountUnit: saved.amountUnit,
             route: saved.route,
@@ -932,7 +917,16 @@ treatmentsRouter.post(
       'TREATMENT_ADMINISTRATION_RECORDED',
       req.principal.user.id,
     );
-    res.status(201).json({ data: { administration } });
+    res.status(201).json({
+      data: {
+        administration: {
+          ...administration,
+          drugId: administration.medicineId,
+          drugProductId: null,
+          medicineName: administration.medicine.medicineName,
+        },
+      },
+    });
   }),
 );
 
@@ -947,17 +941,30 @@ referenceClinicalRouter.get(
   ),
 );
 referenceClinicalRouter.get(
+  '/medicines',
+  asyncHandler(async (_req, res) => {
+    const medicines = await prisma.medicine.findMany({
+      orderBy: { medicineName: 'asc' },
+    });
+    res.json({ data: { medicines } });
+  }),
+);
+referenceClinicalRouter.get(
   '/drugs',
-  asyncHandler(async (_req, res) =>
-    res.json({
-      data: {
-        drugs: await prisma.drug.findMany({
-          include: { antimicrobialClass: true, products: { orderBy: { productName: 'asc' } } },
-          orderBy: { canonicalName: 'asc' },
-        }),
-      },
-    }),
-  ),
+  asyncHandler(async (_req, res) => {
+    const medicines = await prisma.medicine.findMany({
+      orderBy: { medicineName: 'asc' },
+    });
+    const drugs = medicines.map((m) => ({
+      id: m.id,
+      canonicalName: m.medicineName,
+      antimicrobialClass: { canonicalName: m.antimicrobialClass },
+      products: [],
+      isAntibiotic: m.isAntibiotic,
+      milkWithdrawalDays: m.milkWithdrawalDays,
+    }));
+    res.json({ data: { drugs } });
+  }),
 );
 
 export const alertsRouter = Router();

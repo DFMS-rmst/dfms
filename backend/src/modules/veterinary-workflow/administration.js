@@ -6,8 +6,7 @@ export function administrationDeviates(item, input) {
   return (
     Number(item.doseValue) !== Number(input.amount) ||
     normalized(item.doseUnit) !== normalized(input.amountUnit) ||
-    normalized(item.route) !== normalized(input.route) ||
-    normalized(item.drugProductId) !== normalized(input.drugProductId)
+    normalized(item.route) !== normalized(input.route)
   );
 }
 
@@ -18,7 +17,9 @@ export function validateAdministrationEvidence(item, input, now = new Date()) {
       'PRESCRIPTION_ITEM_MISMATCH',
       'Prescription item does not belong to this treatment',
     );
-  if (input.drugId && input.drugId !== item.drugId)
+  const inputMedId = input.medicineId || input.drugId;
+  const itemMedId = item.medicineId || item.drugId;
+  if (inputMedId && itemMedId && inputMedId !== itemMedId)
     throw new AppError(
       400,
       'PRESCRIPTION_ITEM_MISMATCH',

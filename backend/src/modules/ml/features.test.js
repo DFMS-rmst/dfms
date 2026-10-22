@@ -7,8 +7,10 @@ describe('AMU ML feature extraction', () => {
     const rows = [
       {
         treatmentId: 't1',
+        medicineId: 'm1',
         drugId: 'd1',
         administeredAt: new Date('2026-08-20T00:00:00Z'),
+        medicine: { antimicrobialClass: 'c1', isAntibiotic: true },
         drug: { antimicrobialClassId: 'c1' },
         treatment: {
           startedAt: new Date('2026-08-18T00:00:00Z'),

@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { api } from './api.js';
-import { HealthTimeline } from './FoundationApp.jsx';
 
 // Shared solid, non-transparent modal styles ensuring crisp readability
 const modalBackdropStyle = {
@@ -122,9 +121,6 @@ export function DairyHub({ initialTab = 'analytics' }) {
   const [showIntakeModal, setShowIntakeModal] = useState(false);
   const [showSaleModal, setShowSaleModal] = useState(false);
   const [inspectingFarmerHealth, setInspectingFarmerHealth] = useState(null);
-  const [timelineAnimal, setTimelineAnimal] = useState(null);
-  const [animalTimeline, setAnimalTimeline] = useState(null);
-  const [loadingTimeline, setLoadingTimeline] = useState(false);
 
   // Certificate Review Modal state
   const [reviewingRequest, setReviewingRequest] = useState(null);
@@ -312,19 +308,6 @@ export function DairyHub({ initialTab = 'analytics' }) {
       loadAllData();
     } catch (err) {
       setError(err.message || 'Failed to save enrollment');
-    }
-  }
-
-  async function handleUpdateEnrollmentStatus(enrollmentId, newStatus) {
-    try {
-      await api(`/dairy/enrollments/${enrollmentId}`, {
-        method: 'PUT',
-        body: JSON.stringify({ status: newStatus }),
-      });
-      showNotification(`Farmer enrollment status updated to: ${newStatus}`);
-      loadAllData();
-    } catch (err) {
-      setError(err.message || 'Failed to update status');
     }
   }
 
@@ -523,26 +506,13 @@ export function DairyHub({ initialTab = 'analytics' }) {
     }
   }
 
-  async function openAnimalTimeline(animal) {
-    setTimelineAnimal(animal);
-    setLoadingTimeline(true);
-    try {
-      const res = await api(`/dairy/animals/${animal.id}/timeline`);
-      setAnimalTimeline({
-        animal: res.animal,
-        events: res.events || [],
-        loading: false,
-        error: null,
-      });
-    } catch (err) {
-      setAnimalTimeline({
-        animal,
-        events: [],
-        loading: false,
-        error: err.message || 'Failed to retrieve animal health timeline',
-      });
-    } finally {
-      setLoadingTimeline(false);
+  function openAnimalTimeline(animal) {
+    if (animal?.verificationId) {
+      window.open(`/verify/animal/${animal.verificationId}`, '_blank');
+    } else {
+      alert(
+        `Animal: ${animal?.name || animal?.tagNumber} (${animal?.species || 'Livestock'})\nTag: ${animal?.tagNumber}\nStatus: ${animal?.status || 'ACTIVE'}\nMilk Eligibility: ${animal?.milkEligibility?.isEligible ? 'Eligible / Cleared' : animal?.milkEligibility?.blocker || 'Under Withdrawal'}`,
+      );
     }
   }
 
@@ -2456,7 +2426,8 @@ export function DairyHub({ initialTab = 'analytics' }) {
                       .filter((enr) => enr.status === 'ACTIVE')
                       .map((enr) => (
                         <option key={enr.id} value={enr.farmerIdNumber}>
-                          ✅ {enr.farmerName} ({enr.farmerIdNumber}) — {enr.villageArea} ({enr.milkType})
+                          ✅ {enr.farmerName} ({enr.farmerIdNumber}) — {enr.villageArea} (
+                          {enr.milkType})
                         </option>
                       ))}
                   </select>
@@ -3180,7 +3151,8 @@ export function DairyHub({ initialTab = 'analytics' }) {
                     PROPOSED SUPPLY
                   </span>
                   <div style={{ fontWeight: 700, color: '#047857' }}>
-                    {reviewingRequest.expectedDailyQuantity} L/day · {reviewingRequest.milkType} Milk
+                    {reviewingRequest.expectedDailyQuantity} L/day · {reviewingRequest.milkType}{' '}
+                    Milk
                   </div>
                   <div style={{ color: '#64748b' }}>
                     Requested Rate: ₹{reviewingRequest.agreedRatePerLiter}/L
@@ -3365,8 +3337,8 @@ export function DairyHub({ initialTab = 'analytics' }) {
                         }}
                       >
                         <small style={{ color: '#166534', fontSize: '0.75rem', maxWidth: '420px' }}>
-                          Verified against statutory withdrawal periods &amp; veterinary prescription
-                          history.
+                          Verified against statutory withdrawal periods &amp; veterinary
+                          prescription history.
                         </small>
                         <a
                           href={
@@ -3494,9 +3466,7 @@ export function DairyHub({ initialTab = 'analytics' }) {
                       boxShadow: '0 4px 12px rgba(4, 120, 87, 0.3)',
                     }}
                   >
-                    {reviewActionSubmitting
-                      ? 'Approving…'
-                      : '✅ Accept Request & Authorize Farmer'}
+                    {reviewActionSubmitting ? 'Approving…' : '✅ Accept Request & Authorize Farmer'}
                   </button>
                 </div>
               </div>
