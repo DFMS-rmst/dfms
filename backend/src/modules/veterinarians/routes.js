@@ -46,8 +46,11 @@ const profileInclude = {
     },
   },
 };
+import { getVetAnalyticsController } from './analytics.js';
+
 export const veterinariansRouter = Router();
 veterinariansRouter.use(authenticate);
+veterinariansRouter.get('/analytics', getVetAnalyticsController);
 veterinariansRouter.get(
   '/',
   asyncHandler(async (request, response) => {

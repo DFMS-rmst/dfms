@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { api } from './api.js';
+import { api, download } from './api.js';
 import { toast } from './toast.js';
 
 const statusLabel = (value) => value?.replaceAll('_', ' ');
@@ -154,27 +154,61 @@ export function CoreEngine({ farms, isAdmin, canIssue = false }) {
   const [classes, setClasses] = useState([]);
   const [eligibility, setEligibility] = useState([]);
   const [mrl, setMrl] = useState([]);
+  const [todayClearance, setTodayClearance] = useState(null);
+  const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+
   async function load() {
     setLoading(true);
     try {
       const query = !isAdmin && farmId ? `?farmId=${farmId}` : '';
-      const [summaryData, trendData, drugData, classData, eligibilityData, mrlData] =
-        await Promise.all([
-          api(`/amu/summary${query}`),
-          api(`/amu/trends${query}`),
-          api(`/amu/by-drug${query}`),
-          api(`/amu/by-class${query}`),
+      if (!isAdmin && farmId) {
+        // Farmer side: load today's operational clearance counters & milk eligibility list
+        const [todayRes, eligibilityData, mrlData] = await Promise.all([
+          api(`/farms/${farmId}/eligibility/today`).catch(() =>
+            api(`/daily-clearances/today?farmId=${farmId}`),
+          ),
           api(`/eligibility${query}`),
           api('/reference-data/mrl'),
         ]);
-      setSummary(summaryData.summary);
-      setTrends(trendData.trends);
-      setDrugs(drugData.groups);
-      setClasses(classData.groups);
-      setEligibility(eligibilityData.eligibility);
-      setMrl(mrlData.rules);
+        const evalData = todayRes?.evaluation || todayRes;
+        const clr = todayRes?.clearance || evalData?.clearance || null;
+        const clrInfo = {
+          totalAnimals: todayRes?.applicableCount ?? evalData?.applicableCount ?? 0,
+          eligible: todayRes?.eligibleCount ?? evalData?.eligibleCount ?? 0,
+          blocked: todayRes?.blockedCount ?? evalData?.blockedCount ?? 0,
+          status: todayRes?.status ?? evalData?.status ?? 'CURRENT',
+          clearanceNumber: todayRes?.clearanceNumber || clr?.clearanceNumber || null,
+          verificationId: todayRes?.verificationId || clr?.verificationId || null,
+          evaluationId: todayRes?.evaluationId || evalData?.id || null,
+          businessDate: todayRes?.businessDate || evalData?.businessDate,
+          clearance: clr,
+        };
+        setTodayClearance(clrInfo);
+        if (clrInfo.clearanceNumber || clrInfo.verificationId) {
+          sessionStorage.setItem('dfms_active_clearance', JSON.stringify(clrInfo));
+        }
+        setEligibility(eligibilityData.eligibility || []);
+        setMrl(mrlData.rules || []);
+      } else {
+        // Admin side: load macro AMU analytics
+        const [summaryData, trendData, drugData, classData, eligibilityData, mrlData] =
+          await Promise.all([
+            api(`/amu/summary${query}`),
+            api(`/amu/trends${query}`),
+            api(`/amu/by-drug${query}`),
+            api(`/amu/by-class${query}`),
+            api(`/eligibility${query}`),
+            api('/reference-data/mrl'),
+          ]);
+        setSummary(summaryData.summary);
+        setTrends(trendData.trends);
+        setDrugs(drugData.groups);
+        setClasses(classData.groups);
+        setEligibility(eligibilityData.eligibility);
+        setMrl(mrlData.rules);
+      }
       setError('');
     } catch (x) {
       setError(x.message);
@@ -182,9 +216,41 @@ export function CoreEngine({ farms, isAdmin, canIssue = false }) {
       setLoading(false);
     }
   }
+
   useEffect(() => {
     load();
   }, [farmId, isAdmin]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function handleDownloadPdfWithQr() {
+    if (!todayClearance?.evaluationId || !todayClearance?.clearanceNumber) {
+      toast.info('No positive clearance document generated for today yet.');
+      return;
+    }
+    setDownloading(true);
+    try {
+      await download(
+        `/daily-clearances/${todayClearance.evaluationId}/pdf`,
+        `${todayClearance.clearanceNumber}.pdf`,
+      );
+      toast.success('Downloaded clearance PDF with QR!');
+      const active = {
+        clearanceNumber: todayClearance.clearanceNumber,
+        verificationId: todayClearance.verificationId,
+        evaluationId: todayClearance.evaluationId,
+        status: todayClearance.status,
+        eligibleCount: todayClearance.eligible,
+        blockedCount: todayClearance.blocked,
+        businessDate: todayClearance.businessDate,
+      };
+      sessionStorage.setItem('dfms_active_clearance', JSON.stringify(active));
+      window.dispatchEvent(new CustomEvent('clearance-updated', { detail: active }));
+    } catch (err) {
+      toast.error(err.message || 'Download failed');
+    } finally {
+      setDownloading(false);
+    }
+  }
+
   async function reevaluate(animalId) {
     try {
       await api(`/eligibility/animals/${animalId}/evaluate`, { method: 'POST' });
@@ -198,7 +264,7 @@ export function CoreEngine({ farms, isAdmin, canIssue = false }) {
     try {
       await api(`/certificates/animals/${animalId}`, { method: 'POST' });
       toast.success('Milk eligibility certificate issued successfully!');
-      setError('Certificate issued. Open Certificates to view its PDF, QR, and proof status.');
+      setError('Certificate issued. Open Today\'s Clearance QR to view its QR and proof status.');
       await load();
     } catch (x) {
       toast.error(x.message || 'Failed to issue certificate');
@@ -223,72 +289,211 @@ export function CoreEngine({ farms, isAdmin, canIssue = false }) {
       {isAdmin && <p className="eyebrow">Organization-level platform view</p>}
       {error && <p className="error">{error}</p>}
       {loading && <p>Loading current AMU and milk eligibility…</p>}
-      {summary && (
-        <>
-          <h2>AMU Overview</h2>
-          <div className="grid">
-            <Metric
-              title="Recorded Administrations (Doses Given)"
-              value={summary.totalAdministrations}
-              help={
-                summary.totalAdministrations === 0
-                  ? '0 dosage events recorded yet. Administer a prescribed dose in Veterinary Care to record Administration #1.'
-                  : 'Total actual dosage events recorded across active treatments.'
-              }
-            />
-            <Metric
-              title="Antimicrobial treatments"
-              value={summary.totalAntimicrobialTreatments}
-              help="Number of distinct active/completed treatment courses."
-            />
-            <Metric
-              title="Treated animals"
-              value={summary.treatedAnimals}
-              help="Distinct animals that received treatment."
-            />
-            <Metric
-              title="Animals treated"
-              value={`${summary.animalsTreatedPercentage.toFixed(1)}%`}
-            />
-            <Metric title="Treatment-days" value={summary.antimicrobialTreatmentDays} />
-            <Metric title="Completed courses" value={summary.completedCourses} />
-            <Metric
-              title="Average duration"
-              value={
-                summary.averageTreatmentDurationDays == null
-                  ? 'Not available'
-                  : `${summary.averageTreatmentDurationDays.toFixed(1)} days`
-              }
-            />
-            <Metric
-              title="Active ingredient mass"
-              value={
-                summary.activeIngredientMass.status === 'AVAILABLE'
-                  ? `${summary.activeIngredientMass.value} mg`
-                  : 'Metric not available'
-              }
-            />
+
+      {/* FARMER VIEW: Clean daily summary counters and Download PDF with QR button */}
+      {!isAdmin ? (
+        <div className="farmer-amu-daily-section" style={{ marginBottom: '2rem' }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '1rem',
+              marginBottom: '1rem',
+            }}
+          >
+            <div>
+              <h2 style={{ margin: 0, fontSize: '1.4rem', color: '#0f172a' }}>
+                Daily AMU & Milk Operations
+              </h2>
+              <p style={{ margin: '0.2rem 0 0', color: '#64748b', fontSize: '0.88rem' }}>
+                Daily herd eligibility counters and collection clearance for dispatch.
+              </p>
+            </div>
+            <button
+              type="button"
+              className="primary-btn"
+              disabled={downloading || !todayClearance?.clearanceNumber}
+              onClick={handleDownloadPdfWithQr}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                padding: '0.65rem 1.25rem',
+                fontWeight: 600,
+                borderRadius: '0.75rem',
+                cursor: todayClearance?.clearanceNumber ? 'pointer' : 'not-allowed',
+              }}
+            >
+              <span>📄</span> {downloading ? 'Downloading…' : 'Download PDF with QR'}
+            </button>
           </div>
-          <p className="notice">
-            AMU describes recorded use. It does not prove antimicrobial misuse.
-          </p>
+
+          <div
+            className="grid"
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+              gap: '1rem',
+            }}
+          >
+            <article
+              className="card"
+              style={{
+                borderRadius: '1rem',
+                padding: '1.25rem',
+                background: '#ffffff',
+                border: '1px solid #e2e8f0',
+              }}
+            >
+              <small
+                style={{
+                  fontWeight: 700,
+                  color: '#475569',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em',
+                }}
+              >
+                Total Animals
+              </small>
+              <h3 style={{ margin: '0.4rem 0 0.2rem', fontSize: '2.2rem', color: '#1e293b' }}>
+                {todayClearance?.totalAnimals ?? 0}
+              </h3>
+              <small style={{ color: '#64748b', fontSize: '0.8rem' }}>
+                Active lactating herd count
+              </small>
+            </article>
+
+            <article
+              className="card"
+              style={{
+                borderRadius: '1rem',
+                padding: '1.25rem',
+                background: '#ffffff',
+                border: '1px solid #e2e8f0',
+                borderLeft: '4px solid #10b981',
+              }}
+            >
+              <small
+                style={{
+                  fontWeight: 700,
+                  color: '#059669',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em',
+                }}
+              >
+                Eligible
+              </small>
+              <h3 style={{ margin: '0.4rem 0 0.2rem', fontSize: '2.2rem', color: '#059669' }}>
+                {todayClearance?.eligible ?? 0}
+              </h3>
+              <small style={{ color: '#64748b', fontSize: '0.8rem' }}>
+                Cleared withdrawal periods
+              </small>
+            </article>
+
+            <article
+              className="card"
+              style={{
+                borderRadius: '1rem',
+                padding: '1.25rem',
+                background: '#ffffff',
+                border: '1px solid #e2e8f0',
+                borderLeft: '4px solid #ef4444',
+              }}
+            >
+              <small
+                style={{
+                  fontWeight: 700,
+                  color: '#dc2626',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em',
+                }}
+              >
+                Blocked
+              </small>
+              <h3 style={{ margin: '0.4rem 0 0.2rem', fontSize: '2.2rem', color: '#dc2626' }}>
+                {todayClearance?.blocked ?? 0}
+              </h3>
+              <small style={{ color: '#64748b', fontSize: '0.8rem' }}>
+                Under withdrawal / treatment active
+              </small>
+            </article>
+          </div>
+        </div>
+      ) : (
+        /* ADMIN VIEW: Macro AMU Analytics Overview, Trends, Breakdown by Drug & Class */
+        <>
+          {summary && (
+            <>
+              <h2>AMU Overview</h2>
+              <div className="grid">
+                <Metric
+                  title="Recorded Administrations (Doses Given)"
+                  value={summary.totalAdministrations}
+                  help={
+                    summary.totalAdministrations === 0
+                      ? '0 dosage events recorded yet. Administer a prescribed dose in Veterinary Care to record Administration #1.'
+                      : 'Total actual dosage events recorded across active treatments.'
+                  }
+                />
+                <Metric
+                  title="Antimicrobial treatments"
+                  value={summary.totalAntimicrobialTreatments}
+                  help="Number of distinct active/completed treatment courses."
+                />
+                <Metric
+                  title="Treated animals"
+                  value={summary.treatedAnimals}
+                  help="Distinct animals that received treatment."
+                />
+                <Metric
+                  title="Animals treated"
+                  value={`${summary.animalsTreatedPercentage.toFixed(1)}%`}
+                />
+                <Metric title="Treatment-days" value={summary.antimicrobialTreatmentDays} />
+                <Metric title="Completed courses" value={summary.completedCourses} />
+                <Metric
+                  title="Average duration"
+                  value={
+                    summary.averageTreatmentDurationDays == null
+                      ? 'Not available'
+                      : `${summary.averageTreatmentDurationDays.toFixed(1)} days`
+                  }
+                />
+                <Metric
+                  title="Active ingredient mass"
+                  value={
+                    summary.activeIngredientMass.status === 'AVAILABLE'
+                      ? `${summary.activeIngredientMass.value} mg`
+                      : 'Metric not available'
+                  }
+                />
+              </div>
+              <p className="notice">
+                AMU describes recorded use. It does not prove antimicrobial misuse.
+              </p>
+            </>
+          )}
+
+          <h2>Monthly AMU Trends</h2>
+          <DataTable
+            headings={['Month', 'Administrations', 'Treatments', 'Treated animals']}
+            rows={trends.map((x) => [x.month, x.administrations, x.treatments, x.treatedAnimals])}
+          />
+          <div className="workflow-columns">
+            <section>
+              <h2>Usage by Drug</h2>
+              <Breakdown rows={drugs} />
+            </section>
+            <section>
+              <h2>Usage by Class</h2>
+              <Breakdown rows={classes} />
+            </section>
+          </div>
         </>
       )}
-      <h2>Monthly AMU Trends</h2>
-      <DataTable
-        headings={['Month', 'Administrations', 'Treatments', 'Treated animals']}
-        rows={trends.map((x) => [x.month, x.administrations, x.treatments, x.treatedAnimals])}
-      />
-      <div className="workflow-columns">
-        <section>
-          <h2>Usage by Drug</h2>
-          <Breakdown rows={drugs} />
-        </section>
-        <section>
-          <h2>Usage by Class</h2>
-          <Breakdown rows={classes} />
-        </section>
-      </div>
       <h2>Milk Eligibility List</h2>
       <div className="grid">
         {eligibility.map((check) => (

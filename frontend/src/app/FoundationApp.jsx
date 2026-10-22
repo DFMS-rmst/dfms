@@ -21,6 +21,7 @@ import { RiskBadge } from './RiskBadge.jsx';
 import { FarmerChatbot, FarmerChatbotModal } from './FarmerChatbot.jsx';
 import { ToastContainer } from './Toast.jsx';
 import { toast } from './toast.js';
+import { OrganizationWideAnalytics } from './OrganizationWideAnalytics.jsx';
 const Field = ({ label, name, type = 'text', required = true, defaultValue }) => (
   <label>
     {label}
@@ -1433,6 +1434,7 @@ function Workspace({ user, setUser, logout }) {
     'veterinary-care': '🩺',
     dashboard: '📊',
     'core-engine': '🥛',
+    'organization-analytics': '🌐',
     certificates: '📜',
     'daily-clearance': '🥛',
     'milk-sales': '🥛',
@@ -1750,11 +1752,18 @@ function Workspace({ user, setUser, logout }) {
             />
           )}
           {page === 'core-engine' && (
-            <CoreEngine
-              farms={workspace?.kind === 'FARM' && activeFarm ? [activeFarm] : []}
-              isAdmin={workspace?.kind === 'ADMIN'}
-              canIssue={workspace?.kind === 'ADMIN' || capabilities.canIssueCertificate}
-            />
+            workspace?.kind === 'ADMIN' ? (
+              <OrganizationWideAnalytics />
+            ) : (
+              <CoreEngine
+                farms={workspace?.kind === 'FARM' && activeFarm ? [activeFarm] : []}
+                isAdmin={workspace?.kind === 'ADMIN'}
+                canIssue={workspace?.kind === 'ADMIN' || capabilities.canIssueCertificate}
+              />
+            )
+          )}
+          {page === 'organization-analytics' && (
+            <OrganizationWideAnalytics />
           )}
           {page === 'certificates' && (
             <Certificates
