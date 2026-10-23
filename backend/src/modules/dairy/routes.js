@@ -595,6 +595,83 @@ dairyRouter.put(
   }),
 );
 
+dairyRouter.put(
+  '/enrollments/:id/status',
+  asyncHandler(async (request, response) => {
+    const { id } = request.params;
+    const body = request.body || {};
+
+    if (
+      !body.status ||
+      !['ACTIVE', 'REJECTED', 'PENDING_APPROVAL', 'SUSPENDED'].includes(body.status)
+    ) {
+      throw new AppError(400, 'VALIDATION_ERROR', 'Valid status (ACTIVE, REJECTED) is required.');
+    }
+
+    const existing = await prisma.$queryRawUnsafe(
+      'SELECT * FROM `dairy_farmer_enrollments` WHERE `id` = ?',
+      id,
+    );
+    if (!existing || existing.length === 0) {
+      throw new AppError(404, 'NOT_FOUND', 'Farmer enrollment record not found.');
+    }
+
+    const current = existing[0];
+    const newStatus = body.status;
+    const notes =
+      body.notes || body.joinRequestNotes !== undefined
+        ? body.notes || body.joinRequestNotes
+        : current.joinRequestNotes;
+    const agreedRate =
+      body.agreedRatePerLiter !== undefined
+        ? parseFloat(body.agreedRatePerLiter)
+        : Number(current.agreedRatePerLiter);
+
+    await prisma.$executeRawUnsafe(
+      'UPDATE `dairy_farmer_enrollments` SET `status` = ?, `joinRequestNotes` = ?, `agreedRatePerLiter` = ?, `updatedAt` = NOW() WHERE `id` = ?',
+      newStatus,
+      notes,
+      agreedRate,
+      id,
+    );
+
+    // Notify farmer user if identifiable
+    let targetUserId = current.farmerUserId;
+    if (!targetUserId && current.email) {
+      const u = await prisma.user.findFirst({ where: { email: current.email } });
+      targetUserId = u?.id || null;
+    }
+    if (targetUserId) {
+      try {
+        await prisma.alert.create({
+          data: {
+            userId: targetUserId,
+            type: newStatus === 'ACTIVE' ? 'ENROLLMENT_APPROVED' : 'ENROLLMENT_REJECTED',
+            title: newStatus === 'ACTIVE' ? 'Dairy Supply Approved! 🎉' : 'Dairy Supply Update',
+            message:
+              newStatus === 'ACTIVE'
+                ? 'Your milk supply enrollment has been approved! You can now drop off milk daily at the dairy.'
+                : `Your supply request status was updated to ${newStatus}.`,
+            entityType: 'DAIRY_ENROLLMENT',
+            entityId: id,
+          },
+        });
+      } catch {
+        // ignore
+      }
+    }
+
+    response.json({
+      data: {
+        enrollmentId: id,
+        status: newStatus,
+        agreedRatePerLiter: agreedRate,
+        message: `Enrollment status updated to ${newStatus}.`,
+      },
+    });
+  }),
+);
+
 dairyRouter.delete(
   '/enrollments/:id',
   asyncHandler(async (request, response) => {
@@ -1391,6 +1468,50 @@ dairyRouter.delete(
   }),
 );
 
+// Update payment status for single milk intake
+dairyRouter.put(
+  '/inventory/intakes/:id/payment',
+  asyncHandler(async (request, response) => {
+    const { id } = request.params;
+    const { paymentStatus = 'PAID' } = request.body || {};
+    await prisma.$executeRawUnsafe(
+      'UPDATE `dairy_milk_intakes` SET `paymentStatus` = ? WHERE `id` = ?',
+      paymentStatus,
+      id,
+    );
+    response.json({ data: { message: `Intake marked as ${paymentStatus}`, id, paymentStatus } });
+  }),
+);
+
+// Batch mark milk intakes as PAID
+dairyRouter.put(
+  '/inventory/intakes/batch-payout',
+  asyncHandler(async (request, response) => {
+    const { ids, farmerIdNumber, paymentStatus = 'PAID' } = request.body || {};
+    if (Array.isArray(ids) && ids.length > 0) {
+      const placeholders = ids.map(() => '?').join(',');
+      await prisma.$executeRawUnsafe(
+        `UPDATE \`dairy_milk_intakes\` SET \`paymentStatus\` = ? WHERE \`id\` IN (${placeholders})`,
+        paymentStatus,
+        ...ids,
+      );
+    } else if (farmerIdNumber) {
+      await prisma.$executeRawUnsafe(
+        'UPDATE `dairy_milk_intakes` SET `paymentStatus` = ? WHERE `farmerIdNumber` = ? AND `paymentStatus` = "PENDING"',
+        paymentStatus,
+        farmerIdNumber,
+      );
+    } else {
+      throw new AppError(
+        400,
+        'VALIDATION_ERROR',
+        'Either ids array or farmerIdNumber is required.',
+      );
+    }
+    response.json({ data: { message: `Batch payout updated to ${paymentStatus}` } });
+  }),
+);
+
 // =========================================================================
 // 5. INVENTORY MANAGEMENT: MILK SALES & OUTFLOW
 // =========================================================================
@@ -1513,6 +1634,21 @@ dairyRouter.delete(
   }),
 );
 
+// Update payment status for milk sales (receivables)
+dairyRouter.put(
+  '/inventory/sales/:id/payment',
+  asyncHandler(async (request, response) => {
+    const { id } = request.params;
+    const { paymentStatus = 'PAID' } = request.body || {};
+    await prisma.$executeRawUnsafe(
+      'UPDATE `dairy_milk_sales` SET `paymentStatus` = ? WHERE `id` = ?',
+      paymentStatus,
+      id,
+    );
+    response.json({ data: { message: `Sale marked as ${paymentStatus}`, id, paymentStatus } });
+  }),
+);
+
 // =========================================================================
 // 6. INVENTORY MANAGEMENT: SILOS & COOLING TANKS STOCK
 // =========================================================================
@@ -1571,8 +1707,21 @@ dairyRouter.get(
     let grandTotalOut = 0;
 
     const tanks = defaultTanks.map((tank) => {
-      const match = intakeRows.find((r) => r.storageTank === tank.name);
-      const totalIn = match ? Number(match.totalIn || 0) : 0;
+      const matchingIntakes = intakeRows.filter((r) => {
+        if (r.storageTank === tank.name) return true;
+        if (
+          tank.id === 'silo-1' &&
+          (r.storageTank === 'Silo-1' || r.storageTank?.startsWith('Silo-1'))
+        )
+          return true;
+        if (
+          tank.id === 'silo-2' &&
+          (r.storageTank === 'Silo-2' || r.storageTank?.startsWith('Silo-2'))
+        )
+          return true;
+        return false;
+      });
+      const totalIn = matchingIntakes.reduce((acc, r) => acc + Number(r.totalIn || 0), 0);
       const totalOut = outMap[tank.name] || 0;
       grandTotalIn += totalIn;
       grandTotalOut += totalOut;

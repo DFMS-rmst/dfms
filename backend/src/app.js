@@ -40,6 +40,7 @@ import {
 import { adminVerificationsRouter } from './modules/admin/verifications.js';
 import { getAdminDashboardStatsController } from './modules/admin/dashboard-stats.js';
 import { dairyRouter } from './modules/dairy/routes.js';
+import { enrollmentsRouter, milkCollectionRouter } from './modules/dairy/fast-collection-routes.js';
 import { asyncHandler } from './common/errors.js';
 
 export function createApp() {
@@ -62,9 +63,14 @@ export function createApp() {
   app.use('/api/v1/farms/:farmId/animals', animalsRouter);
   app.use('/api/v1/species', speciesRouter);
   app.use('/api/v1/veterinarians', veterinariansRouter);
+  app.use('/api/veterinarians', veterinariansRouter);
   app.use('/api/v1/admin/veterinarians', adminVeterinariansRouter);
   app.use('/api/v1/admin/verifications', adminVerificationsRouter);
   app.use('/api/v1/dairy', dairyRouter);
+  app.use('/api/v1/enrollments', enrollmentsRouter);
+  app.use('/api/enrollments', enrollmentsRouter);
+  app.use('/api/v1/milk-collection', milkCollectionRouter);
+  app.use('/api/milk-collection', milkCollectionRouter);
   app.use('/api/v1/files', filesRouter);
   app.use('/api/v1/treatment-requests', treatmentRequestsRouter);
   app.use('/api/v1/veterinary-cases', casesRouter);

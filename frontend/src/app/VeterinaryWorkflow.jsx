@@ -1312,6 +1312,944 @@ export function AdministrationForm({ treatment, caseItem, onAdminister }) {
     </form>
   );
 }
+
+/**
+ * VetTagQrScannerModal - Live camera scanner and manual resolver for animal ear tag QR codes.
+ */
+function VetTagQrScannerModal({ onClose, onScan, sampleTags = [] }) {
+  const videoRef = useRef(null);
+  const streamRef = useRef(null);
+  const [manualInput, setManualInput] = useState('');
+  const [cameraError, setCameraError] = useState('');
+  const [scanStatus, setScanStatus] = useState('Initializing camera…');
+
+  useEffect(() => {
+    let active = true;
+    let detector = null;
+    let scanInterval = null;
+
+    async function initCamera() {
+      if (!navigator?.mediaDevices?.getUserMedia) {
+        setCameraError(
+          'Live camera access is not supported by this browser. Enter the tag number or verification URL below.',
+        );
+        return;
+      }
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: 'environment' } },
+        });
+        if (!active) {
+          stream.getTracks().forEach((t) => t.stop());
+          return;
+        }
+        streamRef.current = stream;
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          videoRef.current.play().catch(() => {});
+        }
+        setScanStatus('Camera active. Point at animal QR ear tag…');
+
+        if ('BarcodeDetector' in window) {
+          try {
+            detector = new window.BarcodeDetector({ formats: ['qr_code'] });
+            scanInterval = setInterval(async () => {
+              if (!videoRef.current || videoRef.current.readyState < 2) return;
+              try {
+                const barcodes = await detector.detect(videoRef.current);
+                if (barcodes.length > 0 && barcodes[0].rawValue) {
+                  const raw = barcodes[0].rawValue;
+                  clearInterval(scanInterval);
+                  if (streamRef.current) {
+                    streamRef.current.getTracks().forEach((t) => t.stop());
+                  }
+                  onScan(raw);
+                  onClose();
+                }
+              } catch {}
+            }, 450);
+          } catch {
+            setScanStatus('Enter tag number manually below.');
+          }
+        }
+      } catch (err) {
+        setCameraError(
+          `Camera access unavailable (${err.name || 'Notice'}). Enter the tag number or use quick sample buttons below.`,
+        );
+      }
+    }
+
+    initCamera();
+
+    return () => {
+      active = false;
+      if (scanInterval) clearInterval(scanInterval);
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((t) => t.stop());
+      }
+    };
+  }, [onScan, onClose]);
+
+  function triggerScan(val) {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop());
+    }
+    onScan(val);
+    onClose();
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={onClose} role="dialog" aria-modal="true">
+      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '520px' }}>
+        <div className="flex-between" style={{ marginBottom: '1rem' }}>
+          <h3 style={{ margin: 0, fontSize: '1.25rem' }}>📷 Scan Animal Ear Tag QR</h3>
+          <button
+            type="button"
+            className="modal-close-btn"
+            onClick={onClose}
+            aria-label="Close scanner"
+          >
+            ×
+          </button>
+        </div>
+
+        {cameraError && (
+          <div
+            style={{
+              padding: '0.75rem 1rem',
+              backgroundColor: '#fef2f2',
+              borderRadius: '0.6rem',
+              border: '1px solid #fca5a5',
+              color: '#991b1b',
+              fontSize: '0.86rem',
+              marginBottom: '1rem',
+            }}
+          >
+            {cameraError}
+          </div>
+        )}
+
+        <div
+          style={{
+            position: 'relative',
+            width: '100%',
+            height: '220px',
+            backgroundColor: '#0f172a',
+            borderRadius: '0.75rem',
+            overflow: 'hidden',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: '0.75rem',
+          }}
+        >
+          <video
+            ref={videoRef}
+            muted
+            playsInline
+            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+          />
+          <div
+            style={{
+              position: 'absolute',
+              width: '140px',
+              height: '140px',
+              border: '2px dashed #10b981',
+              borderRadius: '12px',
+              boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.4)',
+              pointerEvents: 'none',
+            }}
+          />
+        </div>
+
+        <p
+          style={{
+            fontSize: '0.82rem',
+            color: 'var(--ag-text-muted)',
+            textAlign: 'center',
+            margin: '0.2rem 0 1rem',
+          }}
+        >
+          {scanStatus}
+        </p>
+
+        <div
+          style={{
+            padding: '1rem',
+            backgroundColor: '#f8fafc',
+            borderRadius: '0.75rem',
+            border: '1px solid var(--ag-border)',
+          }}
+        >
+          <label
+            style={{
+              display: 'block',
+              fontSize: '0.85rem',
+              fontWeight: 600,
+              marginBottom: '0.4rem',
+            }}
+          >
+            Manual Tag Number or Verification URL Input
+          </label>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <input
+              type="text"
+              placeholder="e.g. UK-04-COW-101 or animal tag"
+              value={manualInput}
+              onChange={(e) => setManualInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && manualInput.trim()) {
+                  e.preventDefault();
+                  triggerScan(manualInput.trim());
+                }
+              }}
+              style={{ flex: 1, padding: '0.5rem 0.75rem', fontSize: '0.88rem' }}
+            />
+            <button
+              type="button"
+              disabled={!manualInput.trim()}
+              onClick={() => triggerScan(manualInput.trim())}
+              style={{ padding: '0.5rem 1rem', fontSize: '0.88rem', whiteSpace: 'nowrap' }}
+            >
+              🔍 Resolve
+            </button>
+          </div>
+        </div>
+
+        {sampleTags.length > 0 && (
+          <div style={{ marginTop: '0.75rem' }}>
+            <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 700 }}>
+              Quick tags from active requests:{' '}
+            </span>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', marginTop: '0.3rem' }}>
+              {sampleTags.map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => triggerScan(t)}
+                  style={{
+                    fontSize: '0.75rem',
+                    padding: '0.2rem 0.5rem',
+                    background: '#ecfdf5',
+                    border: '1px solid #a7f3d0',
+                    color: '#065f46',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  🏷️ {t}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * VetClinicalHistorySection - Look up animal medical history, withdrawal status, past diagnoses, and prescriptions.
+ */
+function VetClinicalHistorySection({ onSelectCase, requests = [], cases = [] }) {
+  const [tagInput, setTagInput] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [historyData, setHistoryData] = useState(null);
+  const [showScanner, setShowScanner] = useState(false);
+
+  // Extract unique tag numbers from available requests and cases for quick 1-click test
+  const sampleTags = Array.from(
+    new Set([
+      ...requests.map((r) => r.animal?.tagNumber).filter(Boolean),
+      ...cases.map((c) => c.animal?.tagNumber).filter(Boolean),
+    ]),
+  ).slice(0, 6);
+
+  async function handleLookup(queryParam) {
+    const q = (queryParam || tagInput).trim();
+    if (!q) {
+      setError('Please scan a QR tag or enter an animal tag number.');
+      return;
+    }
+    setLoading(true);
+    setError('');
+    try {
+      const res = await api(`/veterinarians/animals/lookup?query=${encodeURIComponent(q)}`);
+      setHistoryData(res.data);
+      toast.success(
+        `Clinical history loaded for ${res.data.animal.tagNumber} (${res.data.animal.name || res.data.animal.species})`,
+      );
+    } catch (err) {
+      setError(err.message || 'No animal record found matching this tag or ID.');
+      setHistoryData(null);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // Find if there is an active case or request for this looked-up animal
+  const matchedCase = cases.find(
+    (c) =>
+      c.animal?.id === historyData?.animal?.id ||
+      c.animal?.tagNumber === historyData?.animal?.tagNumber,
+  );
+
+  return (
+    <article
+      className="card"
+      style={{
+        background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
+        border: '2px solid #94a3b8',
+        borderRadius: '1rem',
+        padding: '1.5rem',
+        marginBottom: '2rem',
+        boxShadow: '0 4px 16px rgba(15, 23, 42, 0.08)',
+      }}
+    >
+      <div
+        className="flex-between"
+        style={{
+          alignItems: 'flex-start',
+          flexWrap: 'wrap',
+          gap: '0.75rem',
+          marginBottom: '1rem',
+        }}
+      >
+        <div>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              marginBottom: '0.25rem',
+            }}
+          >
+            <span style={{ fontSize: '1.5rem' }}>🩺</span>
+            <h2 style={{ margin: 0, fontSize: '1.3rem', color: '#0f172a' }}>
+              Animal Tag Scanner &amp; Clinical History Review
+            </h2>
+          </div>
+          <p style={{ margin: 0, fontSize: '0.86rem', color: '#475569' }}>
+            Scan animal ear tag QR code or enter animal ID to review verified clinical history, live
+            withdrawal status, prior diagnoses, and treatments before writing a prescription.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setShowScanner(true)}
+          style={{
+            background: '#047857',
+            color: '#ffffff',
+            border: 'none',
+            borderRadius: '0.5rem',
+            padding: '0.65rem 1.15rem',
+            fontWeight: 700,
+            fontSize: '0.9rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.4rem',
+            cursor: 'pointer',
+            boxShadow: '0 2px 6px rgba(4, 120, 87, 0.25)',
+          }}
+        >
+          📷 Scan Ear Tag QR
+        </button>
+      </div>
+
+      {/* SEARCH / SCAN INPUT BAR */}
+      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
+        <input
+          type="text"
+          placeholder="Enter Animal Tag Number or ID (e.g. UK-04-COW-101)..."
+          value={tagInput}
+          onChange={(e) => setTagInput(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              handleLookup();
+            }
+          }}
+          style={{
+            flex: 1,
+            minWidth: '240px',
+            padding: '0.65rem 0.85rem',
+            fontSize: '0.92rem',
+            borderRadius: '0.5rem',
+            border: '1.5px solid #cbd5e1',
+          }}
+        />
+        <button
+          type="button"
+          className="primary"
+          disabled={loading || !tagInput.trim()}
+          onClick={() => handleLookup()}
+          style={{ padding: '0.65rem 1.25rem', fontWeight: 700, whiteSpace: 'nowrap' }}
+        >
+          {loading ? 'Retrieving…' : '🔍 Lookup History'}
+        </button>
+      </div>
+
+      {/* SAMPLE TAG CHIPS */}
+      {sampleTags.length > 0 && !historyData && (
+        <div
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: '0.4rem',
+            alignItems: 'center',
+            marginBottom: '0.5rem',
+          }}
+        >
+          <span style={{ fontSize: '0.74rem', color: '#64748b', fontWeight: 700 }}>
+            Quick inspect assigned animals:
+          </span>
+          {sampleTags.map((tag) => (
+            <button
+              key={tag}
+              type="button"
+              onClick={() => {
+                setTagInput(tag);
+                handleLookup(tag);
+              }}
+              style={{
+                background: '#ffffff',
+                border: '1px solid #cbd5e1',
+                borderRadius: '0.35rem',
+                padding: '0.2rem 0.5rem',
+                fontSize: '0.75rem',
+                cursor: 'pointer',
+                fontWeight: 600,
+                color: '#1e293b',
+              }}
+            >
+              🏷️ {tag}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {error && (
+        <div
+          style={{
+            background: '#fef2f2',
+            border: '1.5px solid #fca5a5',
+            color: '#991b1b',
+            padding: '0.75rem 1rem',
+            borderRadius: '0.5rem',
+            marginTop: '0.75rem',
+            fontSize: '0.88rem',
+          }}
+        >
+          ⚠️ {error}
+        </div>
+      )}
+
+      {/* DISPLAY CLINICAL HISTORY IF LOADED */}
+      {historyData && (
+        <div style={{ marginTop: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          {/* 1. Animal Identity Card */}
+          <div
+            style={{
+              background: '#ffffff',
+              border: '1.5px solid #cbd5e1',
+              borderRadius: '0.75rem',
+              padding: '1.25rem',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'flex-start',
+              flexWrap: 'wrap',
+              gap: '1rem',
+            }}
+          >
+            <div>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  marginBottom: '0.35rem',
+                }}
+              >
+                <span style={{ fontSize: '1.5rem' }}>🐄</span>
+                <h3 style={{ margin: 0, fontSize: '1.2rem', color: '#0f172a' }}>
+                  {historyData.animal.name || historyData.animal.tagNumber}
+                </h3>
+                <span
+                  style={{
+                    background: '#0f172a',
+                    color: '#ffffff',
+                    padding: '0.2rem 0.6rem',
+                    borderRadius: '0.35rem',
+                    fontFamily: 'monospace',
+                    fontWeight: 700,
+                    fontSize: '0.85rem',
+                  }}
+                >
+                  {historyData.animal.tagNumber}
+                </span>
+                <span
+                  style={{
+                    background: '#ecfdf5',
+                    color: '#065f46',
+                    padding: '0.2rem 0.5rem',
+                    borderRadius: '999px',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                  }}
+                >
+                  {historyData.animal.status || 'ACTIVE'}
+                </span>
+              </div>
+              <div
+                style={{
+                  fontSize: '0.86rem',
+                  color: '#475569',
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: '0.75rem',
+                }}
+              >
+                <span>
+                  <strong>Species:</strong> {historyData.animal.species}
+                </span>
+                <span>
+                  <strong>Breed:</strong> {historyData.animal.breed || 'Standard'}
+                </span>
+                <span>
+                  <strong>Sex:</strong> {historyData.animal.sex || 'Female'}
+                </span>
+                <span>
+                  <strong>Farm:</strong> {historyData.animal.farm?.name || 'Authorized Herd'}
+                </span>
+                {historyData.animal.farm?.owner?.fullName && (
+                  <span>
+                    <strong>Owner:</strong> {historyData.animal.farm.owner.fullName}{' '}
+                    {historyData.animal.farm.owner.phone
+                      ? `(${historyData.animal.farm.owner.phone})`
+                      : ''}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              {matchedCase && onSelectCase && (
+                <button
+                  type="button"
+                  className="primary"
+                  onClick={() => onSelectCase(matchedCase.id)}
+                  style={{ background: '#047857', fontWeight: 700, fontSize: '0.85rem' }}
+                >
+                  📋 Open Active Case &amp; Prescribe →
+                </button>
+              )}
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => setHistoryData(null)}
+                style={{ fontSize: '0.85rem' }}
+              >
+                ✕ Close History
+              </button>
+            </div>
+          </div>
+
+          {/* 2. Live Milk Withdrawal & Safety Clearance Banner */}
+          <div
+            style={{
+              borderRadius: '0.75rem',
+              padding: '1.25rem',
+              border: historyData.liveMilkEligibility?.isEligible
+                ? '2px solid #86efac'
+                : '2px solid #f87171',
+              background: historyData.liveMilkEligibility?.isEligible ? '#f0fdf4' : '#fff1f2',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.6rem',
+                marginBottom: '0.35rem',
+              }}
+            >
+              <span style={{ fontSize: '1.4rem' }}>
+                {historyData.liveMilkEligibility?.isEligible ? '🥛' : '⛔'}
+              </span>
+              <h4
+                style={{
+                  margin: 0,
+                  fontSize: '1.05rem',
+                  fontWeight: 800,
+                  color: historyData.liveMilkEligibility?.isEligible ? '#166534' : '#991b1b',
+                }}
+              >
+                {historyData.liveMilkEligibility?.isEligible
+                  ? 'MILK CLEARED FOR COLLECTION — ZERO ACTIVE WITHDRAWAL BLOCKERS'
+                  : 'UNDER ACTIVE ANTIMICROBIAL WITHDRAWAL — MILK INELIGIBLE'}
+              </h4>
+            </div>
+            <p
+              style={{
+                margin: 0,
+                fontSize: '0.88rem',
+                color: historyData.liveMilkEligibility?.isEligible ? '#15803d' : '#b91c1c',
+                lineHeight: 1.45,
+              }}
+            >
+              {historyData.liveMilkEligibility?.isEligible
+                ? 'All historical withdrawal rules have elapsed. Milk from this animal meets food safety clearance.'
+                : `Blocker: ${historyData.liveMilkEligibility?.blockerReason || historyData.liveMilkEligibility?.blocker || 'Active Treatment / Withdrawal Period'}. Expected clearance date: ${historyData.liveMilkEligibility?.earliestClearanceDate || 'Upon course completion'}.`}
+            </p>
+            {!historyData.liveMilkEligibility?.isEligible && (
+              <div
+                style={{
+                  marginTop: '0.5rem',
+                  padding: '0.45rem 0.75rem',
+                  background: 'rgba(239, 68, 68, 0.1)',
+                  borderRadius: '0.4rem',
+                  fontSize: '0.8rem',
+                  fontWeight: 700,
+                  color: '#991b1b',
+                }}
+              >
+                ⚠️ Clinical Stewardship Notice: Administering additional antimicrobial courses will
+                extend the withdrawal period further.
+              </div>
+            )}
+          </div>
+
+          {/* 3. Clinical History Grid (Diagnoses, Prescriptions, Treatments) */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+              gap: '1rem',
+            }}
+          >
+            {/* PAST DIAGNOSES */}
+            <div
+              style={{
+                background: '#ffffff',
+                border: '1.5px solid #cbd5e1',
+                borderRadius: '0.75rem',
+                padding: '1rem',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  marginBottom: '0.75rem',
+                  borderBottom: '1px solid #e2e8f0',
+                  paddingBottom: '0.5rem',
+                }}
+              >
+                <span style={{ fontSize: '1.2rem' }}>🩺</span>
+                <h4 style={{ margin: 0, fontSize: '0.98rem', color: '#0f172a' }}>
+                  Past Clinical Diagnoses ({historyData.history?.diagnoses?.length || 0})
+                </h4>
+              </div>
+              {!historyData.history?.diagnoses || historyData.history.diagnoses.length === 0 ? (
+                <p style={{ fontSize: '0.84rem', color: '#64748b', margin: 0 }}>
+                  No past clinical diagnoses recorded.
+                </p>
+              ) : (
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.65rem',
+                    maxHeight: '220px',
+                    overflowY: 'auto',
+                  }}
+                >
+                  {historyData.history.diagnoses.map((d) => (
+                    <div
+                      key={d.id}
+                      style={{
+                        background: '#f8fafc',
+                        padding: '0.65rem',
+                        borderRadius: '0.5rem',
+                        border: '1px solid #e2e8f0',
+                        fontSize: '0.82rem',
+                      }}
+                    >
+                      <div className="flex-between">
+                        <strong style={{ color: '#0f172a' }}>
+                          {d.disease?.commonName || d.diseaseName || 'Clinical Diagnosis'}
+                        </strong>
+                        <span style={{ color: '#64748b', fontSize: '0.75rem' }}>
+                          {d.diagnosedAt ? new Date(d.diagnosedAt).toLocaleDateString() : 'Recorded'}
+                        </span>
+                      </div>
+                      {d.clinicalNotes && (
+                        <p style={{ margin: '0.25rem 0 0 0', color: '#475569' }}>
+                          {d.clinicalNotes}
+                        </p>
+                      )}
+                      {d.veterinarian?.fullName && (
+                        <div style={{ fontSize: '0.75rem', color: '#059669', marginTop: '0.2rem' }}>
+                          Dr. {d.veterinarian.fullName}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* PRESCRIPTION HISTORY */}
+            <div
+              style={{
+                background: '#ffffff',
+                border: '1.5px solid #cbd5e1',
+                borderRadius: '0.75rem',
+                padding: '1rem',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  marginBottom: '0.75rem',
+                  borderBottom: '1px solid #e2e8f0',
+                  paddingBottom: '0.5rem',
+                }}
+              >
+                <span style={{ fontSize: '1.2rem' }}>💊</span>
+                <h4 style={{ margin: 0, fontSize: '0.98rem', color: '#0f172a' }}>
+                  Prescription History ({historyData.history?.prescriptions?.length || 0})
+                </h4>
+              </div>
+              {!historyData.history?.prescriptions ||
+              historyData.history.prescriptions.length === 0 ? (
+                <p style={{ fontSize: '0.84rem', color: '#64748b', margin: 0 }}>
+                  No previous prescriptions issued.
+                </p>
+              ) : (
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.65rem',
+                    maxHeight: '220px',
+                    overflowY: 'auto',
+                  }}
+                >
+                  {historyData.history.prescriptions.map((p) => (
+                    <div
+                      key={p.id}
+                      style={{
+                        background: '#f8fafc',
+                        padding: '0.65rem',
+                        borderRadius: '0.5rem',
+                        border: '1px solid #e2e8f0',
+                        fontSize: '0.82rem',
+                      }}
+                    >
+                      <div className="flex-between">
+                        <strong style={{ color: '#0f172a' }}>Prescription #{p.id.slice(-6)}</strong>
+                        <span style={{ color: '#64748b', fontSize: '0.75rem' }}>
+                          {p.prescribedAt
+                            ? new Date(p.prescribedAt).toLocaleDateString()
+                            : 'Issued'}
+                        </span>
+                      </div>
+                      {p.items?.map((item) => (
+                        <div key={item.id} style={{ marginTop: '0.2rem', color: '#334155' }}>
+                          • {item.medicineName || item.medicine?.medicineName || 'Medicine'}:{' '}
+                          {item.doseValue} {item.doseUnit} via {item.route} ({item.frequency})
+                        </div>
+                      ))}
+                      {p.instructions && (
+                        <div style={{ fontSize: '0.76rem', color: '#64748b', marginTop: '0.2rem' }}>
+                          Note: {p.instructions}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* RECORDED ADMINISTRATIONS */}
+            <div
+              style={{
+                background: '#ffffff',
+                border: '1.5px solid #cbd5e1',
+                borderRadius: '0.75rem',
+                padding: '1rem',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  marginBottom: '0.75rem',
+                  borderBottom: '1px solid #e2e8f0',
+                  paddingBottom: '0.5rem',
+                }}
+              >
+                <span style={{ fontSize: '1.2rem' }}>💉</span>
+                <h4 style={{ margin: 0, fontSize: '0.98rem', color: '#0f172a' }}>
+                  Actual Administrations ({historyData.history?.administrations?.length || 0})
+                </h4>
+              </div>
+              {!historyData.history?.administrations ||
+              historyData.history.administrations.length === 0 ? (
+                <p style={{ fontSize: '0.84rem', color: '#64748b', margin: 0 }}>
+                  No medicine administration doses logged.
+                </p>
+              ) : (
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.65rem',
+                    maxHeight: '220px',
+                    overflowY: 'auto',
+                  }}
+                >
+                  {historyData.history.administrations.map((adm) => (
+                    <div
+                      key={adm.id}
+                      style={{
+                        background: '#f8fafc',
+                        padding: '0.65rem',
+                        borderRadius: '0.5rem',
+                        border: '1px solid #e2e8f0',
+                        fontSize: '0.82rem',
+                      }}
+                    >
+                      <div className="flex-between">
+                        <strong style={{ color: '#0f172a' }}>
+                          {adm.medicineName || adm.medicine?.medicineName || 'Medicine'}
+                        </strong>
+                        <span style={{ color: '#64748b', fontSize: '0.75rem' }}>
+                          {adm.administeredAt
+                            ? new Date(adm.administeredAt).toLocaleDateString()
+                            : 'Administered'}
+                        </span>
+                      </div>
+                      <div style={{ color: '#059669', fontWeight: 600 }}>
+                        {adm.amount} {adm.amountUnit} · {adm.route}
+                      </div>
+                      {adm.performedByName && (
+                        <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                          Administered by: {adm.performedByName}
+                        </div>
+                      )}
+                      {adm.deviationReason && (
+                        <div style={{ color: '#b45309', fontSize: '0.75rem', marginTop: '0.15rem' }}>
+                          ⚠️ Deviation: {adm.deviationReason}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* MILK ELIGIBILITY CERTIFICATES */}
+            <div
+              style={{
+                background: '#ffffff',
+                border: '1.5px solid #cbd5e1',
+                borderRadius: '0.75rem',
+                padding: '1rem',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  marginBottom: '0.75rem',
+                  borderBottom: '1px solid #e2e8f0',
+                  paddingBottom: '0.5rem',
+                }}
+              >
+                <span style={{ fontSize: '1.2rem' }}>📜</span>
+                <h4 style={{ margin: 0, fontSize: '0.98rem', color: '#0f172a' }}>
+                  Milk Certificates ({historyData.history?.certificates?.length || 0})
+                </h4>
+              </div>
+              {!historyData.history?.certificates ||
+              historyData.history.certificates.length === 0 ? (
+                <p style={{ fontSize: '0.84rem', color: '#64748b', margin: 0 }}>
+                  No historical milk eligibility certificates on record.
+                </p>
+              ) : (
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.65rem',
+                    maxHeight: '220px',
+                    overflowY: 'auto',
+                  }}
+                >
+                  {historyData.history.certificates.map((cert) => (
+                    <div
+                      key={cert.id}
+                      style={{
+                        background: '#f8fafc',
+                        padding: '0.65rem',
+                        borderRadius: '0.5rem',
+                        border: '1px solid #e2e8f0',
+                        fontSize: '0.82rem',
+                      }}
+                    >
+                      <div className="flex-between">
+                        <strong style={{ color: '#065f46' }}>
+                          Cert #{cert.certificateNumber}
+                        </strong>
+                        <span
+                          style={{
+                            background: cert.status === 'ACTIVE' ? '#dcfce7' : '#f1f5f9',
+                            color: cert.status === 'ACTIVE' ? '#166534' : '#64748b',
+                            padding: '0.1rem 0.4rem',
+                            borderRadius: '999px',
+                            fontSize: '0.72rem',
+                            fontWeight: 700,
+                          }}
+                        >
+                          {cert.status}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.2rem' }}>
+                        Issued: {cert.issuedAt ? new Date(cert.issuedAt).toLocaleDateString() : 'N/A'}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showScanner && (
+        <VetTagQrScannerModal
+          sampleTags={sampleTags}
+          onClose={() => setShowScanner(false)}
+          onScan={(scannedTag) => {
+            setTagInput(scannedTag);
+            handleLookup(scannedTag);
+          }}
+        />
+      )}
+    </article>
+  );
+}
+
 export function VeterinaryWorkflow({ farms, context, user, capabilities }) {
   const [vets, setVets] = useState([]);
   const [requests, setRequests] = useState([]);
@@ -1407,6 +2345,13 @@ export function VeterinaryWorkflow({ farms, context, user, capabilities }) {
           </div>
           <RequestForm farms={farms} veterinarians={vets} refresh={load} />
         </>
+      )}
+      {veterinarianContext && (
+        <VetClinicalHistorySection
+          onSelectCase={(caseId) => setSelectedCase(caseId)}
+          requests={requests}
+          cases={cases}
+        />
       )}
       <h2>{veterinarianContext ? 'Assigned Treatment Requests' : 'Farm Treatment Requests'}</h2>
       {requests.map((r) => (
