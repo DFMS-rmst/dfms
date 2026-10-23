@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { api } from './api.js';
 import { toast } from './toast.js';
 
@@ -46,7 +46,7 @@ const modalHeaderStyle = {
 
 const modalCloseBtnStyle = {
   background: '#f1f5f9',
-  border: '1px solid #cbd5e1',
+  border: '1.5px solid #cbd5e1',
   color: '#475569',
   width: '36px',
   height: '36px',
@@ -82,7 +82,282 @@ const modalInputStyle = {
   boxSizing: 'border-box',
 };
 
-export function DairyHub({ initialTab = 'analytics' }) {
+/**
+ * FarmerQrScannerModal - Live camera and simulated QR Pass scanner for fast POS intake.
+ */
+function FarmerQrScannerModal({ onClose, onScan, activeFarmers = [] }) {
+  const videoRef = useRef(null);
+  const streamRef = useRef(null);
+  const [manualInput, setManualInput] = useState('');
+  const [scanStatus, setScanStatus] = useState('Initializing camera...');
+  const [cameraError, setCameraError] = useState('');
+
+  useEffect(() => {
+    let active = true;
+    let detector = null;
+    let scanInterval = null;
+
+    async function initCamera() {
+      if (!navigator?.mediaDevices?.getUserMedia) {
+        setCameraError(
+          'Live camera access is not supported by this browser. Enter the farmer ID or QR code text below.',
+        );
+        return;
+      }
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: 'environment' } },
+        });
+        if (!active) {
+          stream.getTracks().forEach((t) => t.stop());
+          return;
+        }
+        streamRef.current = stream;
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          videoRef.current.play().catch(() => {});
+        }
+        setScanStatus('Camera active. Point at Farmer QR Pass…');
+
+        if ('BarcodeDetector' in window) {
+          try {
+            detector = new window.BarcodeDetector({ formats: ['qr_code'] });
+            scanInterval = setInterval(async () => {
+              if (!videoRef.current || videoRef.current.readyState < 2) return;
+              try {
+                const barcodes = await detector.detect(videoRef.current);
+                if (barcodes.length > 0 && barcodes[0].rawValue) {
+                  const raw = barcodes[0].rawValue;
+                  clearInterval(scanInterval);
+                  if (streamRef.current) {
+                    streamRef.current.getTracks().forEach((t) => t.stop());
+                  }
+                  onScan(raw);
+                  onClose();
+                }
+              } catch {}
+            }, 400);
+          } catch {
+            setScanStatus('Native QR auto-detection unavailable. Enter ID below.');
+          }
+        } else {
+          setScanStatus('Point camera at QR or enter Farmer ID manually below.');
+        }
+      } catch (err) {
+        setCameraError(
+          `Camera access unavailable (${err.name || 'Notice'}). Enter the Farmer ID number or use 1-click test below.`,
+        );
+      }
+    }
+
+    initCamera();
+
+    return () => {
+      active = false;
+      if (scanInterval) clearInterval(scanInterval);
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((t) => t.stop());
+      }
+    };
+  }, [onScan, onClose]);
+
+  function handleTriggerScan(value) {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop());
+    }
+    onScan(value);
+    onClose();
+  }
+
+  return (
+    <div style={modalBackdropStyle} onClick={onClose} role="dialog" aria-modal="true">
+      <div
+        style={{ ...modalDialogStyle, maxWidth: '520px', width: '100%' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div style={modalHeaderStyle}>
+          <h3
+            style={{
+              margin: 0,
+              fontSize: '1.25rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              color: '#064e3b',
+            }}
+          >
+            📷 Scan Farmer QR Pass
+          </h3>
+          <button
+            type="button"
+            style={modalCloseBtnStyle}
+            onClick={onClose}
+            aria-label="Close scanner"
+          >
+            ×
+          </button>
+        </div>
+
+        {cameraError && (
+          <div
+            style={{
+              backgroundColor: '#fef2f2',
+              borderRadius: '0.6rem',
+              border: '1px solid #fca5a5',
+              color: '#991b1b',
+              padding: '0.75rem 1rem',
+              fontSize: '0.86rem',
+              marginBottom: '1rem',
+            }}
+          >
+            {cameraError}
+          </div>
+        )}
+
+        <div
+          style={{
+            position: 'relative',
+            width: '100%',
+            height: '210px',
+            backgroundColor: '#0f172a',
+            borderRadius: '0.75rem',
+            overflow: 'hidden',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: '0.75rem',
+          }}
+        >
+          <video
+            ref={videoRef}
+            muted
+            playsInline
+            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+          />
+          <div
+            style={{
+              position: 'absolute',
+              width: '140px',
+              height: '140px',
+              border: '2px dashed #10b981',
+              borderRadius: '12px',
+              boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.45)',
+              pointerEvents: 'none',
+            }}
+          />
+        </div>
+
+        <p
+          style={{
+            fontSize: '0.82rem',
+            color: '#64748b',
+            textAlign: 'center',
+            margin: '0.2rem 0 1rem',
+          }}
+        >
+          {scanStatus}
+        </p>
+
+        <div
+          style={{
+            padding: '1rem',
+            backgroundColor: '#f8fafc',
+            borderRadius: '0.75rem',
+            border: '1px solid #cbd5e1',
+            marginBottom: '1rem',
+          }}
+        >
+          <label
+            style={{
+              display: 'block',
+              fontSize: '0.85rem',
+              fontWeight: 700,
+              color: '#1e293b',
+              marginBottom: '0.4rem',
+            }}
+          >
+            Paste or Enter Farmer ID / Pass JSON
+          </label>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <input
+              type="text"
+              placeholder="e.g. FM-1001 or paste QR string"
+              value={manualInput}
+              onChange={(e) => setManualInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && manualInput.trim()) {
+                  e.preventDefault();
+                  handleTriggerScan(manualInput.trim());
+                }
+              }}
+              style={{
+                flex: 1,
+                padding: '0.55rem 0.75rem',
+                fontSize: '0.88rem',
+                borderRadius: '0.5rem',
+                border: '1.5px solid #cbd5e1',
+              }}
+            />
+            <button
+              type="button"
+              className="primary"
+              disabled={!manualInput.trim()}
+              onClick={() => handleTriggerScan(manualInput.trim())}
+              style={{
+                padding: '0.55rem 1rem',
+                fontSize: '0.88rem',
+                whiteSpace: 'nowrap',
+                fontWeight: 700,
+              }}
+            >
+              Verify
+            </button>
+          </div>
+        </div>
+
+        {activeFarmers.length > 0 && (
+          <div>
+            <div
+              style={{
+                fontSize: '0.76rem',
+                fontWeight: 700,
+                color: '#64748b',
+                textTransform: 'uppercase',
+                letterSpacing: '0.04em',
+                marginBottom: '0.45rem',
+              }}
+            >
+              ⚡ Instant 1-Click Select (Active Suppliers)
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+              {activeFarmers.slice(0, 6).map((f) => (
+                <button
+                  key={f.id || f.farmerIdNumber}
+                  type="button"
+                  onClick={() => handleTriggerScan(f.farmerIdNumber)}
+                  style={{
+                    background: '#ecfdf5',
+                    border: '1.5px solid #a7f3d0',
+                    color: '#065f46',
+                    borderRadius: '0.45rem',
+                    padding: '0.35rem 0.65rem',
+                    fontSize: '0.8rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  🧑‍🌾 {f.farmerName} ({f.farmerIdNumber})
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export function DairyHub({ initialTab = 'analytics', user, workspace }) {
   const [activeTab, setActiveTab] = useState(initialTab);
 
   // Synchronize activeTab when navigation changes
@@ -187,6 +462,149 @@ export function DairyHub({ initialTab = 'analytics' }) {
     paymentMethod: 'UPI',
     notes: '',
   });
+
+  // =========================================================================
+  // FAST DAILY MILK COLLECTION (POS FLOW) STATE
+  // =========================================================================
+  const effectiveDairyUserId = user?.id || enrollments[0]?.dairyUserId || 'dairy-admin-1';
+  const [fastSearchFarmerId, setFastSearchFarmerId] = useState('');
+  const [fastValidating, setFastValidating] = useState(false);
+  const [fastValidationError, setFastValidationError] = useState('');
+  const [validatedFarmer, setValidatedFarmer] = useState(null);
+  const [showFastScanner, setShowFastScanner] = useState(false);
+
+  // Fast Daily Intake Form fields
+  const currentHour = new Date().getHours();
+  const [fastShift, setFastShift] = useState(
+    currentHour >= 5 && currentHour < 14 ? 'MORNING' : 'EVENING',
+  );
+  const [fastQuantity, setFastQuantity] = useState(25);
+  const [fastFat, setFastFat] = useState(4.2);
+  const [fastSnf, setFastSnf] = useState(8.6);
+  const [fastMilkType, setFastMilkType] = useState('COW');
+  const [fastSubmitting, setFastSubmitting] = useState(false);
+
+  // Real-time calculation of dynamic total cost
+  const fastTotalCost =
+    (parseFloat(fastQuantity) || 0) * (parseFloat(validatedFarmer?.agreedRatePerLiter) || 0);
+
+  // Validate farmer for fast daily collection
+  async function handleValidateFarmerForIntake(farmerIdInput) {
+    const raw = (farmerIdInput || fastSearchFarmerId).trim();
+    if (!raw) {
+      setFastValidationError('Please enter or scan a Farmer ID.');
+      return;
+    }
+
+    let farmerId = raw;
+    // Decode JSON string if scanned from a Farmer Pass QR code
+    if (raw.startsWith('{') && raw.endsWith('}')) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed.farmerIdNumber) farmerId = parsed.farmerIdNumber;
+      } catch {
+        // use raw
+      }
+    }
+
+    setFastValidating(true);
+    setFastValidationError('');
+    try {
+      const res = await api(
+        `/milk-collection/validate-farmer?dairyUserId=${encodeURIComponent(effectiveDairyUserId)}&farmerIdNumber=${encodeURIComponent(farmerId)}`,
+      );
+      const dto = res.data || res;
+      setValidatedFarmer(dto);
+      setFastQuantity(dto.expectedDailyQuantity || 25);
+      setFastFat(dto.baseFatPercentage || 4.2);
+      setFastSnf(dto.baseSnfPercentage || 8.6);
+      setFastMilkType(dto.milkType || 'COW');
+      // Auto-set shift based on current time
+      const h = new Date().getHours();
+      setFastShift(h >= 5 && h < 14 ? 'MORNING' : 'EVENING');
+      toast.success(`Farmer verified: ${dto.farmerName} (${dto.farmerIdNumber})`);
+    } catch (err) {
+      setFastValidationError(
+        err.message || 'Farmer validation failed. Farmer may not be active or enrolled.',
+      );
+      setValidatedFarmer(null);
+    } finally {
+      setFastValidating(false);
+    }
+  }
+
+  // Submit fast daily intake and immediately reset for next farmer in line
+  async function handleSubmitFastIntake(e) {
+    if (e) e.preventDefault();
+    if (!validatedFarmer) return;
+
+    const qty = parseFloat(fastQuantity);
+    if (!qty || qty <= 0) {
+      toast.error('Please enter a valid milk quantity in liters.');
+      return;
+    }
+
+    setFastSubmitting(true);
+    try {
+      const payload = {
+        dairyUserId: effectiveDairyUserId,
+        enrollmentId: validatedFarmer.enrollmentId,
+        farmerIdNumber: validatedFarmer.farmerIdNumber,
+        farmerName: validatedFarmer.farmerName,
+        collectionDate: new Date().toISOString().split('T')[0],
+        shift: fastShift,
+        milkType: fastMilkType,
+        quantityLiters: qty,
+        fatPercentage: parseFloat(fastFat) || 4.0,
+        snfPercentage: parseFloat(fastSnf) || 8.5,
+      };
+
+      const res = await api('/milk-collection/intake', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+
+      const totalCost = (
+        qty * (validatedFarmer.agreedRatePerLiter || res.data?.ratePerLiter || 42)
+      ).toFixed(2);
+      toast.success(
+        `✅ Fast Intake Logged! ${qty} L for ${validatedFarmer.farmerName} (₹${Number(totalCost).toLocaleString('en-IN')})`,
+      );
+
+      // Immediately reset scanner/search for the next farmer in line
+      setValidatedFarmer(null);
+      setFastSearchFarmerId('');
+      setFastValidationError('');
+      loadAllData();
+    } catch (err) {
+      toast.error(err.message || 'Failed to submit milk intake.');
+    } finally {
+      setFastSubmitting(false);
+    }
+  }
+
+  // Direct 1-click Approve or Reject for enrollment requests
+  async function handleDirectUpdateEnrollmentStatus(id, newStatus, farmerName) {
+    if (newStatus === 'REJECTED') {
+      if (!window.confirm(`Are you sure you want to decline the enrollment request from ${farmerName}?`)) {
+        return;
+      }
+    }
+    try {
+      await api(`/dairy/enrollments/${id}/status`, {
+        method: 'PUT',
+        body: JSON.stringify({ status: newStatus }),
+      });
+      toast.success(
+        newStatus === 'ACTIVE'
+          ? `🎉 Farmer ${farmerName} approved! They can now supply milk daily.`
+          : `Enrollment request for ${farmerName} was rejected.`,
+      );
+      loadAllData();
+    } catch (err) {
+      toast.error(err.message || 'Failed to update enrollment status.');
+    }
+  }
 
   // Load initial data
   useEffect(() => {
@@ -837,7 +1255,33 @@ export function DairyHub({ initialTab = 'analytics' }) {
             gap: '0.4rem',
           }}
         >
-          🧑‍🌾 Farmer Directory &amp; Requests
+          🧑‍🌾 Farmer Directory
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('enrollment_requests')}
+          style={{
+            padding: '0.75rem 1.25rem',
+            border: 'none',
+            background: 'none',
+            fontWeight: 700,
+            fontSize: '0.95rem',
+            color:
+              activeTab === 'enrollment_requests'
+                ? 'var(--ag-green-primary)'
+                : 'var(--ag-text-muted)',
+            borderBottom:
+              activeTab === 'enrollment_requests'
+                ? '3px solid var(--ag-green-primary)'
+                : '3px solid transparent',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.4rem',
+          }}
+        >
+          📋 Enrollment Requests
           {pendingJoinRequestsCount > 0 && (
             <span
               style={{
@@ -871,7 +1315,7 @@ export function DairyHub({ initialTab = 'analytics' }) {
             cursor: 'pointer',
           }}
         >
-          🥛 Milk Intake (Collection per Farmer)
+          ⚡ Fast Collection &amp; Intake
         </button>
 
         <button
@@ -1670,30 +2114,787 @@ export function DairyHub({ initialTab = 'analytics' }) {
       )}
 
       {/* ========================================================================= */}
+      {/* TAB: ENROLLMENT REQUESTS (PHASE 1 ONE-TIME ASSOCIATION)                   */}
+      {/* ========================================================================= */}
+      {activeTab === 'enrollment_requests' && (
+        <div>
+          <div
+            className="card"
+            style={{
+              background: '#f8fafc',
+              border: '1.5px solid #cbd5e1',
+              padding: '1.25rem',
+              marginBottom: '1.5rem',
+            }}
+          >
+            <div
+              className="flex-between"
+              style={{ alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem' }}
+            >
+              <div>
+                <h3 style={{ margin: '0 0 0.25rem 0', color: '#0f172a' }}>
+                  📋 Farmer Enrollment &amp; Supply Requests
+                </h3>
+                <p style={{ margin: 0, fontSize: '0.88rem', color: '#64748b' }}>
+                  Phase 1 One-Time Association: Review prospective farmer milk suppliers. Approve or reject requests before daily milk delivery is permitted.
+                </p>
+              </div>
+              <span
+                style={{
+                  background: pendingJoinRequestsCount > 0 ? '#ffedd5' : '#ecfdf5',
+                  color: pendingJoinRequestsCount > 0 ? '#c2410c' : '#065f46',
+                  padding: '0.35rem 0.8rem',
+                  borderRadius: '999px',
+                  fontWeight: 700,
+                  fontSize: '0.85rem',
+                }}
+              >
+                {pendingJoinRequestsCount} Pending Request{pendingJoinRequestsCount !== 1 ? 's' : ''}
+              </span>
+            </div>
+          </div>
+
+          <div className="card">
+            {enrollments.filter((e) => e.status === 'PENDING_APPROVAL').length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '3.5rem 1rem', color: '#64748b' }}>
+                <span style={{ fontSize: '2.5rem', display: 'block', marginBottom: '0.5rem' }}>
+                  ✅
+                </span>
+                <h4 style={{ margin: '0 0 0.35rem 0', color: '#0f172a' }}>
+                  All Join Requests Processed!
+                </h4>
+                <p style={{ margin: 0, fontSize: '0.9rem' }}>
+                  There are no pending join requests awaiting review right now. Active farmers can drop off milk daily at the collection intake terminal.
+                </p>
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gap: '1rem' }}>
+                {enrollments
+                  .filter((e) => e.status === 'PENDING_APPROVAL')
+                  .map((enr) => (
+                    <div
+                      key={enr.id}
+                      style={{
+                        border: '1.5px solid #fed7aa',
+                        background: '#fffaf5',
+                        borderRadius: '0.85rem',
+                        padding: '1.25rem',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '0.85rem',
+                      }}
+                    >
+                      <div
+                        className="flex-between"
+                        style={{ alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem' }}
+                      >
+                        <div>
+                          <div
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.5rem',
+                              marginBottom: '0.2rem',
+                            }}
+                          >
+                            <span style={{ fontSize: '1.3rem' }}>🧑‍🌾</span>
+                            <h4 style={{ margin: 0, fontSize: '1.1rem', color: '#1e293b' }}>
+                              {enr.farmerName}
+                            </h4>
+                            <code
+                              style={{
+                                background: '#ffedd5',
+                                color: '#9a3412',
+                                padding: '0.15rem 0.45rem',
+                                borderRadius: '4px',
+                                fontSize: '0.8rem',
+                                fontWeight: 700,
+                              }}
+                            >
+                              {enr.farmerIdNumber}
+                            </code>
+                          </div>
+                          <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
+                            🏡 {enr.farmName} · 📍 {enr.villageArea || enr.district}, {enr.state}{' '}
+                            {enr.phone ? `· 📞 ${enr.phone}` : ''}
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleDirectUpdateEnrollmentStatus(enr.id, 'ACTIVE', enr.farmerName)
+                            }
+                            style={{
+                              background: '#059669',
+                              color: '#ffffff',
+                              border: 'none',
+                              borderRadius: '0.5rem',
+                              padding: '0.55rem 1.1rem',
+                              fontWeight: 700,
+                              fontSize: '0.88rem',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.35rem',
+                              boxShadow: '0 2px 6px rgba(5, 150, 105, 0.25)',
+                            }}
+                          >
+                            ✓ Approve
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleDirectUpdateEnrollmentStatus(enr.id, 'REJECTED', enr.farmerName)
+                            }
+                            style={{
+                              background: '#ffffff',
+                              color: '#dc2626',
+                              border: '1.5px solid #fca5a5',
+                              borderRadius: '0.5rem',
+                              padding: '0.55rem 1rem',
+                              fontWeight: 700,
+                              fontSize: '0.88rem',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            ✕ Reject
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => openCertificateReviewModal(enr)}
+                            style={{
+                              background: '#f1f5f9',
+                              color: '#334155',
+                              border: '1.5px solid #cbd5e1',
+                              borderRadius: '0.5rem',
+                              padding: '0.55rem 0.9rem',
+                              fontWeight: 600,
+                              fontSize: '0.85rem',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            📜 Inspect Dossier &amp; Cert
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Request Specs Grid */}
+                      <div
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+                          gap: '0.75rem',
+                          background: '#ffffff',
+                          padding: '0.85rem',
+                          borderRadius: '0.6rem',
+                          border: '1px solid #fed7aa',
+                        }}
+                      >
+                        <div>
+                          <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600 }}>
+                            MILK TYPE
+                          </div>
+                          <div style={{ fontWeight: 700, color: '#0f172a' }}>
+                            {enr.milkType || 'COW'}
+                          </div>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600 }}>
+                            EXPECTED DAILY QUANTITY
+                          </div>
+                          <div style={{ fontWeight: 700, color: '#0f172a' }}>
+                            {enr.expectedDailyQuantity || 0} Liters/day
+                          </div>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600 }}>
+                            AGREED PROCUREMENT RATE
+                          </div>
+                          <div style={{ fontWeight: 800, color: '#059669' }}>
+                            ₹{enr.agreedRatePerLiter || 42}/Liter
+                          </div>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600 }}>
+                            BASE FAT / SNF
+                          </div>
+                          <div style={{ fontWeight: 600, color: '#0f172a' }}>
+                            {enr.baseFatPercentage || 4.0}% / {enr.baseSnfPercentage || 8.5}%
+                          </div>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600 }}>
+                            SUBMITTED ON
+                          </div>
+                          <div style={{ fontSize: '0.85rem', color: '#334155' }}>
+                            {enr.createdAt ? new Date(enr.createdAt).toLocaleDateString() : 'Recent'}
+                          </div>
+                        </div>
+                      </div>
+
+                      {enr.joinRequestNotes && (
+                        <div
+                          style={{
+                            fontSize: '0.82rem',
+                            color: '#78350f',
+                            background: '#fef3c7',
+                            padding: '0.5rem 0.75rem',
+                            borderRadius: '0.4rem',
+                          }}
+                        >
+                          <strong>Notes from farmer:</strong> {enr.joinRequestNotes}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
       {/* TAB 3: MILK COLLECTION INTAKE (PER FARMER INVENTORY)                      */}
       {/* ========================================================================= */}
       {activeTab === 'intake' && (
         <div>
+          {/* ===================================================================== */}
+          {/* PHASE 2: DAILY FAST COLLECTION POS TERMINAL                           */}
+          {/* ===================================================================== */}
+          <div
+            className="card"
+            style={{
+              background: 'linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%)',
+              border: '2px solid #86efac',
+              borderRadius: '1rem',
+              padding: '1.5rem',
+              marginBottom: '1.75rem',
+              boxShadow: '0 4px 16px rgba(16, 185, 129, 0.1)',
+            }}
+          >
+            <div style={{ marginBottom: '1.25rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                <span style={{ fontSize: '1.5rem' }}>⚡</span>
+                <h2 style={{ margin: 0, fontSize: '1.35rem', color: '#064e3b', fontWeight: 800 }}>
+                  Fast Daily Milk Collection Terminal (POS Flow)
+                </h2>
+              </div>
+              <p style={{ margin: 0, fontSize: '0.88rem', color: '#047857' }}>
+                Rapid daily intake check-in: Scan farmer digital QR pass or search Farmer ID to auto-populate terms, calculate cost, and log procurement instantly.
+              </p>
+            </div>
+
+            {/* SPLIT UI: SCAN QR VS MANUAL SEARCH */}
+            {!validatedFarmer && (
+              <div>
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                    gap: '1.25rem',
+                  }}
+                >
+                  {/* LEFT: SCAN QR PASS */}
+                  <div
+                    style={{
+                      background: '#ffffff',
+                      border: '1.5px solid #cbd5e1',
+                      borderRadius: '0.75rem',
+                      padding: '1.25rem',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                    }}
+                  >
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.4rem' }}>
+                        <span style={{ fontSize: '1.4rem' }}>📷</span>
+                        <h3 style={{ margin: 0, fontSize: '1.05rem', color: '#0f172a' }}>Scan Farmer QR Pass</h3>
+                      </div>
+                      <p style={{ margin: '0 0 1rem 0', fontSize: '0.84rem', color: '#64748b' }}>
+                        Farmer shows the QR pass generated in their Farmer Portal for 1-second camera recognition.
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setShowFastScanner(true)}
+                      style={{
+                        background: '#059669',
+                        color: '#ffffff',
+                        border: 'none',
+                        borderRadius: '0.6rem',
+                        padding: '0.75rem 1.25rem',
+                        fontWeight: 700,
+                        fontSize: '0.95rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '0.5rem',
+                        boxShadow: '0 4px 10px rgba(5, 150, 105, 0.25)',
+                      }}
+                    >
+                      📷 Open Camera QR Scanner
+                    </button>
+                  </div>
+
+                  {/* RIGHT: MANUAL SEARCH */}
+                  <div
+                    style={{
+                      background: '#ffffff',
+                      border: '1.5px solid #cbd5e1',
+                      borderRadius: '0.75rem',
+                      padding: '1.25rem',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                    }}
+                  >
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.4rem' }}>
+                        <span style={{ fontSize: '1.4rem' }}>🔍</span>
+                        <h3 style={{ margin: 0, fontSize: '1.05rem', color: '#0f172a' }}>Manual Farmer ID Search</h3>
+                      </div>
+                      <p style={{ margin: '0 0 0.8rem 0', fontSize: '0.84rem', color: '#64748b' }}>
+                        Type or paste farmer ID (e.g. FM-1001 or KCC-...) to verify enrollment relationship.
+                      </p>
+                    </div>
+
+                    <div>
+                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <input
+                          type="text"
+                          placeholder="Enter Farmer ID..."
+                          value={fastSearchFarmerId}
+                          onChange={(e) => setFastSearchFarmerId(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleValidateFarmerForIntake();
+                            }
+                          }}
+                          style={{
+                            flex: 1,
+                            padding: '0.65rem 0.85rem',
+                            borderRadius: '0.5rem',
+                            border: '1.5px solid #cbd5e1',
+                            fontSize: '0.92rem',
+                          }}
+                        />
+                        <button
+                          type="button"
+                          className="primary"
+                          disabled={fastValidating || !fastSearchFarmerId.trim()}
+                          onClick={() => handleValidateFarmerForIntake()}
+                          style={{
+                            padding: '0.65rem 1.2rem',
+                            fontWeight: 700,
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {fastValidating ? 'Validating…' : '🔍 Validate'}
+                        </button>
+                      </div>
+
+                      {/* Quick chips of active enrolled farmers */}
+                      {enrollments.filter((e) => e.status === 'ACTIVE').length > 0 && (
+                        <div style={{ marginTop: '0.65rem', display: 'flex', flexWrap: 'wrap', gap: '0.35rem', alignItems: 'center' }}>
+                          <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 700 }}>Quick pick:</span>
+                          {enrollments
+                            .filter((e) => e.status === 'ACTIVE')
+                            .slice(0, 4)
+                            .map((e) => (
+                              <button
+                                key={e.id}
+                                type="button"
+                                onClick={() => {
+                                  setFastSearchFarmerId(e.farmerIdNumber);
+                                  handleValidateFarmerForIntake(e.farmerIdNumber);
+                                }}
+                                style={{
+                                  background: '#f1f5f9',
+                                  border: '1px solid #cbd5e1',
+                                  borderRadius: '0.35rem',
+                                  padding: '0.15rem 0.45rem',
+                                  fontSize: '0.74rem',
+                                  cursor: 'pointer',
+                                  fontWeight: 600,
+                                  color: '#1e293b',
+                                }}
+                              >
+                                {e.farmerName}
+                              </button>
+                            ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {fastValidationError && (
+                  <div
+                    style={{
+                      background: '#fef2f2',
+                      border: '1.5px solid #fca5a5',
+                      color: '#991b1b',
+                      padding: '0.75rem 1rem',
+                      borderRadius: '0.6rem',
+                      marginTop: '1rem',
+                      fontSize: '0.88rem',
+                      fontWeight: 600,
+                    }}
+                  >
+                    ⚠️ {fastValidationError}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* DAILY INTAKE FORM COMPONENT (MOUNTS ON SUCCESSFUL VALIDATION) */}
+            {validatedFarmer && (
+              <form
+                onSubmit={handleSubmitFastIntake}
+                style={{
+                  background: '#ffffff',
+                  border: '2px solid #10b981',
+                  borderRadius: '0.85rem',
+                  padding: '1.5rem',
+                  boxShadow: '0 8px 24px rgba(16, 185, 129, 0.12)',
+                }}
+              >
+                {/* Form Header */}
+                <div
+                  className="flex-between"
+                  style={{
+                    alignItems: 'center',
+                    borderBottom: '1.5px solid #e2e8f0',
+                    paddingBottom: '0.85rem',
+                    marginBottom: '1.25rem',
+                    flexWrap: 'wrap',
+                    gap: '0.75rem',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                    <span style={{ fontSize: '1.6rem' }}>🥛</span>
+                    <div>
+                      <h3 style={{ margin: 0, fontSize: '1.15rem', color: '#0f172a' }}>
+                        Daily Intake Form — {validatedFarmer.farmerName}
+                      </h3>
+                      <div style={{ fontSize: '0.82rem', color: '#64748b' }}>
+                        ID: <code style={{ fontWeight: 700 }}>{validatedFarmer.farmerIdNumber}</code> · Farm: <strong>{validatedFarmer.farmName || 'Verified Herd'}</strong>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <span
+                      style={{
+                        background: '#dcfce7',
+                        color: '#166534',
+                        padding: '0.25rem 0.65rem',
+                        borderRadius: '999px',
+                        fontSize: '0.75rem',
+                        fontWeight: 700,
+                      }}
+                    >
+                      ✓ ACTIVE SUPPLIER
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setValidatedFarmer(null);
+                        setFastSearchFarmerId('');
+                        setFastValidationError('');
+                      }}
+                      style={{
+                        background: '#f1f5f9',
+                        border: '1px solid #cbd5e1',
+                        borderRadius: '0.45rem',
+                        padding: '0.35rem 0.75rem',
+                        fontSize: '0.82rem',
+                        color: '#475569',
+                        cursor: 'pointer',
+                        fontWeight: 600,
+                      }}
+                    >
+                      Change Farmer
+                    </button>
+                  </div>
+                </div>
+
+                {/* Form Grid */}
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
+                    gap: '1rem',
+                    marginBottom: '1.25rem',
+                  }}
+                >
+                  {/* Read-Only: Farmer Name */}
+                  <div>
+                    <label style={{ fontSize: '0.78rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '0.3rem' }}>
+                      FARMER NAME (AUTO-POPULATED)
+                    </label>
+                    <input
+                      type="text"
+                      readOnly
+                      value={validatedFarmer.farmerName}
+                      style={{
+                        width: '100%',
+                        padding: '0.65rem 0.85rem',
+                        background: '#f8fafc',
+                        border: '1.5px solid #cbd5e1',
+                        borderRadius: '0.5rem',
+                        color: '#334155',
+                        fontWeight: 700,
+                      }}
+                    />
+                  </div>
+
+                  {/* Read-Only: Agreed Base Rate */}
+                  <div>
+                    <label style={{ fontSize: '0.78rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '0.3rem' }}>
+                      AGREED RATE (AUTO-POPULATED)
+                    </label>
+                    <input
+                      type="text"
+                      readOnly
+                      value={`₹ ${validatedFarmer.agreedRatePerLiter} / Liter`}
+                      style={{
+                        width: '100%',
+                        padding: '0.65rem 0.85rem',
+                        background: '#f8fafc',
+                        border: '1.5px solid #cbd5e1',
+                        borderRadius: '0.5rem',
+                        color: '#059669',
+                        fontWeight: 800,
+                      }}
+                    />
+                  </div>
+
+                  {/* Read-Only: Expected Quantity */}
+                  <div>
+                    <label style={{ fontSize: '0.78rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '0.3rem' }}>
+                      EXPECTED DAILY QUOTA
+                    </label>
+                    <input
+                      type="text"
+                      readOnly
+                      value={`${validatedFarmer.expectedDailyQuantity || 0} Liters / day`}
+                      style={{
+                        width: '100%',
+                        padding: '0.65rem 0.85rem',
+                        background: '#f8fafc',
+                        border: '1.5px solid #cbd5e1',
+                        borderRadius: '0.5rem',
+                        color: '#334155',
+                        fontWeight: 600,
+                      }}
+                    />
+                  </div>
+
+                  {/* Editable: Shift */}
+                  <div>
+                    <label style={{ fontSize: '0.78rem', fontWeight: 700, color: '#0f172a', display: 'block', marginBottom: '0.3rem' }}>
+                      COLLECTION SHIFT
+                    </label>
+                    <select
+                      value={fastShift}
+                      onChange={(e) => setFastShift(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '0.65rem 0.85rem',
+                        borderRadius: '0.5rem',
+                        border: '1.5px solid #10b981',
+                        fontWeight: 700,
+                        backgroundColor: '#ffffff',
+                      }}
+                    >
+                      <option value="MORNING">🌅 Morning Shift</option>
+                      <option value="EVENING">🌆 Evening Shift</option>
+                    </select>
+                  </div>
+
+                  {/* Editable: Quantity in Liters */}
+                  <div>
+                    <label style={{ fontSize: '0.78rem', fontWeight: 700, color: '#0f172a', display: 'block', marginBottom: '0.3rem' }}>
+                      DELIVERED QUANTITY (LITERS) *
+                    </label>
+                    <input
+                      type="number"
+                      step="0.5"
+                      min="1"
+                      required
+                      value={fastQuantity}
+                      onChange={(e) => setFastQuantity(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '0.65rem 0.85rem',
+                        borderRadius: '0.5rem',
+                        border: '1.5px solid #10b981',
+                        fontWeight: 800,
+                        fontSize: '1.05rem',
+                        color: '#0f172a',
+                      }}
+                    />
+                  </div>
+
+                  {/* Editable: Fat Percentage */}
+                  <div>
+                    <label style={{ fontSize: '0.78rem', fontWeight: 700, color: '#0f172a', display: 'block', marginBottom: '0.3rem' }}>
+                      FAT % (MILK QUALITY)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="1"
+                      max="15"
+                      required
+                      value={fastFat}
+                      onChange={(e) => setFastFat(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '0.65rem 0.85rem',
+                        borderRadius: '0.5rem',
+                        border: '1.5px solid #cbd5e1',
+                        fontWeight: 700,
+                      }}
+                    />
+                  </div>
+
+                  {/* Editable: SNF Percentage */}
+                  <div>
+                    <label style={{ fontSize: '0.78rem', fontWeight: 700, color: '#0f172a', display: 'block', marginBottom: '0.3rem' }}>
+                      SNF % (SOLID-NOT-FAT)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="1"
+                      max="15"
+                      required
+                      value={fastSnf}
+                      onChange={(e) => setFastSnf(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '0.65rem 0.85rem',
+                        borderRadius: '0.5rem',
+                        border: '1.5px solid #cbd5e1',
+                        fontWeight: 700,
+                      }}
+                    />
+                  </div>
+
+                  {/* Editable: Milk Type */}
+                  <div>
+                    <label style={{ fontSize: '0.78rem', fontWeight: 700, color: '#0f172a', display: 'block', marginBottom: '0.3rem' }}>
+                      MILK TYPE
+                    </label>
+                    <select
+                      value={fastMilkType}
+                      onChange={(e) => setFastMilkType(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '0.65rem 0.85rem',
+                        borderRadius: '0.5rem',
+                        border: '1.5px solid #cbd5e1',
+                        fontWeight: 600,
+                      }}
+                    >
+                      <option value="COW">Cow Milk</option>
+                      <option value="BUFFALO">Buffalo Milk</option>
+                      <option value="MIXED">Mixed Milk</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* DYNAMIC TOTAL COST & SUBMIT BAR */}
+                <div
+                  style={{
+                    background: 'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)',
+                    border: '1.5px solid #a7f3d0',
+                    borderRadius: '0.75rem',
+                    padding: '1.25rem',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    flexWrap: 'wrap',
+                    gap: '1rem',
+                  }}
+                >
+                  <div>
+                    <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#065f46', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                      PROCUREMENT TOTAL COST (REAL-TIME)
+                    </div>
+                    <div style={{ fontSize: '1.85rem', fontWeight: 800, color: '#064e3b' }}>
+                      ₹ {fastTotalCost.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </div>
+                    <div style={{ fontSize: '0.8rem', color: '#047857' }}>
+                      Calculation: {fastQuantity || 0} L × ₹{validatedFarmer.agreedRatePerLiter || 42}/L · Tank: Silo-1 (Cleared Safe)
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '0.6rem' }}>
+                    <button
+                      type="button"
+                      className="secondary"
+                      onClick={() => {
+                        setValidatedFarmer(null);
+                        setFastSearchFarmerId('');
+                      }}
+                      style={{ padding: '0.75rem 1.25rem', fontWeight: 600 }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={fastSubmitting}
+                      style={{
+                        background: '#047857',
+                        color: '#ffffff',
+                        border: 'none',
+                        borderRadius: '0.6rem',
+                        padding: '0.75rem 1.75rem',
+                        fontWeight: 800,
+                        fontSize: '1rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        boxShadow: '0 4px 12px rgba(4, 120, 87, 0.35)',
+                      }}
+                    >
+                      {fastSubmitting ? 'Logging Intake…' : '🚀 Log Intake & Next Farmer (Enter)'}
+                    </button>
+                  </div>
+                </div>
+              </form>
+            )}
+          </div>
+
           <div className="card" style={{ marginBottom: '1.5rem' }}>
             <div
               className="flex-between"
               style={{ alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem' }}
             >
               <div>
-                <h3 style={{ margin: '0 0 0.25rem 0' }}>🥛 Milk Collection Intake Terminal</h3>
+                <h3 style={{ margin: '0 0 0.25rem 0' }}>🥛 Historical Milk Collection Records</h3>
                 <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b' }}>
-                  Log per-farmer milk arrivals, fat/SNF quality scores, procurement cost, and verify
-                  AMU withdrawal clearance.
+                  Complete ledger of per-farmer milk arrivals, fat/SNF scores, procurement costs, and storage tanks.
                 </p>
               </div>
 
               <button
                 type="button"
-                className="primary"
+                className="secondary"
                 onClick={() => openIntakeModal()}
-                style={{ padding: '0.65rem 1.25rem', fontWeight: 700 }}
+                style={{ padding: '0.6rem 1.1rem', fontWeight: 600 }}
               >
-                ➕ Log New Milk Intake
+                ⚙️ Detailed Intake Modal
               </button>
             </div>
 
@@ -3475,6 +4676,15 @@ export function DairyHub({ initialTab = 'analytics' }) {
             </div>
           </div>
         </div>
+      )}
+
+      {/* FAST DAILY COLLECTION QR SCANNER MODAL */}
+      {showFastScanner && (
+        <FarmerQrScannerModal
+          activeFarmers={enrollments.filter((e) => e.status === 'ACTIVE')}
+          onClose={() => setShowFastScanner(false)}
+          onScan={(scannedVal) => handleValidateFarmerForIntake(scannedVal)}
+        />
       )}
     </div>
   );

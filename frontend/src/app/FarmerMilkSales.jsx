@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { QRCodeSVG } from 'qrcode.react';
 import { api } from './api.js';
 import { toast } from './toast.js';
 
@@ -10,6 +11,8 @@ export function FarmerMilkSales({ farm, user }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  const [dairySearchQuery, setDairySearchQuery] = useState('');
+  const [showFarmerPassModal, setShowFarmerPassModal] = useState(false);
 
   // Modals state
   const [showRequestModal, setShowRequestModal] = useState(false);
@@ -147,18 +150,16 @@ export function FarmerMilkSales({ farm, user }) {
       setError('Please select a target dairy.');
       return;
     }
-    if (!requestForm.certificateNumber) {
-      setError('Please attach an active Milk Eligibility Certificate or Daily Clearance.');
-      return;
-    }
 
     setSubmitting(true);
     setError('');
     try {
-      const res = await api('/dairy/farmer/join-request', {
+      const res = await api('/enrollments', {
         method: 'POST',
         body: JSON.stringify({
           ...requestForm,
+          expectedDailyQuantity: parseFloat(requestForm.expectedDailyQuantity) || 25,
+          agreedRatePerLiter: parseFloat(requestForm.agreedRatePerLiter) || 42.5,
           farmName: farm?.name || user?.fullName || 'My Farm',
           farmerName: user?.fullName || 'Registered Farmer',
           state: farm?.state || 'Maharashtra',
@@ -169,10 +170,10 @@ export function FarmerMilkSales({ farm, user }) {
         }),
       });
 
-      toast.success('Supply request sent to dairy successfully!');
+      toast.success('Join request sent to dairy successfully! (Status: Pending Approval)');
       setSuccessMessage(
-        res.data?.message ||
-          'Supply request sent to dairy! The dairy operator will verify your certificate and approve your request.',
+        res?.message ||
+          'Join request submitted to dairy! The dairy operator will review and approve your association.',
       );
       setShowRequestModal(false);
       await loadData();
@@ -271,6 +272,25 @@ export function FarmerMilkSales({ farm, user }) {
           </div>
 
           <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              onClick={() => setShowFarmerPassModal(true)}
+              style={{
+                background: '#fef08a',
+                color: '#713f12',
+                border: 'none',
+                fontWeight: 700,
+                fontSize: '0.95rem',
+                padding: '0.7rem 1.3rem',
+                cursor: 'pointer',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+              }}
+            >
+              🎫 My Farmer QR Pass
+            </button>
             <button
               type="button"
               className="primary"
@@ -634,6 +654,45 @@ export function FarmerMilkSales({ farm, user }) {
               Select a dairy operating in your district to apply for a daily collection agreement.
             </p>
 
+            {/* Search Bar for Dairies */}
+            <div
+              style={{
+                display: 'flex',
+                gap: '0.75rem',
+                alignItems: 'center',
+                marginBottom: '1.25rem',
+                flexWrap: 'wrap',
+              }}
+            >
+              <div style={{ position: 'relative', flex: 1, maxWidth: '420px' }}>
+                <input
+                  type="text"
+                  placeholder="🔍 Search dairy by name, area, or district..."
+                  value={dairySearchQuery}
+                  onChange={(e) => setDairySearchQuery(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '0.65rem 0.85rem',
+                    borderRadius: '0.5rem',
+                    border: '1.5px solid #cbd5e1',
+                    fontSize: '0.9rem',
+                    backgroundColor: '#ffffff',
+                    color: '#0f172a',
+                  }}
+                />
+              </div>
+              {dairySearchQuery && (
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={() => setDairySearchQuery('')}
+                  style={{ padding: '0.6rem 0.9rem', fontSize: '0.85rem' }}
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+
             <div
               style={{
                 display: 'grid',
@@ -641,7 +700,18 @@ export function FarmerMilkSales({ farm, user }) {
                 gap: '1rem',
               }}
             >
-              {dairies.map((dairy) => {
+              {dairies
+                .filter((dairy) => {
+                  if (!dairySearchQuery.trim()) return true;
+                  const q = dairySearchQuery.toLowerCase();
+                  return (
+                    dairy.dairyName?.toLowerCase().includes(q) ||
+                    dairy.district?.toLowerCase().includes(q) ||
+                    dairy.operationalArea?.toLowerCase().includes(q) ||
+                    dairy.state?.toLowerCase().includes(q)
+                  );
+                })
+                .map((dairy) => {
                 const existingReq = myRequests.find((r) => r.dairyUserId === dairy.userId);
                 return (
                   <div
@@ -1483,6 +1553,151 @@ export function FarmerMilkSales({ farm, user }) {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* FARMER DIGITAL QR PASS MODAL */}
+      {showFarmerPassModal && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.78)',
+            backdropFilter: 'blur(6px)',
+            zIndex: 99999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1.25rem',
+          }}
+          onClick={() => setShowFarmerPassModal(false)}
+        >
+          <div
+            style={{
+              background: '#ffffff',
+              borderRadius: '1.25rem',
+              padding: '2rem',
+              maxWidth: '460px',
+              width: '100%',
+              boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.4)',
+              textAlign: 'center',
+              border: '1px solid #cbd5e1',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '1.25rem',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span style={{ fontSize: '1.5rem' }}>🎫</span>
+                <h3 style={{ margin: 0, fontSize: '1.25rem', color: '#0f172a' }}>
+                  Farmer Daily QR Pass
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowFarmerPassModal(false)}
+                style={{
+                  background: '#f1f5f9',
+                  border: 'none',
+                  borderRadius: '50%',
+                  width: '32px',
+                  height: '32px',
+                  cursor: 'pointer',
+                  fontWeight: 700,
+                  color: '#475569',
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div
+              style={{
+                background: '#f8fafc',
+                border: '1.5px solid #e2e8f0',
+                borderRadius: '1rem',
+                padding: '1.5rem',
+                marginBottom: '1.25rem',
+              }}
+            >
+              <div
+                style={{
+                  background: '#ffffff',
+                  padding: '1rem',
+                  borderRadius: '0.75rem',
+                  display: 'inline-block',
+                  border: '1px solid #cbd5e1',
+                  boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)',
+                }}
+              >
+                <QRCodeSVG
+                  value={
+                    myRequests[0]?.farmerIdNumber ||
+                    `FMR-${user?.id ? user.id.slice(-6).toUpperCase() : 'PASS'}`
+                  }
+                  size={180}
+                  level="H"
+                  includeMargin={true}
+                />
+              </div>
+
+              <div style={{ marginTop: '1rem' }}>
+                <div
+                  style={{
+                    fontSize: '0.75rem',
+                    color: '#64748b',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    fontWeight: 700,
+                  }}
+                >
+                  Farmer ID Number
+                </div>
+                <code
+                  style={{
+                    fontSize: '1.35rem',
+                    fontWeight: 800,
+                    color: '#0f172a',
+                    letterSpacing: '0.05em',
+                  }}
+                >
+                  {myRequests[0]?.farmerIdNumber ||
+                    `FMR-${user?.id ? user.id.slice(-6).toUpperCase() : 'PASS'}`}
+                </code>
+              </div>
+
+              <div style={{ marginTop: '0.75rem', fontSize: '0.92rem', color: '#334155' }}>
+                <strong>{user?.fullName || 'Registered Farmer'}</strong>
+                <div>
+                  {farm?.name || 'Local Dairy Farm'} · {farm?.district || 'Kolhapur'},{' '}
+                  {farm?.state || 'Maharashtra'}
+                </div>
+              </div>
+            </div>
+
+            <p style={{ fontSize: '0.82rem', color: '#64748b', margin: '0 0 1.25rem 0' }}>
+              Present this QR Code or Farmer ID at the dairy collection counter. The operator will
+              scan or enter your ID for instant 5-second milk drop-off.
+            </p>
+
+            <button
+              type="button"
+              className="primary"
+              style={{ width: '100%', padding: '0.75rem', fontWeight: 700 }}
+              onClick={() => setShowFarmerPassModal(false)}
+            >
+              Done
+            </button>
           </div>
         </div>
       )}

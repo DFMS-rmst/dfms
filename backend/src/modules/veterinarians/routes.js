@@ -46,11 +46,151 @@ const profileInclude = {
     },
   },
 };
+import { calculateEligibility } from '../withdrawal/service.js';
 import { getVetAnalyticsController } from './analytics.js';
 
 export const veterinariansRouter = Router();
 veterinariansRouter.use(authenticate);
 veterinariansRouter.get('/analytics', getVetAnalyticsController);
+
+/**
+ * GET /api/v1/veterinarians/animals/lookup?query={tagOrId}
+ * Allows veterinarians to scan animal QR tag or enter tag/ID to inspect clinical history before treating/prescribing.
+ */
+veterinariansRouter.get(
+  '/animals/lookup',
+  asyncHandler(async (request, response) => {
+    const rawQuery =
+      request.query.query || request.query.animalId || request.query.tagNumber || '';
+    const q = String(rawQuery).trim();
+    if (!q) {
+      throw new AppError(
+        400,
+        'VALIDATION_ERROR',
+        'Animal ID, Tag Number, or QR verification link is required.',
+      );
+    }
+
+    let lookupTerm = q;
+    const urlMatch = q.match(/\/verify\/animal\/([^/?#]+)/);
+    if (urlMatch) {
+      lookupTerm = urlMatch[1];
+    }
+
+    const animal = await prisma.animal.findFirst({
+      where: {
+        OR: [
+          { verificationId: lookupTerm },
+          { tagNumber: lookupTerm },
+          { id: lookupTerm },
+          { name: lookupTerm },
+        ],
+      },
+      include: {
+        species: true,
+        breed: true,
+        farm: {
+          select: {
+            id: true,
+            name: true,
+            state: true,
+            district: true,
+            taluka: true,
+            pincode: true,
+            createdById: true,
+          },
+        },
+        diagnoses: {
+          include: {
+            disease: true,
+            veterinarian: { include: { user: { select: { fullName: true } } } },
+          },
+          orderBy: { diagnosedAt: 'desc' },
+        },
+        prescriptions: {
+          include: {
+            items: { include: { medicine: true } },
+            veterinarian: { include: { user: { select: { fullName: true } } } },
+          },
+          orderBy: { prescribedAt: 'desc' },
+        },
+        treatments: {
+          include: {
+            administrations: {
+              include: {
+                medicine: true,
+                administeredBy: { select: { fullName: true } },
+                performedBy: { select: { fullName: true } },
+              },
+              orderBy: { administeredAt: 'desc' },
+            },
+            prescription: {
+              include: {
+                items: { include: { medicine: true } },
+              },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+        },
+        certificates: {
+          orderBy: { issuedAt: 'desc' },
+        },
+        cases: {
+          include: {
+            veterinarian: { include: { user: { select: { fullName: true } } } },
+            request: true,
+          },
+          orderBy: { openedAt: 'desc' },
+        },
+        profileEvents: {
+          orderBy: { createdAt: 'desc' },
+          take: 20,
+        },
+      },
+    });
+
+    if (!animal) {
+      throw new AppError(
+        404,
+        'ANIMAL_NOT_FOUND',
+        `No animal found matching tag number or ID "${q}".`,
+      );
+    }
+
+    let eligibility = null;
+    try {
+      eligibility = await calculateEligibility(animal.id);
+    } catch {
+      // fallback if withdrawal calculation fails
+    }
+
+    response.json({
+      data: {
+        animal: {
+          id: animal.id,
+          tagNumber: animal.tagNumber,
+          name: animal.name,
+          species: animal.species?.canonicalName || 'Livestock',
+          breed: animal.breed?.name || null,
+          sex: animal.sex,
+          lactating: animal.lactating,
+          status: animal.status,
+          dateOfBirth: animal.dateOfBirth,
+          verificationId: animal.verificationId,
+          farm: animal.farm,
+        },
+        eligibility,
+        diagnoses: animal.diagnoses || [],
+        prescriptions: animal.prescriptions || [],
+        treatments: animal.treatments || [],
+        certificates: animal.certificates || [],
+        cases: animal.cases || [],
+        profileEvents: animal.profileEvents || [],
+      },
+    });
+  }),
+);
+
 veterinariansRouter.get(
   '/',
   asyncHandler(async (request, response) => {
