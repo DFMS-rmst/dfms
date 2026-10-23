@@ -1468,6 +1468,50 @@ dairyRouter.delete(
   }),
 );
 
+// Update payment status for single milk intake
+dairyRouter.put(
+  '/inventory/intakes/:id/payment',
+  asyncHandler(async (request, response) => {
+    const { id } = request.params;
+    const { paymentStatus = 'PAID' } = request.body || {};
+    await prisma.$executeRawUnsafe(
+      'UPDATE `dairy_milk_intakes` SET `paymentStatus` = ? WHERE `id` = ?',
+      paymentStatus,
+      id,
+    );
+    response.json({ data: { message: `Intake marked as ${paymentStatus}`, id, paymentStatus } });
+  }),
+);
+
+// Batch mark milk intakes as PAID
+dairyRouter.put(
+  '/inventory/intakes/batch-payout',
+  asyncHandler(async (request, response) => {
+    const { ids, farmerIdNumber, paymentStatus = 'PAID' } = request.body || {};
+    if (Array.isArray(ids) && ids.length > 0) {
+      const placeholders = ids.map(() => '?').join(',');
+      await prisma.$executeRawUnsafe(
+        `UPDATE \`dairy_milk_intakes\` SET \`paymentStatus\` = ? WHERE \`id\` IN (${placeholders})`,
+        paymentStatus,
+        ...ids,
+      );
+    } else if (farmerIdNumber) {
+      await prisma.$executeRawUnsafe(
+        'UPDATE `dairy_milk_intakes` SET `paymentStatus` = ? WHERE `farmerIdNumber` = ? AND `paymentStatus` = "PENDING"',
+        paymentStatus,
+        farmerIdNumber,
+      );
+    } else {
+      throw new AppError(
+        400,
+        'VALIDATION_ERROR',
+        'Either ids array or farmerIdNumber is required.',
+      );
+    }
+    response.json({ data: { message: `Batch payout updated to ${paymentStatus}` } });
+  }),
+);
+
 // =========================================================================
 // 5. INVENTORY MANAGEMENT: MILK SALES & OUTFLOW
 // =========================================================================
@@ -1587,6 +1631,21 @@ dairyRouter.delete(
     const { id } = request.params;
     await prisma.$executeRawUnsafe('DELETE FROM `dairy_milk_sales` WHERE `id` = ?', id);
     response.json({ data: { message: 'Sales record deleted successfully' } });
+  }),
+);
+
+// Update payment status for milk sales (receivables)
+dairyRouter.put(
+  '/inventory/sales/:id/payment',
+  asyncHandler(async (request, response) => {
+    const { id } = request.params;
+    const { paymentStatus = 'PAID' } = request.body || {};
+    await prisma.$executeRawUnsafe(
+      'UPDATE `dairy_milk_sales` SET `paymentStatus` = ? WHERE `id` = ?',
+      paymentStatus,
+      id,
+    );
+    response.json({ data: { message: `Sale marked as ${paymentStatus}`, id, paymentStatus } });
   }),
 );
 
